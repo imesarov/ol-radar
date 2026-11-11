@@ -1,0 +1,10 @@
+# testni izlaz
+tests/app/test.html
+tests/app/*.png
+*.pass
+*.sqlite
+debug.log
+server.log
+__pycache__/
+*.zip
+.DS_Store
