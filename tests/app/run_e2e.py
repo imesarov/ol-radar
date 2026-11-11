@@ -30,7 +30,7 @@ async def main():
     bad = 0
     async with async_playwright() as p:
         b = await p.chromium.launch(executable_path=CHROME, args=["--no-sandbox"])
-        for mode in ["", "?off"]:
+        for mode in ["", "?off", "?osdead"]:
             pg = await b.new_page(viewport={"width": 1360, "height": 900})
             errs = []
             pg.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
@@ -41,7 +41,7 @@ async def main():
                 await pg.evaluate("location.hash='#arhiva'"); await pg.wait_for_timeout(300)
                 await pg.click("#btn-arch-run"); await pg.wait_for_timeout(6000)
                 print("ARHIVA:", (await pg.inner_text("#arch-status"))[:200])
-            for v in ["google", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "metodologija", "pregled"]:
+            for v in ["tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "metodologija", "pregled"]:
                 await pg.evaluate(f"location.hash='#{v}'"); await pg.wait_for_timeout(350)
                 if v == "kljucne-rijeci":
                     await pg.click("#kw-form button[type=submit]"); await pg.wait_for_timeout(900)
@@ -54,8 +54,21 @@ async def main():
                 if v == "trendovi":
                     await pg.click("#btn-trends"); await pg.wait_for_timeout(1200)
             exp = await pg.evaluate("(()=>{const e=(window.__store||{})['export/radar']; return e? Object.keys(e).length : 0})()")
+            st = await pg.evaluate("""(()=>{const e=(window.__store||{})['export/radar']||{};
+              return {gsc:S.gsc.src, onpage:S.onpageSrc, rank:(S.rank.rows||[]).length, hist:S.rank.hist?S.rank.hist.runs.length:0,
+                wk:!!(weekData()&&weekData().movers), wpIssues:S.issues.filter(i=>i.evidence&&i.evidence.izvor&&/WordPress/.test(i.evidence.izvor)).length,
+                rankIssues:S.issues.filter(i=>i.area==='pozicije').map(i=>i.title), cannibal:(gscInsights()||{cannibal:[]}).cannibal.length, qp:(S.gsc.qp||[]).length, model:(compModel()||{}).list?compModel().list.length:0,
+                exp:{potpuno:e.potpuno, izvori:e.izvori, pozicije:(e.pozicije||[]).length, tjedno:!!e.tjedno, audit_web:(e.audit_web||[]).length},
+                srcs:Object.fromEntries(Object.entries(S.src).map(([k,v])=>[k,v.state+': '+v.msg]))}})()""")
             print("NAČIN", mode or "uživo", "| export polja:", exp, "| greške:", errs or "nema")
-            bad += len(errs) + (0 if exp else 1)
+            print("  stanje:", st)
+            ok = True
+            if mode in ("", "?off"):
+                ok = st["gsc"] == "OpenSEO" and st["onpage"] == "wp" and st["rank"] == 6 and st["hist"] == 2 and st["wk"] and st["wpIssues"] >= 3 and st["qp"] == 17 and st["exp"]["pozicije"] == 6 and [t for t in st["rankIssues"] if "tracker vidi" in t] == ["„stellest stakla”: tracker vidi /journal/, GSC vodi na /stellest-lece-za-djecu/"] and st["cannibal"] == 0 and st["exp"]["tjedno"] and st["exp"]["potpuno"]
+            else:
+                ok = st["gsc"] == "Supermetrics" and st["onpage"] == "gsc" and st["rank"] == 0 and st["exp"]["potpuno"]
+            if not ok: print("  PROVJERA NIJE PROŠLA")
+            bad += len(errs) + (0 if exp else 1) + (0 if ok else 1)
             await pg.close()
         await b.close()
     sys.exit(1 if bad else 0)

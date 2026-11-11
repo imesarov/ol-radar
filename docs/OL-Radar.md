@@ -1,6 +1,6 @@
 # OL Radar – kako Claude koristi alat
 
-Stanje: 11. 11. 2026., verzija v2, WordPress most v1.0.0 (instaliran i spojen), OpenSEO spojen, tracker aktivan.
+Stanje: 11. 11. 2026., verzija v3, WordPress most v1.0.0 na webu (1.0.1 čeka instalaciju), OpenSEO spojen, tracker aktivan, arhiva Ahrefsa gotova.
 
 **Aplikacija:** https://claude.ai/artifact/FwKJowHqdJUASipjeAkoBT
 **Slug za alate (db_get / db_query / db_list):** 78f5630e-c158-4ddc-b32b-b3b711130c3e
@@ -10,9 +10,14 @@ Stanje: 11. 11. 2026., verzija v2, WordPress most v1.0.0 (instaliran i spojen), 
 Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara. Prvo pročitaj `export/radar`. Ako ga nema ili je stariji od 7 dana, napomeni da treba otvoriti Radar da se osvježi. Brojke u prijedlozima uzimaj iz baze ili izravno iz izvora, ne napamet.
 
 ## Što je u bazi
-- **export/radar:** sažetak za Claudea (piše ga aplikacija pri otvaranju, najviše svakih 6 h, i odmah nakon berbe arhive). Sadrži:
+- **export/radar:** sažetak za Claudea. Aplikacija ga piše pri otvaranju: čim stigne GSC, a ostale izvore čeka najviše 2 minute (`potpuno: false` ako neki nije stigao). Potpun sažetak piše se najviše svakih 6 h. Sadrži:
+  - `izvori` (odakle je koji dio: GSC preko OpenSEO-a ili Supermetricsa, on-page iz WP mosta ili GSC-a);
   - KPI-jeve;
   - GSC 28 dana;
+  - `tjedno`: 7 dana prema prethodnih 7, upiti koji rastu, padaju i novi, promjene pozicija, promijenjene stranice, Instagram tjedna;
+  - `pozicije`: tracker s GSC prosjekom i stranicom za isti upit;
+  - `audit_web`: nalazi WP mosta po kodu;
+  - `model_konkurencije`: udio u Googleu iz arhiviranih SERP-ova;
   - 200 upita;
   - prilike (poz. 4–20);
   - kanibalizaciju;
@@ -22,21 +27,20 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara. 
   - Instagram i YouTube;
   - plan;
   - stanje Ahrefs arhive.
-
-  Stanje 11. 11.: još ne postoji, jer v2 još nije otvoren.
 - **tjedno/<datum>** i **tjedno/zadnje:** tjedni zapis zakazanog zadatka (GSC tjedan prema tjednu, Instagram, audit weba iznutra, pozicije).
 - **issues:** nalazi i njihovo stanje.
 - **fixes:** AI prijedlozi popravaka.
 - **snap:** dnevni snimci KPI-jeva (vlastita povijest).
 - **plan:** planer sadržaja.
 - **kp:** Google Keyword Planner.
-- **arch_kw, arch_hist, arch_serp, arch_comp, arch_misc:** jednokratna arhiva Ahrefsa. Stanje 11. 11.: još nije pokrenuta. Pokrenuti prije ~30. 11.
+- **arch_kw, arch_hist, arch_serp, arch_comp, arch_misc:** jednokratna arhiva Ahrefsa. Gotova 11. 11. u 15:57: 222 zadatka, 0 grešaka, 107.618 jedinica.
 - **cfg/settings:** konkurenti, trendovi, prekidač „Ahrefs isključen”, postavke arhive.
 
 ## Izvori podataka
-- **GSC:**
-  - Supermetrics (sc-domain:optikaljiljana.hr);
-  - rezerva: OpenSEO `get_search_console_performance`, besplatno, ali je spojeno URL-svojstvo `https://www.optikaljiljana.hr/`.
+- **GSC (od v3):**
+  - glavni izvor: OpenSEO `get_search_console_performance`, bez kredita; spojeno je URL-svojstvo `https://www.optikaljiljana.hr/`. Podaci završavaju oko 3 dana unatrag (pacifičko vrijeme). Odgovor je tekstualna tablica `key | clicks | impressions | CTR | position`; za query+page ključ je `upit / https://url`; stranice idu preko `startRow` („more available”).
+  - rezerva: Supermetrics (sc-domain:optikaljiljana.hr). Probno razdoblje isteklo je 8. 5. 2026., pa radi samo na dnevnoj besplatnoj kvoti (inače TRIAL_EXPIRED).
+  - zadnja rezerva: Ahrefs GSC uvid (dok traje pretplata).
 - **Potražnja i sezonalnost:** Google Keyword Planner preko Supermetricsa (Google Ads račun 2686598307).
 - **Društvene mreže:** vidIQ (Instagram owner insights uključujući zadržavanje na reelsima; YouTube).
 - **Web iznutra:** WordPress most, vidi dolje.
@@ -92,7 +96,9 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara. 
 - **Rezultati:** čitaj ih s `get_rank_tracker` i `get_rank_history`; to ne troši kredite.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
-## WordPress most (dodatak „OL Radar – most za Claudea”, v1.0.0, samo čitanje)
+## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
+- **Verzija:** na webu 1.0.0. Verzija 1.0.1 čeka da je Ivan učita: prazni sadržaj `<script>` i `<style>` prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala). Nakon nadogradnje sve stranice same idu na ponovnu obradu; ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
+- **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.
 - **Konektor u claude.ai:** „Optika Ljiljana web”, URL `https://www.optikaljiljana.hr/wp-json/mcp/mcp-oauth-server`.
   - OAuth je WP Rocketov.
   - Prijavljen je korisnik `claude-radar` (ID 4, uloga `ol_radar_reader`). Provjereno 11. 11.: WP Rocket i Rank Math sposobnosti mu odbijaju pristup („Permission denied”).
@@ -125,8 +131,32 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara. 
 3. Promjenu na webu radi tek nakon izričitog odobrenja. Zapiši je i označi nalaz kao riješen.
 4. Nakon 2–4 tjedna provjeri učinak u GSC-u.
 
+## Radar v3 (11. 11. 2026.)
+- **Moduli:**
+  - 01 Pregled;
+  - 02 Tjedno (novo);
+  - 03 Google;
+  - 04 Pozicije (novo, tracker + GSC za isti upit; „krivi URL” se uspoređuje sa stranicom iz zadnjih 7 dana);
+  - 05–08 Ključne riječi, Planer, Konkurencija (novi panel „Udio u Googleu: vlastiti model”), Trendovi;
+  - 09 Audit weba (WP most + on-page + Ahrefs Site Audit);
+  - 10–13 Društvene mreže, Popravci i AI, Arhiva, Kako radi.
+- **Kanibalizacija u Radaru** broji samo stranice koje i u zadnjih 7 dana imaju prikazivanja za taj upit. Zato se stara adresa nakon 301 ne prijavljuje kao kanibalizacija.
+- **Model konkurencije:** za svaki arhivirani SERP (HR) uzima volumen iz arhive, pa za svaku domenu u organskom top 10 računa volumen × CTR za tu poziciju. CTR je naša GSC krivulja kad pozicija ima barem 60 prikazivanja, inače opća krivulja. Panel pokazuje i provjeru: model za naš web prema stvarnim GSC klikovima za iste riječi.
+- **Chat alati u Radaru:** pregled, gsc_upiti, nalazi, pozicije, tjedno, onpage, planer, audit_web, arhiva_kljucne, keyword_planner, instagram, ahrefs_*.
+
+## Odluke i nalazi
+- **Kanibalizacija progresivnih stranica (11. 11. 2026.):**
+  - Cjenovni upiti: riješeno 301 preusmjeravanjem s `/koliko-kostaju-progresivne-naocale/` na `/progresivne-naocalne-lece/` (oko 3.–4. 11.).
+    - 14.–31. 10.: „progresivne naočale cijena” bio je podijeljen na 6,1 (cjenovna) i 9,4 (stara adresa); „cijena progresivnih naočala” na 5,3 i 7,9.
+    - 4.–8. 11.: sve ide na cjenovnu stranicu (2,8; 3,0; leće 3,6; stakla 3,9).
+    - Prikazi: 15–40 dnevno prije, 100–130 dnevno poslije. Klikovi: 0–2 dnevno prije, 4–6 dnevno poslije.
+  - „progresivne naočale iskustva” u GSC-u već ide na `/progresivne-naocale-iskustva/` (pozicija 2,7–2,9).
+  - „stellest stakla” u GSC-u ide na `/stellest-lece-za-djecu/` (pozicija 3,5); `/journal/` u trackeru bio je jednokratan.
+  - Otvoreno, čeka Ivanov OK:
+    - 4–6 kontekstualnih internih linkova na cjenovnu stranicu (ima ih 6, a vodeći članak oko 19);
+    - pratiti „najpovoljnije” (8,1);
+    - naslov dirati tek ako treba, nakon 2–3 tjedna.
+
 ## U pripremi
-- **Radar v3:**
-  - prikaz WP audita i tjednih zapisa;
-  - pozicije iz trackera;
-  - procjena prometa konkurenata (volumen iz Keyword Plannera × naša CTR krivulja).
+- Mjesečni snimak SERP-ova za konkurente preko OpenSEO-a (oko 135 kredita), uz Ivanov OK.
+- Faza 2 WP mosta: upis Rank Math naslova i opisa s dnevnikom i vraćanjem.

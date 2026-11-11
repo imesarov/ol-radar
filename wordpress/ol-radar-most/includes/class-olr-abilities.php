@@ -301,7 +301,7 @@ class OLR_Abilities {
 				$d  = $row->data;
 				$cr = array(
 					'status'      => (int) $row->status,
-					'dohvaceno'   => $row->fetched_at . ' UTC',
+					'dohvaceno'   => OLR_Crawler::fetched_label( $row->fetched_at ),
 					'naslov_html' => isset( $d['naslov'] ) ? $d['naslov'] : null,
 					'opis_html'   => isset( $d['opis'] ) ? $d['opis'] : null,
 					'h1'          => isset( $d['h1'] ) ? $d['h1'] : array(),
@@ -421,7 +421,7 @@ class OLR_Abilities {
 			'u_popisu_objava' => $in_inventory,
 			'status'     => (int) $row->status,
 			'vrijeme_ms' => (int) $row->ms,
-			'dohvaceno'  => $row->fetched_at . ' UTC',
+			'dohvaceno'  => OLR_Crawler::fetched_label( $row->fetched_at ),
 			'html'       => $d,
 			'rank_math'  => OLR_Audit::rank_math( $pid ),
 			'ulazni_linkovi' => $in,

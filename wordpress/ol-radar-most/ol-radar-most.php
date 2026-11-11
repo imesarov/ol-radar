@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       Daje Claudeu (OL Radar) pristup webu samo za čitanje: popis sadržaja, Rank Math podaci, on-site audit iznutra i interni linkovi. Ne mijenja sadržaj weba.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '1.0.0' );
+define( 'OLR_VERSION', '1.0.1' );
+define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
 define( 'OLR_DIR', plugin_dir_path( __FILE__ ) );
@@ -66,6 +67,11 @@ add_action(
 	static function () {
 		if ( get_option( 'olr_db_version' ) !== OLR_DB_VERSION ) {
 			OLR_Crawler::install_table();
+		}
+		// Novi parser: postojeće stranice idu na ponovnu obradu (cron ih obrađuje u serijama).
+		if ( get_option( 'olr_parser_version' ) !== OLR_PARSER_VERSION ) {
+			OLR_Crawler::requeue_all();
+			update_option( 'olr_parser_version', OLR_PARSER_VERSION, false );
 		}
 	}
 );

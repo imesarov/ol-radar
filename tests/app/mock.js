@@ -1,5 +1,7 @@
 (function(){
-const J = o => ({content:[{type:"text",text:JSON.stringify(o)},{type:"text",text:JSON.stringify({apiUsageCosts:{"units-cost-total-actual":50}})}], payload:o});
+const J = o => typeof o === "string" ? ({content:[{type:"text",text:o}], payload:o}) : ({content:[{type:"text",text:JSON.stringify(o)},{type:"text",text:JSON.stringify({apiUsageCosts:{"units-cost-total-actual":50}})}], payload:o});
+const isoL = d => new Date(d.getTime() - d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const MODE = location.search;
 const days=[]; const base=new Date(); for(let i=90;i>=1;i--){const d=new Date(base); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10));}
 const daily = "["+days.length+"]{Date,clicks,impressions,ctr,position}:\n"+days.map((d,i)=>`  ${d},${8+Math.round(Math.sin(i/5)*4+i/8)},${380+i*5+Math.round(Math.cos(i/3)*60)},0.025,${(8.5-i/60).toFixed(2)}`).join("\n");
 const qp = `[16]{query,page,clicks,impressions,ctr,position}:
@@ -50,7 +52,62 @@ const audit = [
  {issue_id:"a5",name:"External 4XX",importance:"Notice",category:"External pages",crawled:41,change:0},
  {issue_id:"a6",name:"404 page",importance:"Error",category:"Internal pages",crawled:0,change:0}];
 const refd=[{domain:"waze.com",domain_rating:92,dofollow_links:0,links_to_target:1,first_seen:"2025-02-11T14:01:27Z",is_spam:false},{domain:"factmags.com",domain_rating:74,dofollow_links:0,links_to_target:1,first_seen:"2026-05-07T21:47:15Z",is_spam:true},{domain:"hotfri.com",domain_rating:61,dofollow_links:1,links_to_target:1,first_seen:"2026-09-15T03:00:47Z",is_spam:true}];
+/* OpenSEO: tekstualne tablice kao pravi alat */
+const rowsOf = t => t.split("\n").slice(1).map(l => l.trim()).filter(Boolean).map(l => l.split(","));
+const QP = rowsOf(qp).map(c => ({q:c[0], page:c[1], c:+c[2], i:+c[3], pos:+c[5]})).concat([{q:"stellest stakla", page:"https://www.optikaljiljana.hr/stellest-lece-za-djecu/", c:1, i:29, pos:3.5}]);
+const PG = rowsOf(pages).map(c => ({page:c[0], c:+c[1], i:+c[2], pos:+c[3]})), PGP = rowsOf(pagesPrev).map(c => ({page:c[0], c:+c[1], i:+c[2], pos:+c[3]}));
+function osText(dims, rows, range, startRow){
+  const per = dims.join(",") === "query,page" ? 6 : 1000, slice = rows.slice(startRow, startRow + per), more = startRow + per < rows.length;
+  return "https://www.optikaljiljana.hr/ · " + dims.join("+") + " · " + range + " · " + slice.length + " rows" + (more ? " (more available — call again with startRow=" + (startRow + per) + ")" : "") +
+    "\nkey | clicks | impressions | CTR | position\n" + slice.map(r => `${r.key} | ${r.c} | ${r.i} | ${r.i ? (r.c / r.i * 100).toFixed(1) : "0.0"}% | ${r.pos}`).join("\n") + "resultId: 1b21ee6e (optional: pass it to show_search_console_performance for an interactive view; valid for one hour)";
+}
+function osGsc(input){
+  const d = input.dimensions.join(","), range = input.startDate + "→" + input.endDate, sr = input.startRow || 0;
+  const end3 = isoL(new Date(Date.now() - 3*864e5));
+  const prevWin = input.endDate !== end3;
+  if (d === "date") { const rows = []; for (let i = 0; i < 90; i++) { const dd = new Date(input.endDate + "T12:00:00"); dd.setDate(dd.getDate() - i); const k = isoL(dd); if (k < input.startDate) break; rows.unshift({key:k, c: 8 + (i % 7), i: 380 + i * 4 + (i % 5) * 20, pos: (6 + (i % 9) / 10).toFixed(1)}); } return osText(["date"], rows, range, sr); }
+  if (d === "query,page") { const rows = QP.map(x => ({key: x.q + " / " + x.page, c:x.c, i:x.i, pos:x.pos}));
+    /* zadnjih 7 dana: stara cjenovna adresa (301) više nema prikazivanja */
+    if (input.startDate > isoL(new Date(Date.now() - 12*864e5))) return osText(["query","page"], rows.filter(r => !/koliko-kostaju/.test(r.key)), range, sr);
+    return osText(["query","page"], rows, range, sr); }
+  if (d === "page") return osText(["page"], (prevWin ? PGP : PG).map(x => ({key:x.page, c:x.c, i:x.i, pos:x.pos})), range, sr);
+  if (d === "query") { const m = new Map(); QP.forEach(x => { const o = m.get(x.q) || {key:x.q, c:0, i:0, pos:x.pos}; o.c += x.c; o.i += x.i; m.set(x.q, o); }); let rows = [...m.values()].map(o => ({...o, i: Math.round(o.i / 4), c: Math.round(o.c / 4)}));
+    if (prevWin) rows = rows.filter(o => !/noćnu vožnju/.test(o.key)).map((o, k) => ({...o, i: k % 2 ? o.i + 9 : Math.max(0, o.i - 12)})); return osText(["query"], rows, range, sr); }
+  return osText(input.dimensions, [], range, 0);
+}
+const RK = [["k1","besplatan pregled vida","8","8","https://www.optikaljiljana.hr/besplatan-pregled-vida-sesvete/"],["k2","cijena progresivnih naočala","1","4","https://www.optikaljiljana.hr/progresivne-naocalne-lece/"],["k3","progresivne naočale cijena","7","3","https://www.optikaljiljana.hr/progresivne-naocalne-lece/"],["k4","optika","—","35",""],["k5","stellest stakla","6","6","https://www.optikaljiljana.hr/journal/"],["k6","optika sesvete","2","2","https://www.optikaljiljana.hr/"]];
+function osRank(input){
+  if (!input.trackerId) return "Rank trackers (1):\ndomain | location | lang | devices | depth | schedule | last checked | skip reason | trackerId\noptikaljiljana.hr | 2191 · Zagreb,City of Zagreb,Croatia | hr | mobile | 40 | weekly | 2026-11-11T15:28:25.368Z | — | 7d777ee3-4d5d-4297-9d4a-24c00fa6c248";
+  return "Tracker " + input.trackerId + " (optikaljiljana.hr):\nKeyword page: offset=0, limit=200, " + RK.length + " of " + RK.length + " rows.\nSchedule: weekly, devices: mobile, depth: 40, location: 2191 · Zagreb,City of Zagreb,Croatia, lang: hr\nLatest run: 2026-11-11T15:28:25.368Z\nKeywords (" + RK.length + "):\ntrackingKeywordId | keyword | desktop | prev (desktop) | mobile | prev (mobile) | pinned | ranking url | google serp\n" + RK.map(r => `${r[0]} | ${r[1]} | — | — | ${r[2]} | ${r[3]} | no | ${r[4] || "—"} | https://www.google.com/search?q=x`).join("\n");
+}
+function osHist(){ return "Rank history for tracker x (optikaljiljana.hr), mobile, latest 2 completed check(s), newest first.\nKeyword page: offset=0, limit=200, 6 of 6 rows.\nCells: position; — = not found in the results; not checked = the check got no result; blank = not tracked yet.\ntrackingKeywordId | keyword | 2026-11-11 14:37 | 2026-11-04 14:30\n" + RK.map(r => `${r[0]} | ${r[1]} | ${r[2]} | ${r[0] === "k6" ? "" : r[3]}`).join("\n").replace(/k6 \| optika sesvete \| 2 \| $/m, "k6 | optika sesvete | 2 | "); }
+const WP_LIST = {ukupno:4,stranica:1,stranica_ukupno:1,stavke:[
+ {id:1393,vrsta:"page",url:"https://www.optikaljiljana.hr/",naslov:"Naslovnica",promijenjeno:isoL(new Date())+" 10:00:00",rank_math:{naslov:"Optika Sesvete",opis:"Optika Ljiljana, Zagrebačka 1, Sesvete.",fokus:"optika sesvete",dodatne:[],robots:["index"],canonical:"",pillar:false},crawl:{status:200,dohvaceno:"2026-11-11 16:25:07 UTC",naslov_html:"Optika Sesvete — WAM 800 provjera vida | Optika Ljiljana",opis_html:"Optika Ljiljana, Zagrebačka 1, Sesvete: optometrijska provjera vida od 60 minuta, progresivne leće Varilux, Ray-Ban i Furla. Besplatan parking.",h1:["Optika u Sesvetama"],rijeci:1900,robots:"follow, index"}},
+ {id:1109,vrsta:"page",url:"https://www.optikaljiljana.hr/progresivne-naocalne-lece/",naslov:"Cijena",promijenjeno:"2026-10-01 09:00:00",rank_math:{naslov:"Cijena progresivnih naočala i stakala: 500–1200 € za par",opis:"Kratko.",fokus:"cijena progresivnih naočala",dodatne:["progresivne naočale cijena"],robots:["index"],canonical:"",pillar:false},crawl:{status:200,naslov_html:"Cijena progresivnih naočala i stakala: 500–1200 € za par",opis_html:"Kratko.",h1:["Cijena progresivnih naočala i leća"],rijeci:3102,robots:"follow, index"}},
+ {id:4568,vrsta:"page",url:"https://www.optikaljiljana.hr/hvala-na-rezervaciji/",naslov:"Hvala",promijenjeno:"2026-09-01 09:00:00",rank_math:{naslov:"Hvala",opis:"",fokus:"",dodatne:[],robots:["noindex"],canonical:"",pillar:false},crawl:{status:200,naslov_html:"Hvala",opis_html:"",h1:["Hvala"],rijeci:40,robots:"noindex, follow"}},
+ {id:5584,vrsta:"page",url:"https://www.optikaljiljana.hr/moj-termin/",naslov:"Moj termin",promijenjeno:"2026-09-01 09:00:00",rank_math:{naslov:"Moj termin",opis:"",fokus:"",dodatne:[],robots:["index"],canonical:"",pillar:false},crawl:null}]};
+const WP_AUDIT = {stanje_crawla:{stranica_u_popisu:42,dohvaceno:42,zastarjelo:0,zadnja_serija:"2026-11-11T21:26:08+00:00",zadnji_potpuni:"2026-11-11T21:26:08+00:00",zadnje_greske:[]},ukupno_nalaza:5,po_kodu:{bez_opisa:1,bez_ulaznih_linkova:2,noindex:1,naslov_prekratak:1},skraceno:false,nalazi:[
+ {kod:"bez_opisa",ozbiljnost:"srednja",opis:"Nema meta opisa.",url:"https://www.optikaljiljana.hr/moj-termin/",post_id:5584,detalj:null},
+ {kod:"bez_ulaznih_linkova",ozbiljnost:"srednja",opis:"Nijedna druga stranica ne linka ovamo iz sadržaja dofollow linkom.",url:"https://www.optikaljiljana.hr/hvala-na-rezervaciji/",post_id:4568,detalj:{iz_navigacije:0}},
+ {kod:"bez_ulaznih_linkova",ozbiljnost:"srednja",opis:"Nijedna druga stranica ne linka ovamo iz sadržaja dofollow linkom.",url:"https://www.optikaljiljana.hr/moj-termin/",post_id:5584,detalj:{iz_navigacije:0}},
+ {kod:"noindex",ozbiljnost:"srednja",opis:"Stranica ima noindex.",url:"https://www.optikaljiljana.hr/hvala-na-rezervaciji/",post_id:4568,detalj:null},
+ {kod:"naslov_prekratak",ozbiljnost:"niska",opis:"SEO naslov je kraći od 30 znakova.",url:"https://www.optikaljiljana.hr/moj-termin/",post_id:5584,detalj:null}]};
+let wpCalls = 0;
 function handle(server, tool, input){
+  if(server==="OpenSEO"){
+    if(MODE.includes("osdead")) throw {code:"server_unavailable",message:"mock: OpenSEO ne odgovara",retryable:false};
+    if(input.projectId!=="e456f622-c40c-4085-b08d-d51a6f22349e") throw {code:"tool_error",message:"mock: krivi projekt"};
+    if(tool==="get_search_console_performance") return osGsc(input);
+    if(tool==="get_rank_tracker") return osRank(input);
+    if(tool==="get_rank_history") return osHist(input);
+  }
+  if(server==="Optika Ljiljana web" && tool==="mcp-adapter-execute-ability"){
+    if(MODE.includes("osdead")) throw {code:"server_not_connected",message:"mock: nije povezan"};
+    if(!/^ol-radar\//.test(input.ability_name)) throw {code:"tool_error",message:"mock: zabranjena sposobnost"};
+    if(++wpCalls === 1) throw {code:"tool_error",message:"Error POSTing to endpoint: MCP server returned 403 Forbidden."};
+    if(input.ability_name==="ol-radar/popis-sadrzaja") return {success:true,data:WP_LIST};
+    if(input.ability_name==="ol-radar/audit") return {success:true,data:WP_AUDIT};
+  }
   if(server==="Ahrefs"){
     switch(tool){
       case "subscription-info-limits-and-usage": return {limits_and_usage:{units_limit_workspace:200000,units_usage_workspace:26000,usage_reset_date:"2026-11-30T00:00:00Z"}};

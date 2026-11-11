@@ -19,10 +19,11 @@ Vlastiti SEO i društveni radar Optike Ljiljana (optikaljiljana.hr). Mali, ali d
 
 | Područje | Izvor |
 |---|---|
-| Naš web (klikovi, pozicije, CTR) | Google Search Console preko Supermetricsa. Rezerva: OpenSEO, bez kredita |
+| Naš web (klikovi, pozicije, CTR) | Google Search Console preko OpenSEO-a, bez kredita. Rezerva: Supermetrics (dnevna kvota), zatim Ahrefs GSC uvid |
 | Potražnja i sezonalnost | Google Keyword Planner preko Supermetricsa |
 | Web iznutra (audit, linkovi, Rank Math) | WordPress dodatak preko MCP-a (OAuth WP Rocketa) |
-| Pozicije i konkurenti | OpenSEO (DataForSEO): tjedni tracker, 27 riječi, Zagreb, mobitel |
+| Pozicije | OpenSEO (DataForSEO): tjedni tracker, 27 riječi, Zagreb, mobitel |
+| Promet konkurenata | Vlastiti model: arhivirani SERP-ovi × volumen × naša GSC krivulja CTR-a |
 | Društvene mreže | vidIQ (Instagram, YouTube) |
 | Povijest konkurenata | Jednokratna arhiva Ahrefsa (do kraja studenog 2026.) |
 | Pohrana | Baza artefakta (`claude.use("db")`) |

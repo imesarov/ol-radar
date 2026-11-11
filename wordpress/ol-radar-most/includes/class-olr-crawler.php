@@ -284,6 +284,25 @@ class OLR_Crawler {
 		return $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
+	/** Oznaka za ponovnu obradu nakon promjene parsera (podaci ostaju dok se stranica ne obradi). */
+	const REQUEUE_AT = '2000-01-01 00:00:00';
+
+	/** Sve obrađene stranice vraća u red za ponovnu obradu (npr. nakon popravka parsera). */
+	public static function requeue_all() {
+		global $wpdb;
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		return $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET fetched_at = %s WHERE kind = 'page' AND fetched_at IS NOT NULL", self::REQUEUE_AT ) );
+	}
+
+	/** Vrijeme obrade za prikaz; stranica vraćena u red nema stvarno vrijeme. */
+	public static function fetched_label( $fetched_at ) {
+		if ( null === $fetched_at ) {
+			return null;
+		}
+		return $fetched_at <= self::REQUEUE_AT ? 'čeka ponovnu obradu' : $fetched_at . ' UTC';
+	}
+
 	public static function count_stale() {
 		global $wpdb;
 		$table = self::table();
@@ -465,6 +484,24 @@ class OLR_Crawler {
 			$out['greska'] = 'PHP DOM ekstenzija nije dostupna.';
 			return $out;
 		}
+		// libxml (HTML4 parser) završava <script> već na prvom "</" + slovo, pa HTML iz JS predložaka
+		// postaje lažni sadržaj (npr. linkovi). Zato se sadržaj <script>/<style> prazni prije parsiranja
+		// (oznake i atributi ostaju zbog provjere miješanog sadržaja), a JSON-LD se izdvaja ranije.
+		$ld      = array();
+		$cleaned = preg_replace_callback(
+			'#<(script|style)\b([^>]*)>(.*?)</\1\s*>#is',
+			static function ( $m ) use ( &$ld ) {
+				if ( 'script' === strtolower( $m[1] ) && preg_match( '#\btype\s*=\s*["\']?application/ld\+json#i', $m[2] ) ) {
+					$ld[] = $m[3];
+				}
+				return '<' . $m[1] . $m[2] . '></' . $m[1] . '>';
+			},
+			$html
+		);
+		$ld_ok = null !== $cleaned;
+		if ( $ld_ok ) {
+			$html = $cleaned;
+		}
 		$prev = libxml_use_internal_errors( true );
 		$dom  = new DOMDocument();
 		$dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR | LIBXML_NONET | LIBXML_COMPACT );
@@ -628,8 +665,13 @@ class OLR_Crawler {
 
 		// Schema (JSON-LD tipovi).
 		$types = array();
-		foreach ( $xp->query( '//script[@type="application/ld+json"]' ) as $s ) {
-			$json = json_decode( trim( $s->textContent ), true );
+		if ( ! $ld_ok ) {
+			foreach ( $xp->query( '//script[@type="application/ld+json"]' ) as $s ) {
+				$ld[] = $s->textContent;
+			}
+		}
+		foreach ( $ld as $raw ) {
+			$json = json_decode( trim( $raw ), true );
 			if ( is_array( $json ) ) {
 				self::collect_types( $json, $types );
 			}

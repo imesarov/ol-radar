@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v1.0.0)
+# OL Radar – most za Claudea (v1.0.1)
 
 WordPress dodatak koji Claudeu daje pristup webu optikaljiljana.hr **samo za čitanje**. To je izvor podataka za OL Radar: Radar vidi web iznutra, točno kako ga vide posjetitelji i Google.
 
@@ -44,7 +44,7 @@ Crawl radi iznutra:
 
 ## Instalacija
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-1.0.0.zip` pa **Aktiviraj**.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-1.0.1.zip` pa **Aktiviraj**.
 3. **Korisnici → Dodaj novog**:
    - korisničko ime `claude-radar`;
    - uloga **OL Radar – samo čitanje**;
