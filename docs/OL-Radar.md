@@ -4,13 +4,14 @@ Stanje 12. 11. 2026.:
 - Radar na claude.ai: v3.1.
 - WordPress dodatak (Radar na hostingu): na webu je 2.1.0 (provjereno 12. 11. u 20:15). Spremljena su sva tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
 - Google podaci na hostingu stižu (do 9. 11.; 28 dana: 370 klikova, 13.607 prikazivanja). Zastoj od 12. 11. u 16:26 (`cURL error 28`) bio je prolazan.
-- **Verzija 2.2.0 je spremna i čeka da je Ivan učita** (može izravno s 2.1.0; 2.1.1 nije učitana na web, a 2.2.0 sadrži sve iz nje):
+- **Verzija 2.2.1 je spremna i čeka da je Ivan učita** (može izravno s 2.1.0; 2.1.1 i 2.2.0 nisu učitane na web, a 2.2.1 sadrži sve iz njih):
+  - popravak iz 2.2.1: gumbi „Predloži popravak” / „Novi prijedlog” i „Brief” više ne javljaju „Claude je odgovorio u krivom obliku” (odgovor stiže kao poziv alata, predug odgovor ide ponovno sažetije);
   - popravci iz 2.1.1: Claudeov tekst prijedloga (jedan kratak poziv po prijedlogu, ponovni pokušaj svaki sat), gumb „Izmjeri pozicije sada” u ploči uz potvrdu troška, čišća analiza;
   - **učinak provedenih izmjena:** Search Console prije i poslije za svaki prijedlog označen „provedeno”;
   - **indeksiranost stranica:** tjedna provjera preko URL Inspection API-ja;
   - **AI pregled** (AI Overview) u mjerenju pozicija;
   - **kretanje konkurenata** iz naših mjerenja.
-- Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.2.0, sva tri ključa, `nadogradnja` `null`, `stanje.izvori.indeks` (prva serija provjera ide u roku od sat vremena; ako servisni račun nema pravo na URL Inspection, tu piše jasna poruka).
+- Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.2.1, `stanje.izvori.ai_poziv` (zadnji poziv Claudea: model, je li odgovor prekinut, broj tokena), sva tri ključa, `nadogradnja` `null`, `stanje.izvori.indeks` (prva serija provjera ide u roku od sat vremena; ako servisni račun nema pravo na URL Inspection, tu piše jasna poruka).
 - Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
 - DataForSEO račun je otvoren (12. 11.). Prvo mjerenje pozicija (oko 0,065 $) još nije pokrenuto. Od 2.1.1 Ivan ga pokreće sam gumbom u modulu Pozicije; Claude ga ne pokreće. Nije još potvrđeno da prijava prolazi: nakon nadogradnje pogledaj `izvori.provjera_dfs` u `ol-radar/radar-stanje`. AI pregled i kretanje konkurenata imaju podatke tek nakon prvog mjerenja (kretanje nakon drugog), pa vrijedi uključiti tjedno mjerenje.
 - **Greška u 2.0.0:** gumb „obriši” bio je ugniježđeni obrazac, pa su „Spremi” i provjere brisali već spremljeni ključ (popravljeno u 2.0.1).
@@ -171,7 +172,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 2.1.0. Verzija 2.2.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+- **Verzija:** na webu 2.1.0. Verzija 2.2.1 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
   - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
   - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.

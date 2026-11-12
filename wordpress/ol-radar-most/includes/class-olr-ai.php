@@ -153,6 +153,7 @@ class OLR_AI {
 			)
 		);
 		if ( is_wp_error( $res ) ) {
+			OLR_Settings::set_status( 'ai_poziv', false, 'veza: ' . $res->get_error_message() );
 			return new WP_Error( 'olr_ai_mreza', 'Claude API: ' . $res->get_error_message(), array( 'status' => 502 ) );
 		}
 		$code = wp_remote_retrieve_response_code( $res );
@@ -168,9 +169,25 @@ class OLR_AI {
 			} elseif ( false !== stripos( $msg, 'credit balance' ) ) {
 				$msg = 'API krediti su potrošeni. Mjesečni krediti Ultra plana dolaze s novim obračunskim razdobljem; dotad se mogu kupiti u Claude Consoleu.';
 			}
+			OLR_Settings::set_status( 'ai_poziv', false, 'HTTP ' . $code . ': ' . $msg );
+			if ( 400 === $code && false === strpos( $msg, 'krediti su potrošeni' ) ) {
+				// Anthropic je odbio sam zahtjev (npr. model ne podržava prisilni poziv alata): pozivatelj može pokušati drukčije.
+				return new WP_Error( 'olr_ai_zahtjev', 'Claude API je odbio zahtjev: ' . $msg, array( 'status' => 400 ) );
+			}
 			return new WP_Error( 'olr_ai_api', $msg, array( 'status' => 429 === $code ? 429 : 502 ) );
 		}
-		self::bump_usage( isset( $out['usage']['input_tokens'] ) ? $out['usage']['input_tokens'] : 0, isset( $out['usage']['output_tokens'] ) ? $out['usage']['output_tokens'] : 0 );
+		$tin  = isset( $out['usage']['input_tokens'] ) ? (int) $out['usage']['input_tokens'] : 0;
+		$tout = isset( $out['usage']['output_tokens'] ) ? (int) $out['usage']['output_tokens'] : 0;
+		self::bump_usage( $tin, $tout );
+		// Zadnji poziv (bez sadržaja): model, kako je odgovor završio i koliko je bio dug. Pomaže u dijagnostici
+		// kad ploča javi da je odgovor prekinut ili u krivom obliku.
+		$stop = isset( $out['stop_reason'] ) ? (string) $out['stop_reason'] : '';
+		OLR_Settings::set_status(
+			'ai_poziv',
+			'max_tokens' !== $stop,
+			( isset( $out['model'] ) ? $out['model'] : '?' ) . ' · ' . ( 'max_tokens' === $stop ? 'odgovor prekinut zbog duljine' : ( 'tool_use' === $stop ? 'odgovor alatom' : 'odgovor završen' ) ) . ' · ulaz ' . $tin . ', izlaz ' . $tout . ' tokena',
+			array( 'stop' => $stop )
+		);
 		return array(
 			'content'     => isset( $out['content'] ) ? $out['content'] : array(),
 			'stop_reason' => isset( $out['stop_reason'] ) ? $out['stop_reason'] : null,

@@ -420,6 +420,7 @@ class OLR_Radar_Admin {
 					'provjera_gsc' => 'Zadnja provjera Google veze',
 					'provjera_dfs' => 'Zadnja provjera DataForSEO prijave',
 					'provjera_ai'  => 'Zadnja provjera Claude ključa',
+					'ai_poziv'     => 'Zadnji poziv Claudea',
 				);
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;

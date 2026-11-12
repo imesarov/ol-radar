@@ -1,5 +1,13 @@
 # Promjene
 
+## 2026-11-12 (kasno u noć)
+- **Dodatak 2.2.1.** Ivan je javio da gumb „Novi prijedlog” u modulu Popravci i AI već dvije verzije javlja „Claude je odgovorio u krivom obliku”.
+  - **Uzrok:** `sample.json` u `app/hosted-shim.js` tražio je JSON u običnom tekstu odgovora i vadio ga jednim regularnim izrazom. Odgovor prekinut zbog duljine (`max_tokens`) ili tekst oko JSON-a rušili su parsiranje. Test to nije hvatao jer je lažni odgovor uvijek bio čist JSON, a gumb nije imao e2e provjeru.
+  - **Popravak:** odgovor se traži prisilnim pozivom alata `odgovor` sa shemom (`FIX_SCHEMA`, `BRIEF_SCHEMA`). Prekinut ili prazan odgovor ide još jednom, uz uputu da bude sažet. Ako API odbije poziv alata (server tada vraća novu oznaku `olr_ai_zahtjev`, HTTP 400), radi rezervni način s JSON-om u tekstu i parserom koji podnosi ogradu koda i tekst oko objekta.
+  - **Poruke:** ploča razlikuje prekinut odgovor od krivog oblika i prikazuje poruku servera (potrošeni krediti, dnevni limit).
+  - **Dijagnostika:** `OLR_AI::call()` zapisuje zadnji poziv u stanje izvora (`ai_poziv`: model, završetak, tokeni), vidljivo u Postavkama i u `ol-radar/radar-stanje`.
+  - Testovi: e2e sada klikne „Predloži popravak” i provjerava četiri teža slučaja (prekinut, odbijen alat, dvaput prekinut, potrošeni krediti).
+
 ## 2026-11-12 (noć)
 - **Dodatak 2.2.0** (četiri dodatka koja je Ivan odabrao iz plana razvoja).
   - **Učinak provedenih izmjena** (`OLR_Ucinak`, zbirka `ucinak`). Za prijedlog u stanju „provedeno” koji se odnosi na jednu stranicu dohvaća dnevne podatke Search Consolea za tu stranicu (filtar `includingRegex`, pa adresa s parametrima i bez završne kose crte ulazi u isto) i za glavni upit, samo konačne (`dataState: final`). Uspoređuje jednak broj dana prije i poslije dana provedbe za 7, 14 i 28 dana i uz to promjenu klikova cijelog weba. Ocjena: bolje, bez jasne promjene, lošije ili premalo podataka. Naslov i opis sude se samo po CTR-u; pozicijske izmjene po poziciji glavnog upita, a ako se ona ne miče po klikovima prema trendu weba. Pokreće se nakon novih Google podataka, nakon promjene stanja prijedloga i u satnom prolazu. Dan provedbe može se ispraviti u ploči (`dan` u `prijedlozi_stanje`).

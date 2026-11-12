@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.2.0)
+# OL Radar – most za Claudea (v2.2.1)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -18,6 +18,8 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Pristup:** samo administratori (`manage_options`). Ploča se otvara na `wp-admin/admin.php?page=ol-radar`, u radnom dijelu wp-admina (WP izbornik ostaje lijevo). Svijetla tema je zadana, a tamna je na prekidaču u izborniku ploče; izbor se pamti u pregledniku.
 - **Podaci:** u tablici `{prefix}ol_radar_docs` (zbirka + id + JSON), u istom obliku kao baza Radara na claude.ai.
 - **Claude u ploči:** Anthropic Messages API preko servera; ključ ne napušta server. Alate (podatke Radara) izvršava preglednik.
+  - Prijedlog popravka i brief traže strukturiran odgovor. Od 2.2.1 Claude ga daje pozivom alata `odgovor` (prisilni poziv), pa nema teksta oko JSON-a. Ako je odgovor prekinut zbog duljine, ide jedan sažetiji pokušaj; ako API odbije poziv alata, radi rezervni način s JSON-om u tekstu.
+  - Zadnji poziv (model, kako je odgovor završio, broj tokena; bez sadržaja) vidi se u stanju izvora kao „Zadnji poziv Claudea”.
 - **Društvene mreže** (Instagram, YouTube) na hostingu dolaze u sljedećoj fazi, preko Metinog API-ja.
 
 ### Dnevni prijedlozi izmjena (od 2.1.0)
@@ -186,7 +188,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 
 ## Instalacija i nadogradnja
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.2.0.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.2.1.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
 3. U izborniku se pojavljuje **OL Radar** s podstranicama Nadzorna ploča i Postavke. Stara stranica Alati → OL Radar (crawl) ostaje.
 
 ## Spajanje s Claudeom (claude.ai, desktop, mobitel)

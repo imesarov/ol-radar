@@ -69,6 +69,36 @@ async def main():
         ans = await fr.evaluate("S.chat[S.chat.length-1].content")
         print(("OK  " if "Prema alatu" in ans else "FAIL") + " AI chat s alatom: " + ans[:80].replace("\n", " ")); bad += 0 if "Prema alatu" in ans else 1
 
+        # „Predloži popravak”: odgovor stiže kao poziv alata (preko servera), pa nema „krivog oblika”
+        iid2 = await fr.evaluate("S.issues[0].id")
+        await fr.evaluate(f"(()=>{{S.fx.sel='{iid2}'; renderFixes();}})()")
+        await fr.click("#btn-fix")
+        await fr.wait_for_function("!document.querySelector('#btn-fix').disabled", timeout=30000)
+        fx = await fr.evaluate("({txt:document.querySelector('#fix-out').textContent, err:document.querySelectorAll('#fix-out .err').length, ready:document.querySelectorAll('#fix-out .ready').length, btn:document.querySelector('#btn-fix').textContent})")
+        okfx = fx["err"] == 0 and "Dijagnoza iz alata." in fx["txt"] and fx["ready"] == 1 and fx["btn"] == "Novi prijedlog"
+        print(("OK  " if okfx else "FAIL") + " popravak nalaza: Claudeov prijedlog stiže i prikazuje se: " + fx["txt"][:70].replace("\n", " ")); bad += 0 if okfx else 1
+        # isti put uz teže odgovore (lažni odgovori servera u pregledniku): prekinut pa sažet, odbijen alat pa tekst s ogradom, dvaput prekinut
+        sj = await fr.evaluate("""(async()=>{
+            const real = window.fetch, out = {}, S2 = await window.claude.use('sample');
+            const reply = b => new Response(JSON.stringify(b), {status: b.__status || 200, headers: {'Content-Type': 'application/json'}});
+            const run = async (name, handler) => { const calls = []; window.fetch = async (u, o) => { if (!String(u).includes('/ai')) return real(u, o); const q = JSON.parse(o.body); calls.push(q); return reply(handler(q, calls.length)); };
+              try { out[name] = {val: await S2.json('NALAZ: test', {schema: FIX_SCHEMA}), n: calls.length, tool: calls.map(c => !!c.tool_choice), short: calls.map(c => c.messages[0].content.includes('predug'))}; }
+              catch (e) { out[name] = {err: e.code, cut: !!e.cut, n: calls.length}; } };
+            const use = input => ({stop_reason: 'tool_use', content: [{type: 'tool_use', id: 't', name: 'odgovor', input}]});
+            await run('prekid', (q, n) => n === 1 ? {stop_reason: 'max_tokens', content: [{type: 'tool_use', id: 't', name: 'odgovor', input: {}}]} : use({dijagnoza: 'kratko', koraci: ['a']}));
+            await run('odbijen', (q, n) => q.tool_choice ? {__status: 400, code: 'olr_ai_zahtjev', message: 'odbijen'} : {stop_reason: 'end_turn', content: [{type: 'text', text: 'Evo prijedloga:\\n```json\\n{"dijagnoza": "iz teksta {s vitičastom} i \\\\"navodnicima\\\\"", "koraci": ["a"]}\\n```\\nNapomena: {ovo nije dio odgovora}'}]});
+            await run('dvaput', () => ({stop_reason: 'max_tokens', content: [{type: 'text', text: '{"dijagnoza": "prekinuto'}]}));
+            await run('krediti', () => ({__status: 502, code: 'olr_ai_api', message: 'API krediti su potrošeni.'}));
+            window.fetch = real; return out; })()""")
+        oksj = (sj["prekid"].get("val", {}).get("dijagnoza") == "kratko" and sj["prekid"]["n"] == 2 and sj["prekid"]["short"] == [False, True]
+            and "iz teksta" in sj["odbijen"].get("val", {}).get("dijagnoza", "") and sj["odbijen"]["tool"] == [True, False]
+            and sj["dvaput"].get("err") == "invalid_json" and sj["dvaput"]["cut"] and sj["dvaput"]["n"] == 2
+            and sj["krediti"].get("err") == "olr_ai_api" and sj["krediti"]["n"] == 1)
+        print(("OK  " if oksj else "FAIL") + " popravak nalaza: prekinut odgovor ide ponovno sažetije, odbijen alat ide tekstom, greške su jasne:", {k: (v.get("err") or "ok", v["n"]) for k, v in sj.items()}); bad += 0 if oksj else 1
+        em = await fr.evaluate("[sampleErr({code:'invalid_json', cut:true}), sampleErr({code:'invalid_json'}), sampleErr({code:'olr_ai_api', message:'API krediti su potrošeni.'})]")
+        okem = "predug" in em[0] and "krivom obliku" in em[1] and em[2] == "API krediti su potrošeni."
+        print(("OK  " if okem else "FAIL") + " popravak nalaza: poruka kaže što se dogodilo"); bad += 0 if okem else 1
+
         # modul u adresi glavnog prozora; nakon osvježavanja ista stranica ploče
         await fr.evaluate("location.hash='#pozicije'")
         await pg.wait_for_timeout(300)

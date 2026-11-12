@@ -625,6 +625,26 @@ if ( $reader ) {
 	wp_set_current_user( $admin[0]->ID );
 }
 
+// 14) Claude u ploči: JSON odgovor preko prisilnog poziva alata; odbijen zahtjev ima svoju oznaku; zadnji poziv u stanju.
+delete_option( 'olr_test_ai_json' );
+$jq = array(
+	'messages'    => array( array( 'role' => 'user', 'content' => 'NALAZ: test. Vrati SAMO JSON objekt.' ) ),
+	'tools'       => array( array( 'name' => 'odgovor', 'description' => 'x', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'dijagnoza' => array( 'type' => 'string' ) ) ) ) ),
+	'tool_choice' => array( 'name' => 'odgovor' ),
+	'max_tokens'  => 4096,
+);
+$jr = OLR_AI::call( $jq );
+$js = OLR_Settings::status()['ai_poziv'];
+ok( ! is_wp_error( $jr ) && 'tool_use' === $jr['stop_reason'] && 'Dijagnoza iz alata.' === $jr['content'][0]['input']['dijagnoza'] && true === $js['ok'] && false !== strpos( $js['msg'], 'odgovor alatom' ) && false !== strpos( $js['msg'], 'izlaz 220' ), 'ai: JSON odgovor stiže kao poziv alata; zadnji poziv je zapisan u stanju (' . $js['msg'] . ')' );
+update_option( 'olr_test_ai_json', 'prekid' );
+$jr = OLR_AI::call( $jq );
+$js = OLR_Settings::status()['ai_poziv'];
+ok( ! is_wp_error( $jr ) && 'max_tokens' === $jr['stop_reason'] && false === $js['ok'] && false !== strpos( $js['msg'], 'prekinut zbog duljine' ), 'ai: prekinut odgovor je vidljiv u stanju izvora' );
+update_option( 'olr_test_ai_json', 'odbij' );
+$jr = OLR_AI::call( $jq );
+ok( is_wp_error( $jr ) && 'olr_ai_zahtjev' === $jr->get_error_code() && 400 === $jr->get_error_data()['status'] && false === OLR_Settings::status()['ai_poziv']['ok'], 'ai: zahtjev koji API odbije ima svoju oznaku (ploča tada prelazi na rezervni način)' );
+delete_option( 'olr_test_ai_json' );
+
 // Vrati osnovne Google podatke (ostali testovi računaju s njima); prijedlozi ostaju za test ploče.
 delete_option( 'olr_test_gsc_extra' );
 OLR_GSC::collect();

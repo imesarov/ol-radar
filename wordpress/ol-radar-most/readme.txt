@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,10 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.2.1 =
+* Popravak: gumbi „Predloži popravak” / „Novi prijedlog” (modul Popravci i AI) i „Brief” (Planer) javljali su „Claude je odgovorio u krivom obliku”. Odgovor sada stiže kao poziv alata, pa je uvijek u dogovorenom obliku; predug odgovor ide ponovno, sažetije.
+* Poruke o grešci Claudea sada kažu što se dogodilo (prekinut odgovor, potrošeni krediti, dnevni limit). Zadnji poziv Claudea vidi se u stanju izvora.
 
 = 2.2.0 =
 * Učinak provedenih izmjena: za prijedlog označen „provedeno” dodatak sam usporedi Search Console za tu stranicu prije i poslije (7, 14 i 28 dana), uz trend cijelog weba, i da ocjenu. Dan provedbe može se ispraviti na kartici.

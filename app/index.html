@@ -2591,13 +2591,19 @@ function sampleErr(e) {
     case "not_granted": case "sampling_disabled": case "not_declared": case "capability_disabled": case "capability_removed": return "Claude nije dopušten u ovom prikazu. Dopusti ga u upitu claude.ai kad se pojavi.";
     case "rate_limited": return "Previše upita ili je dosegnut limit Claude plana. Pokušaj malo kasnije.";
     case "session_expired": return "Prijava je istekla. Osvježi claude.ai.";
-    case "invalid_json": return "Claude je odgovorio u krivom obliku. Klikni ponovno.";
+    case "invalid_json": return e.cut ? "Claudeov odgovor je bio predug i prekinut je, i u drugom, sažetijem pokušaju. Klikni ponovno." : "Claude je odgovorio u krivom obliku. Klikni ponovno.";
     case "refused": return "Claude je odbio ovaj zahtjev. Promijeni pitanje.";
     case "cancelled": return "Zaustavljeno.";
     case "prompt_too_large": return "Previše podataka za jedan upit.";
-    default: return "Claude trenutno ne odgovara. Pokušaj ponovno.";
+    default: return HOSTED && e && e.message && /^olr_ai/.test(e.code || "") ? e.message : "Claude trenutno ne odgovara. Pokušaj ponovno.";
   }
 }
+/* Oblik odgovora za Claudea na hostingu (poziv alata); na claude.ai se ne koristi. */
+const STR = { type: "string" }, STRS = { type: "array", items: STR };
+const FIX_SCHEMA = { type: "object", properties: { dijagnoza: STR, zasto: STR, koraci: STRS, gotov_tekst: { type: "array", items: { type: "object", properties: { oznaka: STR, tekst: STR }, required: ["oznaka", "tekst"] } }, gdje: STR, ucinak: STR, provjera: STR }, required: ["dijagnoza", "koraci"] };
+const BRIEF_SCHEMA = { type: "object", properties: { tip: STR, zasto: STR, url: STR, fokus: STR, dodatne: STRS, seo_naslov: STR, meta_opis: STR, h1: STR,
+  struktura: { type: "array", items: { type: "object", properties: { h2: STR, sadrzaj: STR }, required: ["h2"] } }, faq: { type: "array", items: { type: "object", properties: { pitanje: STR, odgovor: STR }, required: ["pitanje", "odgovor"] } },
+  interne_poveznice: { type: "array", items: { type: "object", properties: { sa: STR, sidro: STR, gdje: STR }, required: ["sa", "sidro"] } }, prednosti: STRS, cta: STR, schema: STR, duljina: STR, napomene: STR }, required: ["tip", "fokus", "seo_naslov", "meta_opis", "struktura"] };
 let fixCtl = null;
 async function suggestFix(i, fresh) {
   const out = $("#fix-out"); const btn = $("#btn-fix"); const stop = $("#btn-fix-stop");
@@ -2607,7 +2613,8 @@ async function suggestFix(i, fresh) {
   const task = FIX_TASK[i.fix?.kind] || FIX_TASK.default;
   const prompt = AI_RULES + "\n\nNALAZ (" + AREA[i.area] + "): " + i.title + "\n" + i.detail + "\n\nDOKAZI (JSON):\n" + JSON.stringify(i.evidence).slice(0, 9000) + "\n\nZADATAK: " + task + '\n\nVrati SAMO JSON objekt ovog oblika: {"dijagnoza": "2–3 rečenice", "zasto": "zašto je važno za klijente i Google, 1–2 rečenice", "koraci": ["konkretan korak", "..."], "gotov_tekst": [{"oznaka": "kratka oznaka", "tekst": "tekst spreman za kopiranje"}], "gdje": "gdje se primjenjuje (npr. Rank Math → stranica X, Instagram opis, YouTube Studio)", "ucinak": "što očekivati i kada", "provjera": "kako za 2–4 tjedna provjeriti je li uspjelo"}';
   try {
-    const fix = await SAMPLE.json(prompt, { signal: fixCtl.signal, cache: fresh ? { gcTime: DAY, refresh: true } : { gcTime: DAY } });
+    const fix = await SAMPLE.json(prompt, { signal: fixCtl.signal, cache: fresh ? { gcTime: DAY, refresh: true } : { gcTime: DAY }, ...(HOSTED ? { schema: FIX_SCHEMA } : {}) });
+    if (!fix || typeof fix !== "object" || !(fix.dijagnoza || (fix.koraci || []).length || (fix.gotov_tekst || []).length)) throw { code: "invalid_json" };
     S.fixes[i.id] = fix; renderFix(i, fix); setSrc("ai", "ok", "zadnji prijedlog " + ago(Date.now()), Date.now());
     if (DB) { try { await DB.doc("fixes/" + i.id).set({ fix, at: Date.now(), title: i.title }); } catch (e) { console.warn(e); } }
     if (!S.status[i.id]) setIssueState(i.id, "radim");
@@ -3079,7 +3086,7 @@ async function makeBrief(it, fresh) {
   const ev = { tema: it.title, radnja: ACTION_TXT[it.action], ciljni_url: it.page, kljucne: (it.kws || []).map(x => { const g = Q?.map.get(x.k); return { k: x.k, potraznja: x.v, gsc_poz: g ? +g.position.toFixed(1) : null, gsc_prik: g?.impressions || 0, gsc_stranica: g ? path(g.top) : null }; }), serp_top10: sp ? serpFromArch(sp).map(p => ({ poz: p.position, url: p.url, naslov: p.title, dr: p.domain_rating })) : null, postojece_stranice: pages.length ? pages : pagesFallback };
   const prompt = AI_RULES + "\n\nZADATAK: Napravi brief za sadržaj Optike Ljiljana. Ako je radnja „Dorada” ili „Zaštiti”, brief je za doradu postojeće stranice; ako je „Spoji”, predloži koja stranica ostaje i što s drugom (301 ili promjena fokusa); ako je „Nova stranica”, odluči je li to stranica usluge ili članak u Journalu. Obavezno: Rank Math paket (fokus ključna riječ, dodatne ključne riječi, SEO naslov do 60 znakova s ključnom riječi blizu početka, meta opis 120–156 znakova, slug, Schema tip), struktura s H2, kratki FAQ, i tablica 2–4 POSTOJEĆE stranice (samo s popisa postojećih stranica) koje dobivaju kontekstualnu internu poveznicu prema novom sadržaju, sa sidrenim tekstom i mjestom umetanja. Ne izmišljaj cijene ni brojke koje nisu u podacima.\n\nPODACI:\n" + JSON.stringify(ev).slice(0, 14000) + '\n\nVrati SAMO JSON: {"tip": "stranica usluge | članak u Journalu | dorada | spajanje", "zasto": "1–2 rečenice", "url": "/slug/", "fokus": "...", "dodatne": ["..."], "seo_naslov": "...", "meta_opis": "...", "h1": "...", "struktura": [{"h2": "...", "sadrzaj": "što ide u odjeljak"}], "faq": [{"pitanje": "...", "odgovor": "jedna rečenica"}], "interne_poveznice": [{"sa": "/postojeca-stranica/", "sidro": "...", "gdje": "gdje u tekstu"}], "prednosti": ["čime nadmašiti SERP"], "cta": "...", "schema": "...", "duljina": "npr. 1.200–1.600 riječi", "napomene": "..."}';
   try {
-    const brief = await SAMPLE.json(prompt, { cache: fresh ? { gcTime: DAY, refresh: true } : { gcTime: DAY } });
+    const brief = await SAMPLE.json(prompt, { cache: fresh ? { gcTime: DAY, refresh: true } : { gcTime: DAY }, ...(HOSTED ? { schema: BRIEF_SCHEMA } : {}) });
     await updPlan(it.id, { brief, status: it.status === "ideja" ? "brief" : it.status });
   } catch (e) { out.innerHTML = `<p class="err">${esc(sampleErr(e))}</p>`; }
   finally { btn.disabled = false; }

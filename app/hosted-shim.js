@@ -92,11 +92,51 @@
     }
     return { text };
   }
+  /* Prvi uravnoteženi JSON objekt ili niz u tekstu (ograda koda i tekst oko njega se zanemaruju). */
+  function looseJson(text) {
+    const t = String(text || "").replace(/```(?:json)?/gi, "");
+    const start = t.search(/[{[]/);
+    if (start < 0) return undefined;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < t.length; i++) {
+      const c = t[i];
+      if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
+      if (c === '"') inStr = true;
+      else if (c === "{" || c === "[") depth++;
+      else if (c === "}" || c === "]") { depth--; if (depth === 0) { try { return JSON.parse(t.slice(start, i + 1)); } catch (e) { return undefined; } } }
+    }
+    return undefined;
+  }
+  /* JSON odgovor. Claude odgovara pozivom alata „odgovor”, pa je odgovor uvijek strukturiran (nema teksta oko
+     JSON-a ni ograde koda). Ako je odgovor prekinut zbog duljine ili je prazan, ide jedan sažetiji pokušaj.
+     Ako API odbije poziv alata, radi rezervni način s JSON-om u tekstu. */
   sample.json = async function (prompt, opts) {
-    const r = await sample(prompt + "\n\nOdgovori isključivo valjanim JSON-om, bez teksta prije ili poslije.", Object.assign({}, opts, { maxTokens: 4000 }));
-    const m = String(r.text).match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!m) throw { code: "invalid_json", message: "Odgovor nije JSON" };
-    try { return JSON.parse(m[0]); } catch (e) { throw { code: "invalid_json", message: "Odgovor nije valjan JSON" }; }
+    opts = opts || {};
+    const schema = opts.schema && opts.schema.type === "object" ? opts.schema : { type: "object", additionalProperties: true };
+    const tool = { name: "odgovor", description: "Sprema traženi odgovor. Polja alata su polja JSON objekta opisanog u zadatku.", input_schema: schema };
+    const SHORT = "\n\nVAŽNO: prethodni odgovor je bio predug i prekinut je. Budi sažet: svako tekstualno polje najviše dvije rečenice, najviše 5 koraka i najviše 3 gotova teksta.";
+    const ask = async (extra, useTool) => {
+      const body = { messages: [{ role: "user", content: prompt + extra + (useTool ? "\n\nOdgovori isključivo pozivom alata odgovor, točno jednom." : "\n\nOdgovori isključivo valjanim JSON-om, bez teksta prije ili poslije i bez ograde koda.") }], max_tokens: opts.maxTokens || 4096 };
+      if (useTool) { body.tools = [tool]; body.tool_choice = { name: "odgovor" }; }
+      const r = await api("ai", { method: "POST", body, signal: opts.signal });
+      const blocks = r.content || [];
+      const use = blocks.find(b => b.type === "tool_use" && b.name === "odgovor");
+      let val = use && use.input && typeof use.input === "object" && Object.keys(use.input).length ? use.input : undefined;
+      if (val === undefined) val = looseJson(blocks.filter(b => b.type === "text").map(b => b.text).join(""));
+      return { val, cut: r.stop_reason === "max_tokens" };
+    };
+    let useTool = true, first;
+    try { first = await ask("", true); }
+    catch (e) {
+      // samo ako je API odbio sam zahtjev (npr. model ne podržava prisilni poziv alata); ostale greške idu dalje
+      if (!e || e.code !== "olr_ai_zahtjev") throw e;
+      useTool = false; first = await ask("", false);
+    }
+    if (first.val !== undefined && !first.cut) return first.val;
+    const second = await ask(SHORT, useTool);
+    if (second.val !== undefined) return second.val;
+    if (first.val !== undefined) return first.val; // prekinut, ali čitljiv: bolje nepotpun odgovor nego nikakav
+    throw { code: "invalid_json", cut: first.cut || second.cut, message: first.cut || second.cut ? "Odgovor je prekinut zbog duljine" : "Odgovor nije u očekivanom obliku" };
   };
   sample.limits = async () => ({ tools: { maxCount: 16 } });
 

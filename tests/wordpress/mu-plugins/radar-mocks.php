@@ -338,6 +338,19 @@ add_filter(
 					: array( array( 'type' => 'text', 'text' => "Evo:\n```json\n" . wp_json_encode( $out ) . "\n```" ) );
 				return $json( 200, array( 'id' => 'msg_p', 'model' => $req['model'], 'stop_reason' => $tool ? 'tool_use' : 'end_turn', 'usage' => $use, 'content' => $c ) );
 			}
+			// JSON odgovor ploče (popravak nalaza, brief): prisilni poziv alata „odgovor”.
+			// Opcija olr_test_ai_json: odbij = API odbija poziv alata (400), prekid = odgovor prekinut zbog duljine.
+			if ( isset( $req['tool_choice']['name'] ) && 'odgovor' === $req['tool_choice']['name'] ) {
+				$mode = get_option( 'olr_test_ai_json' );
+				if ( 'odbij' === $mode ) {
+					return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tool_choice: not supported for this model' ) ) );
+				}
+				if ( 'prekid' === $mode ) {
+					return $json( 200, array( 'id' => 'msg_j', 'model' => $req['model'], 'stop_reason' => 'max_tokens', 'usage' => array( 'input_tokens' => 900, 'output_tokens' => 4096 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_j', 'name' => 'odgovor', 'input' => array() ) ) ) );
+				}
+				$in = array( 'dijagnoza' => 'Dijagnoza iz alata.', 'zasto' => 'Zato.', 'koraci' => array( 'Prvi korak', 'Drugi korak' ), 'gotov_tekst' => array( array( 'oznaka' => 'SEO naslov', 'tekst' => 'Progresivne naočale u Sesvetama' ) ), 'gdje' => 'Rank Math', 'ucinak' => 'Za 2–4 tjedna.', 'provjera' => 'Search Console.' );
+				return $json( 200, array( 'id' => 'msg_j', 'model' => $req['model'], 'stop_reason' => 'tool_use', 'usage' => array( 'input_tokens' => 900, 'output_tokens' => 220 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_j', 'name' => 'odgovor', 'input' => $in ) ) ) );
+			}
 			// Ako su ponuđeni alati, a zadnja poruka nije rezultat alata: traži alat "pregled".
 			if ( ! empty( $req['tools'] ) && is_string( $last['content'] ) ) {
 				return $json( 200, array( 'id' => 'msg_1', 'model' => $req['model'], 'stop_reason' => 'tool_use', 'usage' => array( 'input_tokens' => 120, 'output_tokens' => 20 ), 'content' => array( array( 'type' => 'text', 'text' => 'Gledam podatke.' ), array( 'type' => 'tool_use', 'id' => 'tu_1', 'name' => $req['tools'][0]['name'], 'input' => new stdClass() ) ) ) );
