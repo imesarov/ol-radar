@@ -9,29 +9,35 @@ Vlastiti SEO i društveni radar Optike Ljiljana (optikaljiljana.hr). Mali, ali d
 | Mapa | Što je |
 |---|---|
 | `app/index.html` | Radar: jedna HTML stranica (Claude artefakt, runtime contract 0.2.96) |
-| `wordpress/ol-radar-most/` | WordPress dodatak „OL Radar – most za Claudea” (samo čitanje, MCP) |
+| `app/hosted-shim.js` | Zamjena za claude.ai runtime kad ista ploča radi na hostingu (wp-admin) |
+| `wordpress/ol-radar-most/` | WordPress dodatak 2.0: Radar na hostingu (ploča, Google API, DataForSEO, Claude API) i most za Claudea (MCP, samo čitanje) |
 | `tests/app/` | Headless test aplikacije s lažnim `window.claude` (`mock.js`) |
 | `tests/wordpress/` | Lokalni WordPress 6.9 + SQLite + MCP Adapter i MCP testovi dodatka |
-| `tools/` | Pomoćne skripte (provjera sintakse za PHP 7.4) |
+| `tools/` | `build-hosted.py` (gradi `wordpress/ol-radar-most/app/radar.html`), provjera sintakse za PHP 7.4 |
 | `docs/` | Upute za Claudea i bilješke o arhitekturi |
 
 ## Arhitektura
+Radar postoji u dvije verzije s istim kodom (`app/index.html`):
 
-| Područje | Izvor |
-|---|---|
-| Naš web (klikovi, pozicije, CTR) | Google Search Console preko OpenSEO-a, bez kredita. Rezerva: Supermetrics (dnevna kvota), zatim Ahrefs GSC uvid |
-| Potražnja i sezonalnost | Google Keyword Planner preko Supermetricsa |
-| Web iznutra (audit, linkovi, Rank Math) | WordPress dodatak preko MCP-a (OAuth WP Rocketa) |
-| Pozicije | OpenSEO (DataForSEO): tjedni tracker, 27 riječi, Zagreb, mobitel |
-| Promet konkurenata | Vlastiti model: arhivirani SERP-ovi × volumen × naša GSC krivulja CTR-a |
-| Društvene mreže | vidIQ (Instagram, YouTube) |
-| Povijest konkurenata | Jednokratna arhiva Ahrefsa (do kraja studenog 2026.) |
-| Pohrana | Baza artefakta (`claude.use("db")`) |
-| AI prijedlozi | `claude.use("sample")` |
+1. **Radar na hostingu (glavna verzija od 12. 11. 2026.):** WordPress dodatak u wp-adminu. Podatke skuplja server, bez claude.ai.
+2. **Radar na claude.ai (artefakt):** podatke čita preko claude.ai konektora.
 
-**Baza** (zbirke): `export/radar` (sažetak za Claudea), `snap`, `tjedno`, `issues`, `fixes`, `plan`, `kp`, `arch_*`, `cfg`.
+| Područje | Na hostingu | Na claude.ai |
+|---|---|---|
+| Naš web (klikovi, pozicije, CTR) | Google Search Console API, servisni račun | OpenSEO, rezerva Supermetrics |
+| Pozicije | DataForSEO (tjedno, mobitel, Zagreb) | OpenSEO tracker |
+| Web iznutra (audit, linkovi, Rank Math) | izravno iz dodatka | WordPress most preko MCP-a |
+| Promet konkurenata | model: SERP-ovi iz mjerenja i arhive × volumen × naša krivulja CTR-a | isto, SERP-ovi iz arhive |
+| Društvene mreže | sljedeća faza (Meta API) | vidIQ |
+| Povijest konkurenata | arhiva Ahrefsa (uvoz) | arhiva Ahrefsa |
+| Pohrana | tablica `ol_radar_docs` | baza artefakta |
+| AI | Anthropic API (ključ na serveru) | `claude.use("sample")` |
 
-**Tjedni zakazani zadatak „OL Radar – tjedno punjenje”** (ponedjeljak 05:38) puni `tjedno/<datum>`.
+**Claude izvan ploče** (claude.ai, desktop, mobitel) čita Radar s hostinga preko konektora „Optika Ljiljana web”, sposobnostima `ol-radar/radar-*`.
+
+**Baza** (zbirke): `export/radar` (sažetak za Claudea), `snap`, `tjedno`, `issues`, `fixes`, `plan`, `kp`, `arch_*`, `cfg`. Na hostingu još `gsc`, `rank`, `rank_run`, `serp`.
+
+**Tjedni zakazani zadatak „OL Radar – tjedno punjenje”** (ponedjeljak 05:38) puni `tjedno/<datum>` u bazi artefakta.
 
 ## Objava aplikacije
 Artefakt se objavljuje alatom za artefakte (slug `78f5630e-c158-4ddc-b32b-b3b711130c3e`). Redoslijed:

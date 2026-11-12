@@ -29,6 +29,7 @@ sed -e "s#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#$P/sqlite-database-integration#" \
     "$P/sqlite-database-integration/db.copy" > "$WPTEST_DIR/site/wp-content/db.php"
 mkdir -p "$WPTEST_DIR/site/wp-content/mu-plugins"
 cp "$HERE/mu-plugins/test-helpers.php" "$WPTEST_DIR/site/wp-content/mu-plugins/"
+cp "$HERE/mu-plugins/radar-mocks.php" "$WPTEST_DIR/site/wp-content/mu-plugins/"   # lažni Google/DataForSEO/Anthropic (opcija olr_test_mocks)
 
 cat > "$WPTEST_DIR/site/wp-config.php" <<EOF
 <?php

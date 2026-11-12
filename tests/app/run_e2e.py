@@ -62,6 +62,13 @@ async def main():
                 srcs:Object.fromEntries(Object.entries(S.src).map(([k,v])=>[k,v.state+': '+v.msg]))}})()""")
             print("NAČIN", mode or "uživo", "| export polja:", exp, "| greške:", errs or "nema")
             print("  stanje:", st)
+            if mode == "":
+                await pg.evaluate("location.hash='#arhiva'"); await pg.wait_for_timeout(300)
+                await pg.click("#btn-export-host"); await pg.wait_for_timeout(1500)
+                dl = await pg.evaluate("(()=>{const d=window.__download; if(!d) return null; const j=JSON.parse(d.data); return {f:d.filename, cols:Object.keys(j.zbirke).length, kw:j.zbirke.arch_kw.length, serp:j.zbirke.arch_serp.length}})()")
+                print("  izvoz za hosting:", dl)
+                if not dl or dl["cols"] != 13 or dl["kw"] < 1 or dl["serp"] < 1: print("  PROVJERA IZVOZA NIJE PROŠLA"); bad += 1
+                await pg.evaluate("closeModal()")
             ok = True
             if mode in ("", "?off"):
                 ok = st["gsc"] == "OpenSEO" and st["onpage"] == "wp" and st["rank"] == 6 and st["hist"] == 2 and st["wk"] and st["wpIssues"] >= 3 and st["qp"] == 17 and st["exp"]["pozicije"] == 6 and [t for t in st["rankIssues"] if "tracker vidi" in t] == ["„stellest stakla”: tracker vidi /journal/, GSC vodi na /stellest-lece-za-djecu/"] and st["cannibal"] == 0 and st["exp"]["tjedno"] and st["exp"]["potpuno"]

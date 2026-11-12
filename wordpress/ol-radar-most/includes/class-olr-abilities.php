@@ -213,6 +213,181 @@ class OLR_Abilities {
 				'meta'                => array_merge( self::meta(), array( 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ) ),
 			)
 		);
+
+		/* ---------- Radar na hostingu: podaci koje skuplja server ---------- */
+		wp_register_ability(
+			'ol-radar/radar-sazetak',
+			array(
+				'label'               => 'Radar: sažetak',
+				'description'         => 'Sažetak OL Radara s hostinga (export/radar): KPI-jevi, Google 28 dana, tjedni pregled, pozicije, audit, nalazi, plan. Uz to stanje izvora (Google, DataForSEO, Claude API) i starost sažetka. Sažetak piše nadzorna ploča kad se otvori; svježi Google podaci su u ol-radar/radar-gsc. Pozovi prvo za svaku analizu weba.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_summary' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
+			'ol-radar/radar-gsc',
+			array(
+				'label'               => 'Radar: Google Search Console',
+				'description'         => 'Google Search Console s hostinga (servisni račun, osvježava se svakih 12 h): upiti s klikovima, prikazivanjima, CTR-om, pozicijom i glavnom stranicom, za 28 ili zadnjih 7 dana, uz zbroj razdoblja. Filtar po tekstu upita ili stranice.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'filtar'    => array( 'type' => 'string', 'description' => 'Dio upita ili adrese stranice.' ),
+						'razdoblje' => array( 'type' => 'string', 'enum' => array( '28', '7' ), 'description' => '28 (zadano) ili 7 dana.' ),
+						'limit'     => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 500 ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_gsc' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
+			'ol-radar/radar-pozicije',
+			array(
+				'label'               => 'Radar: pozicije',
+				'description'         => 'Pozicije ciljanih riječi iz tjednog mjerenja (DataForSEO, Google, mobitel, Zagreb): sadašnja i prethodna pozicija, stranica koja rangira, povijest do 26 mjerenja (0 = nije pronađen u izmjerenoj dubini, null = nije mjereno) i top 10 konkurenata po riječi.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'konkurenti' => array( 'type' => 'boolean', 'description' => 'Uključi top 10 rezultata po riječi.' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_rank' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+	}
+
+	public static function radar_summary( $input = array() ) {
+		$ex  = OLR_Store::get( 'export', 'radar' );
+		$age = $ex ? round( ( time() - strtotime( $ex['updated_at'] . ' UTC' ) ) / 3600, 1 ) : null;
+		$st  = OLR_REST::state_array();
+		unset( $st['postavke'] );
+		return array(
+			'sazetak'         => $ex ? $ex['data'] : null,
+			'starost_sati'    => $age,
+			'napomena'        => $ex ? ( $age > 168 ? 'Sažetak je stariji od 7 dana: otvori nadzornu ploču (wp-admin → OL Radar) da se osvježi.' : null ) : 'Sažetak još ne postoji: otvori nadzornu ploču jednom (wp-admin → OL Radar).',
+			'gsc'             => OLR_Store::data( 'gsc', 'meta' ),
+			'stanje'          => $st,
+		);
+	}
+
+	public static function radar_gsc( $input = array() ) {
+		$days  = isset( $input['razdoblje'] ) && '7' === $input['razdoblje'] ? 7 : 28;
+		$limit = isset( $input['limit'] ) ? max( 1, min( 500, (int) $input['limit'] ) ) : 100;
+		$f     = isset( $input['filtar'] ) ? OLR_DFS::lower( $input['filtar'] ) : '';
+		$meta  = OLR_Store::data( 'gsc', 'meta' );
+		if ( ! $meta ) {
+			return array( 'greska' => 'Google podaci još nisu preuzeti na hostingu (OL Radar → Postavke).' );
+		}
+		if ( 7 === $days ) {
+			$wk   = OLR_Store::data( 'gsc', 'wk', array() );
+			$rows = isset( $wk['qp7'] ) ? $wk['qp7'] : array();
+			$od   = isset( $wk['range']['s'] ) ? $wk['range']['s'] : null;
+			$do   = isset( $wk['range']['e'] ) ? $wk['range']['e'] : null;
+		} else {
+			$qp   = OLR_Store::data( 'gsc', 'qp', array() );
+			$rows = isset( $qp['rows'] ) ? $qp['rows'] : array();
+			$od   = $meta['prozori']['28_dana'][0];
+			$do   = $meta['prozori']['28_dana'][1];
+		}
+		$agg = array();
+		foreach ( $rows as $r ) {
+			list( $q, $page, $c, $i, , $pos ) = $r;
+			if ( '' !== $f && false === strpos( OLR_DFS::lower( $q ), $f ) && false === strpos( OLR_DFS::lower( $page ), $f ) ) {
+				continue;
+			}
+			if ( ! isset( $agg[ $q ] ) ) {
+				$agg[ $q ] = array( 'q' => $q, 'c' => 0, 'i' => 0, 'pw' => 0, 'top' => $page, 'top_i' => -1, 'stranica' => 0 );
+			}
+			$a            = &$agg[ $q ];
+			$a['c']      += $c;
+			$a['i']      += $i;
+			$a['pw']     += $pos * $i;
+			$a['stranica']++;
+			if ( $i > $a['top_i'] ) {
+				$a['top']   = $page;
+				$a['top_i'] = $i;
+			}
+			unset( $a );
+		}
+		usort(
+			$agg,
+			static function ( $x, $y ) {
+				return $y['i'] - $x['i'];
+			}
+		);
+		$out = array();
+		$tc  = 0;
+		$ti  = 0;
+		foreach ( $agg as $a ) {
+			$tc += $a['c'];
+			$ti += $a['i'];
+		}
+		foreach ( array_slice( $agg, 0, $limit ) as $a ) {
+			$out[] = array(
+				'upit'          => $a['q'],
+				'klikovi'       => $a['c'],
+				'prikazivanja'  => $a['i'],
+				'ctr'           => $a['i'] ? round( $a['c'] / $a['i'], 4 ) : 0,
+				'pozicija'      => $a['i'] ? round( $a['pw'] / $a['i'], 1 ) : null,
+				'stranica'      => wp_parse_url( $a['top'], PHP_URL_PATH ),
+				'broj_stranica' => $a['stranica'],
+			);
+		}
+		return array(
+			'od'           => $od,
+			'do'           => $do,
+			'svojstvo'     => $meta['site'],
+			'preuzeto'     => gmdate( 'c', (int) ( $meta['at'] / 1000 ) ),
+			'ukupno_upita' => count( $agg ),
+			'zbroj'        => array( 'klikovi' => $tc, 'prikazivanja' => $ti ),
+			'upiti'        => $out,
+			'napomena'     => 'Zbroj je zbroj redaka upit+stranica; Google skriva rijetke (anonimne) upite, pa je manji od ukupnog prometa.',
+		);
+	}
+
+	public static function radar_rank( $input = array() ) {
+		$latest = OLR_Store::data( 'rank', 'latest' );
+		if ( ! $latest ) {
+			return array( 'greska' => get_option( OLR_DFS::PENDING ) ? 'Prvo mjerenje je u tijeku.' : 'Pozicije još nisu izmjerene na hostingu (OL Radar → Postavke).' );
+		}
+		$hist = OLR_Store::data( 'rank', 'hist', array( 'runs' => array(), 'by' => array() ) );
+		$rows = array();
+		foreach ( $latest['rows'] as $r ) {
+			$row = array(
+				'rijec'    => $r['kw'],
+				'pozicija' => $r['pos'],
+				'prije'    => $r['prev'],
+				'stranica' => $r['url'] ? wp_parse_url( $r['url'], PHP_URL_PATH ) : null,
+				'povijest' => isset( $hist['by'][ $r['id'] ] ) ? $hist['by'][ $r['id'] ] : array(),
+			);
+			if ( ! empty( $input['konkurenti'] ) ) {
+				$serp            = OLR_Store::data( 'serp', $r['id'] );
+				$row['top10']    = $serp ? array_map(
+					static function ( $p ) {
+						return array( 'p' => $p['pos'], 'url' => $p['url'] );
+					},
+					array_slice( $serp['p'], 0, 10 )
+				) : array();
+			}
+			$rows[] = $row;
+		}
+		return array(
+			'mjereno'   => $latest['last'],
+			'postavke'  => $latest['sched'],
+			'mjerenja'  => $hist['runs'],
+			'u_tijeku'  => (bool) get_option( OLR_DFS::PENDING ),
+			'rijeci'    => $rows,
+		);
 	}
 
 	/* ---------------------------------------------------------------------

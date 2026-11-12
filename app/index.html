@@ -455,7 +455,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
           <h1>Arhiva <em>Ahrefsa</em></h1>
           <p>Jednom pokupi ono što se sporo mijenja i što Google ne daje: univerzum ključnih riječi, petogodišnju sezonalnost, SERP-ove, konkurente i poveznice. Nakon isteka pretplate Radar sve to koristi besplatno, uz svježi GSC i Google Keyword Planner.</p>
         </div>
-        <div class="row"><button class="btn" type="button" id="btn-arch-run">Pokreni arhiviranje</button><button class="btn btn-g" type="button" id="btn-arch-pause" hidden>Pauziraj</button></div>
+        <div class="row"><button class="btn" type="button" id="btn-arch-run">Pokreni arhiviranje</button><button class="btn btn-g" type="button" id="btn-arch-pause" hidden>Pauziraj</button><button class="btn btn-g" type="button" id="btn-export-host" hidden>Izvezi za hosting</button></div>
       </div>
       <div class="tiles" id="arch-tiles"></div>
       <div class="panel"><header><h3>Faze</h3><p id="arch-status">Drži stranicu otvorenom dok traje (otprilike 20–40 minuta). Može se pauzirati i nastaviti; gotovi dijelovi se ne plaćaju ponovno.</p></header><div id="arch-stages"></div></div>
@@ -561,6 +561,9 @@ const KP_LANG = { hr: "hr", si: "sl", ba: "bs", rs: "sr", at: "de", de: "de", it
 const BRAND_RE = /ljiljan|optikaljiljana/i;
 const H = 3600e3, DAY = 24 * H;
 const SRV = { ah: "Ahrefs", sm: "Supermetrics Marketing Analytics", vq: "vidIQ", os: "OpenSEO", wp: "Optika Ljiljana web" };
+/* HOSTED: Radar na hostingu (wp-admin). Podatke skuplja server (Google API, DataForSEO, WordPress), a ovaj isti kod ih prikazuje. */
+const HOSTED = !!window.OLR_HOSTED;
+const RANK_SRC = HOSTED ? "DataForSEO" : "OpenSEO";
 const MONTHS = ["siječanj","veljača","ožujak","travanj","svibanj","lipanj","srpanj","kolovoz","rujan","listopad","studeni","prosinac"];
 const MON_S = ["sij","velj","ožu","tra","svi","lip","srp","kol","ruj","lis","stu","pro"];
 const DEFAULT_CFG = {
@@ -670,7 +673,7 @@ async function call(server, tool, input, ttl, refresh) {
   return { data: res.payload, at: res.cache ? res.cache.storedAt : Date.now(), cached: !!res.cache };
 }
 /* Ahrefs: kad pretplata istekne ili je isključen, Radar prelazi na arhivu */
-const ahOff = () => !!(S.cfg.ahrefsOff || S.ahDead);
+const ahOff = () => HOSTED || !!(S.cfg.ahrefsOff || S.ahDead);
 function isAhDead(e) {
   if (!e) return false;
   if (["server_not_connected", "needs_reauth", "not_in_manifest", "blocked_by_policy"].includes(e.code)) return true;
@@ -962,7 +965,7 @@ function rerender() { recompute(); renderView(S.view); renderBadges(); }
 
 /* ---------- učitavanje ---------- */
 async function loadAhrefsCore(refresh) {
-  if (ahOff()) { setSrc("ahrefs", "off", S.cfg.ahrefsOff ? "isključen u postavkama; koristi se arhiva" : "nedostupan; koristi se arhiva"); applyArchiveFallback(); rerender(); maybeSnapshot(); return; }
+  if (ahOff()) { setSrc("ahrefs", "off", HOSTED ? (S.arch.comp.size ? "arhiva" : "arhiva još nije uvezena (Postavke → Uvoz)") : S.cfg.ahrefsOff ? "isključen u postavkama; koristi se arhiva" : "nedostupan; koristi se arhiva"); applyArchiveFallback(); rerender(); maybeSnapshot(); return; }
   setSrc("ahrefs", "load");
   const t = yday(); const errs = [];
   const jobs = [
@@ -1020,6 +1023,84 @@ async function loadGsc(refresh) {
   }
   S.done.gsc = true; rerender(); maybeSnapshot(); maybeExport();
 }
+/* ---------- izvoz iz Radara na claude.ai za uvoz na hosting (Postavke → Uvoz) ---------- */
+function note(title, msg) {
+  modal(`<h2 id="modal-title">${esc(title)}</h2><p class="lead">${esc(msg)}</p><div class="row"><button class="btn" type="button" id="nt-ok">U redu</button></div>`);
+  $("#nt-ok").onclick = closeModal;
+}
+const EXPORT_COLS = ["arch_kw", "arch_hist", "arch_serp", "arch_comp", "arch_misc", "issues", "fixes", "plan", "kp", "snap", "cfg", "trends", "tjedno"];
+let DL = null;
+async function exportForHosting() {
+  const btn = $("#btn-export-host");
+  if (!DB || !DL) { note("Izvoz", "Izvoz nije dostupan u ovom prikazu."); return; }
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "Pripremam…";
+  try {
+    const out = { izvor: "OL Radar (claude.ai)", at: Date.now(), datum: today(), zbirke: {} };
+    let n = 0;
+    for (const col of EXPORT_COLS) {
+      const q = await withTimeout(DB.collection(col).limit(1000).get(), 30000);
+      out.zbirke[col] = q.docs.map(d => ({ id: d.id, data: d.data() })); n += q.docs.length;
+    }
+    await DL.save({ filename: "ol-radar-izvoz-" + today() + ".json", data: JSON.stringify(out) });
+    note("Izvoz za hosting", "Izvezeno " + n + " dokumenata. Datoteku učitaj u wp-adminu: OL Radar → Postavke → Uvoz iz Radara na claude.ai.");
+  } catch (e) {
+    note("Izvoz", e && e.code === "declined" ? "Preuzimanje je odbijeno." : "Izvoz nije uspio: " + ((e && e.message) || e));
+  } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+/* ---------- Radar na hostingu: svi podaci iz REST-a dodatka u jednom pozivu ---------- */
+async function hostedRefresh(parts) {
+  for (const dio of parts) {
+    try { await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio } }); }
+    catch (e) { console.warn("osvjezi " + dio, e); if (dio === "gsc") setSrc("gsc", "err", e.message || "Osvježavanje nije uspjelo"); }
+  }
+  await loadHosted();
+}
+async function loadHosted() {
+  ["gsc", "rank", "wp"].forEach(k => setSrc(k, "load"));
+  let P;
+  try { P = await OLR_HOSTED.api("podaci"); }
+  catch (e) { ["gsc", "rank", "wp"].forEach(k => setSrc(k, "err", e.status === 403 || e.status === 401 ? "Prijava u wp-admin je istekla. Osvježi stranicu." : (e.message || "Server ne odgovara"))); rerender(); return; }
+  const st = P.stanje || {}, iz = st.izvori || {}, keys = st.kljucevi || {};
+  const pre = HOSTED ? '<a href="' + esc(OLR_HOSTED.postavke) + '">Postavke</a>' : "";
+  /* Google Search Console */
+  const G = P.gsc || {};
+  if (G.daily && G.daily.rows && G.daily.rows.length) {
+    const at = G.meta?.at || Date.now();
+    const rq = r => ({ query: r[0], page: r[1], clicks: r[2], impressions: r[3], ctr: r[4], position: r[5] });
+    const rp = r => ({ page: r[0], clicks: r[1], impressions: r[2], ctr: r[3], position: r[4] });
+    setGscData({ rows: G.daily.rows.map(r => ({ Date: r[0], clicks: r[1], impressions: r[2], ctr: r[3], position: r[4] })), at }, { rows: (G.qp?.rows || []).map(rq) }, { rows: (G.pages?.rows || []).map(rp) }, { rows: (G.pagesPrev?.rows || []).map(rp) }, "Google API");
+    if (G.wk && G.wk.range) {
+      const rw = r => ({ query: r[0], clicks: r[1], impressions: r[2], ctr: r[3], position: r[4] });
+      const m7 = new Map(); (G.wk.qp7 || []).forEach(r => { const q = String(r[0] || "").toLowerCase(); if (!q) return; const a = m7.get(q) || []; a.push({ page: normUrl(r[1]), impressions: r[3], position: r[5] }); m7.set(q, a); });
+      m7.forEach(a => a.sort((x, y) => y.impressions - x.impressions));
+      S.wk = { cur: (G.wk.cur || []).map(rw), prev: (G.wk.prev || []).map(rw), qp7: m7, range: G.wk.range, err: null, at };
+    }
+    setSrc("gsc", iz.gsc && !iz.gsc.ok ? "err" : "ok", "Google API · podaci do " + hrDate(S.gsc.daily.at(-1).Date) + " · " + ago(at) + (iz.gsc && !iz.gsc.ok ? " · zadnje osvježavanje nije uspjelo: " + iz.gsc.msg : ""), at);
+  } else setSrc("gsc", keys.gsc ? "err" : "off", keys.gsc ? (iz.gsc?.msg || "Google podaci još nisu preuzeti. Postavke → Preuzmi Google podatke sada.") : "Google servisni račun nije postavljen (Postavke).");
+  /* pozicije (DataForSEO) */
+  const L = P.rank?.latest;
+  if (L && Array.isArray(L.rows)) {
+    Object.assign(S.rank, { rows: L.rows.map(x => ({ id: x.id, kw: x.kw, pos: x.pos, prev: x.prev, url: x.url, pinned: false })), last: L.last, sched: L.sched, at: Date.parse(L.last) || Date.now(), err: null });
+    const Hh = P.rank.hist; S.rank.hist = Hh && Hh.runs ? { runs: Hh.runs, by: new Map(Object.entries(Hh.by || {})) } : null;
+    setSrc("rank", "ok", L.rows.length + " riječi · mjereno " + hrDate(L.last) + (P.rank.u_tijeku ? " · novo mjerenje u tijeku" : ""), S.rank.at);
+  } else { S.rank.err = keys.dataforseo ? (P.rank?.u_tijeku ? "Prvo mjerenje je u tijeku; rezultati stižu za nekoliko minuta." : "Pozicije još nisu izmjerene (Postavke → Izmjeri pozicije sada).") : "DataForSEO pristup nije postavljen (Postavke)."; setSrc("rank", keys.dataforseo ? "load" : "off", S.rank.err); }
+  /* svježi SERP-ovi iz mjerenja, za model konkurencije */
+  S.serpLive = new Map((P.serp || []).filter(x => x && x.keyword).map(x => [(x.country || "hr") + "|" + x.keyword, x]));
+  /* web iznutra */
+  if (P.wp) {
+    S.wp.list = P.wp.list || []; S.wp.audit = P.wp.audit || null; S.wp.at = Date.now(); S.wp.auditAt = Date.now(); S.wp.err = null;
+    const c = S.wp.audit?.stanje_crawla;
+    setSrc("wp", "ok", S.wp.list.length + " stranica" + (c?.zadnji_potpuni ? " · crawl " + ago(Date.parse(c.zadnji_potpuni)) : ""), S.wp.at);
+    syncOnpage();
+  }
+  /* društvene mreže: u sljedećoj fazi preko Meta API-ja */
+  if (P.ig && P.ig.media) { S.ig = P.ig; setSrc("ig", "ok", "snimka " + ago(P.ig.at || Date.now()), P.ig.at); }
+  else { setSrc("ig", "off", "Instagram na hostingu dolazi u sljedećoj fazi (Meta API)"); setSrc("yt", "off", "YouTube na hostingu dolazi u sljedećoj fazi"); }
+  S.done = { gsc: true, wp: true, rank: true, social: true };
+  rerender(); maybeSnapshot(); maybeExport();
+}
+
 /* tjedni prozori poravnati na zadnji dan s GSC podacima */
 function wkRange() {
   const d = S.gsc.daily; if (!d || !d.length) return null;
@@ -1918,9 +1999,9 @@ function renderRank() {
     tile("U top 3", fmt(ranked.filter(x => x.pos <= 3).length), "od " + RR.length + " riječi", "mobitel, Zagreb"),
     tile("U top 10", fmt(ranked.filter(x => x.pos <= 10).length), "", "prva stranica"),
     tile("Nije pronađeno", fmt(RR.length - ranked.length), "u prvih 40 rezultata", ""),
-    tile("Zadnje mjerenje", esc(hrDate(S.rank.last)), esc(S.rank.sched ? S.rank.sched.split(",")[0].replace("weekly", "tjedno") : ""), "OpenSEO")
+    tile("Zadnje mjerenje", esc(hrDate(S.rank.last)), esc(S.rank.sched ? S.rank.sched.split(",")[0].replace("weekly", "tjedno") : ""), RANK_SRC)
   ].join("");
-  $("#rk-meta").textContent = "OpenSEO tracker · " + RR.length + " riječi · čitanje rezultata ne troši kredite · " + ago(S.rank.at);
+  $("#rk-meta").textContent = RANK_SRC + " · " + RR.length + " riječi · " + (HOSTED ? "mjerenje pokreće server, prikaz ne troši ništa" : "čitanje rezultata ne troši kredite") + " · " + ago(S.rank.at);
   const runs = S.rank.hist?.runs || [];
   const rows = [...RR].sort((a, b) => (a.pos ?? 99) - (b.pos ?? 99) || (b.g?.impressions || 0) - (a.g?.impressions || 0)).map(x => {
     const hs = x.hist ? [...x.hist].reverse().filter(v => v != null).map(v => -(v === 0 ? 41 : v)) : [];
@@ -1938,7 +2019,9 @@ function renderRank() {
 const DEF_CTR = [0.28, 0.15, 0.10, 0.07, 0.05, 0.04, 0.03, 0.025, 0.02, 0.018];
 function compModel() {
   if (!S.arch.loaded) return null;
-  const serps = [...S.arch.serp.values()].filter(x => (x.country || "hr") === "hr" && Array.isArray(x.p) && x.p.length);
+  const live = S.serpLive || new Map();
+  const merged = new Map(S.arch.serp); live.forEach((v, k) => merged.set(k, v));
+  const serps = [...merged.values()].filter(x => (x.country || "hr") === "hr" && Array.isArray(x.p) && x.p.length);
   if (!serps.length) return { empty: true };
   const Q = queries(); const curve = Q ? ctrCurve(Q.list) : null;
   const ctrAt = pos => { const b = curve && bucketFor(curve, pos); return b && b.impr >= 60 && b.ctr != null ? { v: b.ctr, own: true } : { v: DEF_CTR[Math.min(9, Math.max(0, Math.round(pos) - 1))], own: false }; };
@@ -2624,12 +2707,18 @@ function bindStatic() {
   $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
   $("#btn-refresh-all").onclick = () => {
+    if (HOSTED) {
+      modal(`<h2 id="modal-title">Osvježiti podatke?</h2><p class="lead">Server ponovno preuzima Google podatke, kupi gotove rezultate mjerenja pozicija i obrađuje seriju stranica weba.</p><p class="note">Ne troši ništa. Novo plaćeno mjerenje pozicija pokreće se samo u Postavkama ili po tjednom rasporedu.</p><div class="row"><button class="btn" type="button" id="rf-ok">Osvježi</button><button class="btn btn-g" type="button" id="rf-no">Odustani</button></div>`);
+      $("#rf-no").onclick = closeModal;
+      $("#rf-ok").onclick = () => { closeModal(); hostedRefresh(["gsc", "rank", "crawl"]); };
+      return;
+    }
     if (!MCP) return;
     modal(`<h2 id="modal-title">Osvježiti sve izvore?</h2><p class="lead">Zaobilazi keš i ponovno pita Search Console (OpenSEO), tracker pozicija, WordPress most, Ahrefs, Instagram i YouTube.</p><p class="note">Trošak: OpenSEO čitanje i WordPress most ne troše kredite; Ahrefs oko 1.300 jedinica dok traje pretplata; vidIQ oko 15 kredita. Bez osvježavanja podaci se sami obnavljaju (Google svakih 12 sati, web i pozicije svakih 6 sati, Ahrefs svaki dan).</p><div class="row"><button class="btn" type="button" id="rf-ok">Osvježi</button><button class="btn btn-g" type="button" id="rf-no">Odustani</button></div>`);
     $("#rf-no").onclick = closeModal;
     $("#rf-ok").onclick = () => { closeModal(); loadAhrefsCore(true); loadGsc(true); loadAudit(true); loadSocial(true); loadRank(true); };
   };
-  $$("[data-refresh]").forEach(b => b.onclick = () => { const k = b.dataset.refresh; if (k === "gsc") loadGsc(true); if (k === "audit") loadAudit(true); if (k === "social") loadSocial(true); if (k === "rank") loadRank(true); });
+  $$("[data-refresh]").forEach(b => b.onclick = () => { const k = b.dataset.refresh; if (HOSTED) { hostedRefresh(k === "gsc" ? ["gsc"] : k === "rank" ? ["rank"] : k === "audit" ? ["crawl"] : []); return; } if (k === "gsc") loadGsc(true); if (k === "audit") loadAudit(true); if (k === "social") loadSocial(true); if (k === "rank") loadRank(true); });
   $("#kw-form").addEventListener("submit", runKw);
   $("#q-filter").addEventListener("input", renderQueries);
   $$("[data-qf]").forEach(b => b.onclick = () => { S.qf = b.dataset.qf; $$("[data-qf]").forEach(x => x.setAttribute("aria-pressed", x === b)); renderQueries(); });
@@ -2646,6 +2735,7 @@ function bindStatic() {
   $("#chat-form").addEventListener("submit", sendChat);
   // arhiva Ahrefsa
   $("#btn-arch-run").onclick = runArchive;
+  $("#btn-export-host").onclick = exportForHosting;
   $("#btn-arch-pause").onclick = () => { if (S.arch.run) { S.arch.run.active = false; S.arch.run.err = "Pauzirano. Gotovi dijelovi ostaju spremljeni."; } renderArchive(); };
   $("#btn-arch-save").onclick = saveArchForm;
   $("#arch-q").addEventListener("input", renderArchKw);
@@ -2659,9 +2749,29 @@ function bindStatic() {
 }
 async function boot() {
   bindStatic(); renderSources(); route(); renderChat();
+  if (HOSTED) {
+    SRC_LABEL.rank = "Pozicije (DataForSEO)"; SRC_LABEL.gsc = "Google Search Console (API)";
+    const eb = $("#v-pozicije .eb"); if (eb) eb.textContent = "DataForSEO · mobitel · Zagreb";
+    $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.wpadmin) + '">wp-admin</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a></div>';
+    const [d, s] = await Promise.all([claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
+    DB = d; SAMPLE = s; MCP = null;
+    setSrc("ai", SAMPLE ? "ok" : "off", SAMPLE ? "Anthropic API, ključ na serveru" : "Anthropic ključ nije postavljen (Postavke)");
+    await loadDb();
+    fillArchForm();
+    loadArchive().then(() => {
+      renderArchive(); if (S.view === "kljucne-rijeci") renderArchKw();
+      loadAhrefsCore(false);
+      setSrc("audit", S.ah.audit ? "ok" : "off", S.ah.audit ? "arhiva " + hrDate(S.arch.misc.audit?.at) : "arhiva Ahrefsa još nije uvezena", S.arch.misc.audit?.at);
+      rerender();
+    });
+    loadPlan();
+    await loadHosted();
+    return;
+  }
   if (!window.claude || !window.claude.use) { $("#banner").innerHTML = '<div class="banner">Radar treba otvoriti na claude.ai da bi se spojio na OpenSEO, web (WordPress most), vidIQ i Ahrefs.</div>'; return; }
-  const [m, d, s] = await Promise.all([claude.use("mcp").catch(() => null), claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
-  MCP = m; DB = d; SAMPLE = s;
+  const [m, d, s, dl] = await Promise.all([claude.use("mcp").catch(() => null), claude.use("db").catch(() => null), claude.use("sample").catch(() => null), claude.use("downloads").catch(() => null)]);
+  MCP = m; DB = d; SAMPLE = s; DL = dl;
+  if (DB && DL) $("#btn-export-host").hidden = false;
   setSrc("ai", SAMPLE ? "ok" : "off", SAMPLE ? "spreman, pita za pristanak pri prvom upitu" : "nije dostupan u ovom prikazu");
   if (!MCP) { $("#banner").innerHTML = '<div class="banner">Konektori nisu dostupni u ovom prikazu. Otvori Radar na claude.ai i dopusti pristup OpenSEO-u, webu (Optika Ljiljana web), vidIQ-u, Ahrefsu i Supermetricsu.</div>'; }
   await loadDb();

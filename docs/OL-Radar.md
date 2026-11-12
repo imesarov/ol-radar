@@ -1,13 +1,38 @@
 # OL Radar – kako Claude koristi alat
 
-Stanje: 11. 11. 2026., verzija v3, WordPress most v1.0.0 na webu (1.0.1 čeka instalaciju), OpenSEO spojen, tracker aktivan, arhiva Ahrefsa gotova.
+Stanje 12. 11. 2026.:
+- Radar na claude.ai: v3.1.
+- WordPress dodatak 2.0.0 (Radar na hostingu) je izgrađen i testiran i čeka instalaciju; na webu je još 1.0.0.
+- Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.). Treba ga dodati u Search Console, uključiti Search Console API i izraditi JSON ključ.
+- DataForSEO račun je otvoren (12. 11.).
+- OpenSEO tracker radi i arhiva Ahrefsa je gotova.
 
 **Aplikacija:** https://claude.ai/artifact/FwKJowHqdJUASipjeAkoBT
 **Slug za alate (db_get / db_query / db_list):** 78f5630e-c158-4ddc-b32b-b3b711130c3e
 **Kod:** GitHub repozitorij `ol-radar` (README, testovi, CHANGELOG)
 
 ## Pravilo
-Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara. Prvo pročitaj `export/radar`. Ako ga nema ili je stariji od 7 dana, napomeni da treba otvoriti Radar da se osvježi. Brojke u prijedlozima uzimaj iz baze ili izravno iz izvora, ne napamet.
+Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
+- **Kad je dodatak 2.0 postavljen:** preko konektora „Optika Ljiljana web” pozovi `ol-radar/radar-sazetak`. Za svježe Google brojke koristi `ol-radar/radar-gsc`, a za pozicije `ol-radar/radar-pozicije`.
+- **Inače:** pročitaj `export/radar` u bazi artefakta.
+- **Zastario ili nepostojeći sažetak:** ako ga nema ili je stariji od 7 dana, napomeni da treba otvoriti Radar (wp-admin → OL Radar).
+- Brojke u prijedlozima uzimaj iz Radara ili izravno iz izvora, ne napamet.
+
+## Radar na hostingu (dodatak 2.0)
+- **Nadzorna ploča:** `https://www.optikaljiljana.hr/wp-admin/admin.php?page=ol-radar`, samo administrator. Postavke su na `admin.php?page=ol-radar-postavke`.
+- **Izvori na serveru:**
+  - Google Search Console API (servisni račun, svakih 12 h);
+  - DataForSEO (pozicije: tjedno ako je uključeno, ili gumbom; oko 0,065 $ za 27 riječi);
+  - crawl dodatka;
+  - Anthropic API za Claudea u ploči (Ultra plan: 200 $ API kredita mjesečno uz povezanu Console organizaciju).
+- **Ključeve** upisuje samo Ivan na stranici Postavke. Spremaju se šifrirano i nikad se ne lijepe u chat.
+- **Pohrana:** tablica `ol_radar_docs`, s istim zbirkama kao artefakt, plus `gsc`, `rank`, `rank_run` i `serp`.
+- **Uvoz iz claude.ai Radara:** Arhiva → „Izvezi za hosting”, zatim Postavke → Uvoz.
+- **Instagram i YouTube** na hostingu tek u sljedećoj fazi (Meta API). Do tada samo u claude.ai Radaru (vidIQ).
+- **MCP (samo čitanje, uloga `ol_radar_reader`):**
+  - `ol-radar/radar-sazetak` (export/radar, stanje izvora, starost);
+  - `ol-radar/radar-gsc` (filtar, razdoblje 28 ili 7, limit do 500);
+  - `ol-radar/radar-pozicije` (konkurenti: true daje top 10 po riječi).
 
 ## Što je u bazi
 - **export/radar:** sažetak za Claudea. Aplikacija ga piše pri otvaranju: čim stigne GSC, a ostale izvore čeka najviše 2 minute (`potpuno: false` ako neki nije stigao). Potpun sažetak piše se najviše svakih 6 h. Sadrži:
