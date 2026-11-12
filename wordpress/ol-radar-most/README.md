@@ -82,7 +82,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Nadogradnja nikad ne dira ključeve.** Ključ se mijenja samo izričitim unosom ili gumbom „obriši” u Postavkama.
 - **Brisanje dodatka** (pa ponovna instalacija) također čuva postavke, šifrirane ključeve i podatke Radara. Uklanjaju se samo ako je u `wp-config.php` definirano `OLR_DELETE_DATA`.
 - **Provjera nakon nadogradnje:** dodatak vodi popis spremljenih ključeva (`olr_keys_seen`). Ako nakon promjene verzije neki nedostaje ili je nečitljiv, Postavke pokažu crveno upozorenje, a isto vidi i Claude (`stanje.nadogradnja` u `ol-radar/radar-sazetak`).
-- **Test prije svakog izdanja:** `tests/wordpress/upgrade_test.sh` instalira svaku izdanu verziju 2.x (iz git oznaka), spremi ključeve njezinim kodom, zamijeni mapu dodatka novom i provjeri da su ključevi, postavke i podaci isti; zatim deaktivacija/aktivacija te brisanje i ponovna instalacija. Zip se gradi samo preko `tools/release.sh`, koji bez tog testa ne prolazi.
+- **Test prije svakog izdanja:** `tests/wordpress/upgrade_test.sh` instalira svaku izdanu verziju 2.x (iz povijesti repozitorija, prema `tests/wordpress/izdanja.txt`), spremi ključeve njezinim kodom, zamijeni mapu dodatka novom i provjeri da su ključevi, postavke i podaci isti; zatim deaktivacija/aktivacija te brisanje i ponovna instalacija. Zip se gradi samo preko `tools/release.sh`, koji bez tog testa ne prolazi.
 
 ### Veza prema Googleu (od 2.1.0)
 - Pozivi idu kao HTTP/1.1 (WordPress zadano šalje 1.0), s čekanjem do 30 s.

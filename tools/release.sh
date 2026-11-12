@@ -5,7 +5,8 @@
 # Upotreba:  bash tools/release.sh            # zip u ../izlaz
 #            OUT_DIR=/neka/mapa bash tools/release.sh
 #
-# Nakon uspjeha i commita:  git tag v<verzija> && git push --tags   (oznaka ulazi u test nadogradnje sljedećeg izdanja)
+# Nakon uspjeha i commita: dodaj redak "<verzija> <commit>" u tests/wordpress/izdanja.txt,
+# da test nadogradnje sljedećeg izdanja pokrije i ovo.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 VER=$(grep -o "OLR_VERSION', '[0-9.]*'" "$REPO/wordpress/ol-radar-most/ol-radar-most.php" | grep -o "[0-9][0-9.]*")
@@ -17,6 +18,12 @@ export WPTEST_DIR="$WORK"
 echo "=== OL Radar – most za Claudea $VER"
 for f in "$REPO/wordpress/ol-radar-most/readme.txt" "$REPO/wordpress/ol-radar-most/README.md" "$REPO/CHANGELOG.md"; do
   grep -q "$VER" "$f" || { echo "FAIL $f ne spominje verziju $VER"; exit 1; }
+done
+
+# Svako ranije izdanje 2.x iz dnevnika promjena mora biti u popisu za test nadogradnje.
+for v in $(grep -o "^= 2\.[0-9.]* =" "$REPO/wordpress/ol-radar-most/readme.txt" | grep -o "[0-9][0-9.]*"); do
+  [ "$v" = "$VER" ] && continue
+  grep -q "^$v " "$REPO/tests/wordpress/izdanja.txt" || { echo "FAIL izdanje $v nije u tests/wordpress/izdanja.txt (test nadogradnje ga ne bi pokrio)"; exit 1; }
 done
 
 echo "=== izgradnja nadzorne ploče"

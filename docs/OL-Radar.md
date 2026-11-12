@@ -21,8 +21,8 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 
 ## Pravilo za nove verzije dodatka (Ivan, 12. 11. 2026.)
 **Nova verzija ne smije obrisati već spremljene ključeve.** Zato:
-- Zip se gradi samo s `bash tools/release.sh`. Skripta diže svježi testni WordPress i pokreće sve testove, među njima `tests/wordpress/upgrade_test.sh`: nadogradnja sa svake izdane verzije 2.x (git oznake `v2.*`), deaktivacija/aktivacija, brisanje i ponovna instalacija. Ključevi, postavke i podaci moraju ostati isti.
-- Nakon izdanja postavi git oznaku `v<verzija>`, da je sljedeći test pokrije.
+- Zip se gradi samo s `bash tools/release.sh`. Skripta diže svježi testni WordPress i pokreće sve testove, među njima `tests/wordpress/upgrade_test.sh`: nadogradnja sa svake izdane verzije 2.x (popis `tests/wordpress/izdanja.txt`), deaktivacija/aktivacija, brisanje i ponovna instalacija. Ključevi, postavke i podaci moraju ostati isti.
+- Nakon izdanja dodaj redak „verzija commit” u `tests/wordpress/izdanja.txt`, da je sljedeći test pokrije (git oznake se iz ovog okruženja ne mogu poslati na GitHub).
 - Ne mijenjaj način šifriranja (`OLR_Settings::encrypt`, ključ iz `wp_salt('auth')`) ni imena opcija `olr_secrets` i `olr_settings` bez migracije koja čita stari oblik i testa za nju.
 - `set_secret()` se zove samo na izričit unos ili „obriši” u Postavkama. Svaki novi gumb na stranici Postavke mora biti unutar glavnog obrasca (bez ugniježđenih obrazaca) i pokriven e2e testom „Spremi postavke čuva ključeve”.
 - Nakon što Ivan učita novu verziju, provjeri `ol-radar/radar-sazetak`: `stanje.kljucevi` (sva tri `true`) i `stanje.nadogradnja` (mora biti `null`).

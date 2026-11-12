@@ -1,0 +1,7 @@
+# Izdane verzije dodatka i commit iz kojeg je građen zip (verzija, razmak, commit).
+# Test nadogradnje (upgrade_test.sh) instalira svaku od njih i prelazi na trenutni kod.
+# Nakon svakog izdanja dodaj novi redak; tools/release.sh to provjerava.
+2.0.0 bdbf392
+2.0.1 ed28f4e
+2.0.2 14b901f
+2.1.0 da2a037
