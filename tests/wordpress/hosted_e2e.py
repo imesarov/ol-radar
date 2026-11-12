@@ -69,7 +69,63 @@ async def main():
         okx = ex["gsc"] == "Google API" and ex["poz"] == 5
         print(("OK  " if okx else "FAIL") + " export/radar u bazi dodatka:", ex); bad += 0 if okx else 1
 
-        # postavke se otvaraju i ne prikazuju ključeve
+        # postavke: gumb "Spremi i provjeri" sprema upisani ključ pa ga provjerava
+        await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
+        await pg.fill("#dfs_login", "ivan@test.hr")
+        await pg.fill("#dfs_password", "tajna-api")
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=test_dfs]")
+        msg = await pg.inner_text(".notice")
+        okd = "spremljen" in msg and "Prijava radi" in msg and "notice-success" in (await pg.get_attribute(".notice", "class"))
+        print(("OK  " if okd else "FAIL") + " spremi i provjeri DataForSEO: " + msg[:120]); bad += 0 if okd else 1
+        await pg.fill("#anthropic_key", "sk-ant-test-1234")
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=test_ai]")
+        msg = await pg.inner_text(".notice")
+        oka = "Anthropic ključ spremljen" in msg and "Ključ radi" in msg
+        print(("OK  " if oka else "FAIL") + " spremi i provjeri Claude ključ: " + msg[:120]); bad += 0 if oka else 1
+        # "Spremi postavke" i Enter u polju ne smiju dirati spremljene ključeve (greška iz 2.0.0: ugniježđeni obrazac "obriši")
+        async def kljucevi():
+            return await pg.evaluate("[...document.querySelectorAll('button[name=olr_forget]')].map(b=>b.value).sort().join(',')")
+        prije = await kljucevi()
+        async with pg.expect_navigation():
+            await pg.click("#submit")
+        msg = await pg.inner_text(".notice")
+        poslije = await kljucevi()
+        oks = msg.strip() == "Postavke spremljene." and prije == poslije and "anthropic_key" in poslije and "dfs_login" in poslije
+        print(("OK  " if oks else "FAIL") + f" Spremi postavke čuva ključeve ({poslije}): " + msg[:80]); bad += 0 if oks else 1
+        async with pg.expect_navigation():
+            await pg.press("#gsc_site", "Enter")
+        msg = await pg.inner_text(".notice")
+        oke = msg.strip() == "Postavke spremljene." and await kljucevi() == prije
+        print(("OK  " if oke else "FAIL") + " Enter u polju = obično spremanje: " + msg[:80]); bad += 0 if oke else 1
+        # obriši: traži potvrdu; "Odustani" ne briše, "U redu" briše samo taj ključ
+        pg.once("dialog", lambda d: asyncio.ensure_future(d.dismiss()))
+        await pg.click("button[name=olr_forget][value=anthropic_key]")
+        await pg.wait_for_timeout(500)
+        okc = "postavke" in pg.url and await kljucevi() == prije
+        pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_forget][value=anthropic_key]")
+        msg = await pg.inner_text(".notice")
+        ostalo = await kljucevi()
+        okf = okc and "Ključ obrisan" in msg and "anthropic_key" not in ostalo and "dfs_login" in ostalo and "dfs_password" in ostalo
+        print(("OK  " if okf else "FAIL") + f" obriši briše samo odabrani ključ ({ostalo})"); bad += 0 if okf else 1
+        ac = await pg.evaluate("[...document.querySelectorAll('#dfs_password,#anthropic_key')].map(i=>i.autocomplete).join(',')")
+        okac = ac == "new-password,new-password"
+        print(("OK  " if okac else "FAIL") + " polja ključeva bez automatskog popunjavanja: " + ac); bad += 0 if okac else 1
+        # vrati Claude ključ za ostatak testa
+        await pg.fill("#anthropic_key", "sk-ant-test-1234")
+        async with pg.expect_navigation():
+            await pg.click("#submit")
+        # nespremljene promjene: drugi obrazac (uvoz) traži potvrdu
+        await pg.fill("#anthropic_key", "nesto")
+        dialogs = []
+        pg.once("dialog", lambda d: (dialogs.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await pg.click("input[type=submit][value=Uvezi]")
+        await pg.wait_for_timeout(500)
+        okg = bool(dialogs) and "nespremljene" in dialogs[0]
+        print(("OK  " if okg else "FAIL") + " upozorenje na nespremljene promjene"); bad += 0 if okg else 1
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
         html = await pg.content()
         leak = "sk-ant-test-1234" in html or "PRIVATE KEY" in html or "tajna-api" in html

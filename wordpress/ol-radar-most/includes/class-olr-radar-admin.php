@@ -82,6 +82,10 @@ class OLR_Radar_Admin {
 
 	public static function handle_save() {
 		self::check( 'save' );
+		$forget = sanitize_key( (string) self::post( 'olr_forget' ) );
+		if ( '' !== $forget ) {
+			self::forget( $forget );
+		}
 		$msgs = array();
 		$sa   = trim( (string) self::post( 'gsc_sa' ) );
 		if ( '' !== $sa ) {
@@ -141,12 +145,19 @@ class OLR_Radar_Admin {
 		}
 		OLR_Settings::update( $vals );
 		$msgs[] = 'Postavke spremljene.';
+		$then   = self::run_then( sanitize_key( (string) self::post( 'olr_then' ) ) );
+		if ( $then ) {
+			self::back( implode( ' ', $msgs ) . ' ' . $then['msg'], $then['ok'] );
+		}
 		self::back( implode( ' ', $msgs ) );
 	}
 
 	public static function handle_forget() {
 		self::check( 'forget' );
-		$k = sanitize_key( (string) self::post( 'kljuc' ) );
+		self::forget( sanitize_key( (string) self::post( 'kljuc' ) ) );
+	}
+
+	private static function forget( $k ) {
 		if ( in_array( $k, array( 'gsc_sa', 'dfs_login', 'dfs_password', 'anthropic_key' ), true ) ) {
 			OLR_Settings::set_secret( $k, null );
 			if ( 'gsc_sa' === $k ) {
@@ -157,46 +168,77 @@ class OLR_Radar_Admin {
 		self::back( 'Nepoznat ključ.', false );
 	}
 
+	/**
+	 * Radnja nakon spremanja (provjera, preuzimanje, mjerenje).
+	 *
+	 * @return array|null [ 'ok' => bool, 'msg' => string ] ili null ako radnja nije zadana.
+	 */
+	public static function run_then( $then ) {
+		switch ( $then ) {
+			case 'test_gsc':
+				$r = OLR_GSC::test();
+				break;
+			case 'collect_gsc':
+				$r = OLR_GSC::collect();
+				if ( ! is_wp_error( $r ) ) {
+					$r = 'Google podaci preuzeti: do ' . $r['do'] . ', ' . $r['redaka']['qp'] . ' redaka upit+stranica.';
+				}
+				break;
+			case 'test_dfs':
+				$r = OLR_DFS::test();
+				break;
+			case 'run_dfs':
+				$r = OLR_DFS::start_run( 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$r = sprintf( 'Mjerenje poslano: %d riječi, trošak %.4f $. Rezultati stižu za nekoliko minuta (gumb „Pokupi rezultate” ili sami u sljedećem satu).', $r['zadaci'], $r['trosak'] );
+				}
+				break;
+			case 'poll_dfs':
+				$r = OLR_DFS::poll();
+				if ( ! is_wp_error( $r ) ) {
+					$r = ! empty( $r['u_tijeku'] ) ? sprintf( 'Stiglo %d od %d rezultata. Ostali stižu uskoro.', $r['gotovo'], $r['ukupno'] ) : ( ! empty( $r['gotovo'] ) ? 'Mjerenje završeno, pozicije su u nadzornoj ploči.' : 'Nema mjerenja u tijeku.' );
+				}
+				break;
+			case 'test_ai':
+				$r = OLR_AI::test();
+				break;
+			default:
+				return null;
+		}
+		return array(
+			'ok'  => ! is_wp_error( $r ),
+			'msg' => is_wp_error( $r ) ? $r->get_error_message() : (string) $r,
+		);
+	}
+
+	private static function run_and_back( $then ) {
+		self::check( $then );
+		$r = self::run_then( $then );
+		self::back( $r['msg'], $r['ok'] );
+	}
+
 	public static function handle_test_gsc() {
-		self::check( 'test_gsc' );
-		$r = OLR_GSC::test();
-		self::back( is_wp_error( $r ) ? $r->get_error_message() : $r, ! is_wp_error( $r ) );
+		self::run_and_back( 'test_gsc' );
 	}
 
 	public static function handle_collect_gsc() {
-		self::check( 'collect_gsc' );
-		$r = OLR_GSC::collect();
-		self::back( is_wp_error( $r ) ? $r->get_error_message() : 'Google podaci preuzeti: do ' . $r['do'] . ', ' . $r['redaka']['qp'] . ' redaka upit+stranica.', ! is_wp_error( $r ) );
+		self::run_and_back( 'collect_gsc' );
 	}
 
 	public static function handle_test_dfs() {
-		self::check( 'test_dfs' );
-		$r = OLR_DFS::test();
-		self::back( is_wp_error( $r ) ? $r->get_error_message() : $r, ! is_wp_error( $r ) );
+		self::run_and_back( 'test_dfs' );
 	}
 
 	public static function handle_run_dfs() {
-		self::check( 'run_dfs' );
-		$r = OLR_DFS::start_run( 'rucno' );
-		self::back( is_wp_error( $r ) ? $r->get_error_message() : sprintf( 'Mjerenje poslano: %d riječi, trošak %.4f $. Rezultati stižu za nekoliko minuta (gumb „Pokupi rezultate” ili sami u sljedećem satu).', $r['zadaci'], $r['trosak'] ), ! is_wp_error( $r ) );
+		self::run_and_back( 'run_dfs' );
 	}
 
 	public static function handle_poll_dfs() {
-		self::check( 'poll_dfs' );
-		$r = OLR_DFS::poll();
-		if ( is_wp_error( $r ) ) {
-			self::back( $r->get_error_message(), false );
-		}
-		if ( ! empty( $r['u_tijeku'] ) ) {
-			self::back( sprintf( 'Stiglo %d od %d rezultata. Ostali stižu uskoro.', $r['gotovo'], $r['ukupno'] ) );
-		}
-		self::back( ! empty( $r['gotovo'] ) ? 'Mjerenje završeno, pozicije su u nadzornoj ploči.' : 'Nema mjerenja u tijeku.' );
+		self::run_and_back( 'poll_dfs' );
 	}
 
 	public static function handle_test_ai() {
-		self::check( 'test_ai' );
-		$r = OLR_AI::test();
-		self::back( is_wp_error( $r ) ? $r->get_error_message() : $r, ! is_wp_error( $r ) );
+		self::run_and_back( 'test_ai' );
 	}
 
 	/** Uvoz podataka iz Radara na claude.ai (JSON: { "zbirke": { "ime": [ { "id": ..., "data": {...} } ] } }). */
@@ -241,22 +283,12 @@ class OLR_Radar_Admin {
 		);
 	}
 
-	private static function button( $action, $label, $class = 'button' ) {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin:0 8px 8px 0">';
-		wp_nonce_field( 'olr_' . $action );
-		echo '<input type="hidden" name="action" value="olr_' . esc_attr( $action ) . '">';
-		submit_button( $label, $class, 'submit', false );
-		echo '</form>';
-	}
-
+	/** Gumb „obriši” je dio glavnog obrasca (ugniježđeni <form> nije dopušten u HTML-u). */
 	private static function forget_button( $key ) {
 		if ( 'baza (šifrirano)' !== OLR_Settings::secret_source( $key ) ) {
 			return;
 		}
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
-		wp_nonce_field( 'olr_forget' );
-		echo '<input type="hidden" name="action" value="olr_forget"><input type="hidden" name="kljuc" value="' . esc_attr( $key ) . '">';
-		echo ' <button type="submit" class="button-link button-link-delete">obriši</button></form>';
+		echo ' <button type="submit" class="button-link button-link-delete" name="olr_forget" value="' . esc_attr( $key ) . '" data-olr-brisi="1">obriši</button>';
 	}
 
 	private static function secret_row( $key, $label, $help, $type = 'password' ) {
@@ -266,7 +298,8 @@ class OLR_Radar_Admin {
 		if ( 'textarea' === $type ) {
 			echo '<textarea id="' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" rows="4" class="large-text code" autocomplete="off" spellcheck="false" placeholder="' . esc_attr( $desc ? 'Postavljeno. Zalijepi novi JSON samo ako ga mijenjaš.' : 'Zalijepi cijeli sadržaj JSON datoteke' ) . '"></textarea>';
 		} else {
-			echo '<input type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="off" value="" placeholder="' . esc_attr( $desc ? 'postavljeno; upiši samo za promjenu' : '' ) . '">';
+			// new-password: preglednik inače zna sam upisati spremljenu lozinku za wp-admin u polje ključa.
+			echo '<input type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="' . ( 'password' === $type ? 'new-password' : 'off' ) . '" data-lpignore="true" data-1p-ignore value="" placeholder="' . esc_attr( $desc ? 'postavljeno; upiši samo za promjenu' : '' ) . '">';
 		}
 		echo '<p class="description">' . wp_kses_post( $help ) . '</p>';
 		if ( $desc ) {
@@ -337,6 +370,8 @@ class OLR_Radar_Admin {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'olr_save' ); ?>
 				<input type="hidden" name="action" value="olr_save">
+				<?php // Zadani gumb za Enter u polju: obično spremanje (inače bi Enter „kliknuo” prvi gumb u obrascu, npr. „obriši”). ?>
+				<button type="submit" class="olr-zadano" tabindex="-1" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">Spremi postavke</button>
 
 				<h2>Google Search Console</h2>
 				<table class="form-table" role="presentation">
@@ -346,6 +381,7 @@ class OLR_Radar_Admin {
 						<p class="description">Točno kao u Search Consoleu: <code>https://www.optikaljiljana.hr/</code> (URL svojstvo) ili <code>sc-domain:optikaljiljana.hr</code> (domena).</p>
 					</td></tr>
 				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="test_gsc">Spremi i provjeri Google vezu</button> <button type="submit" class="button" name="olr_then" value="collect_gsc">Spremi i preuzmi Google podatke sada</button></p>
 
 				<h2>Pozicije (DataForSEO)</h2>
 				<table class="form-table" role="presentation">
@@ -367,6 +403,13 @@ class OLR_Radar_Admin {
 						<p class="description">Procjena: <?php echo esc_html( sprintf( '%.4f $ po mjerenju, oko %.2f $ mjesečno', OLR_DFS::estimate(), OLR_DFS::estimate() * 4.35 ) ); ?>.</p>
 					</td></tr>
 				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="test_dfs">Spremi i provjeri DataForSEO prijavu (besplatno)</button>
+					<?php if ( $pending ) : ?>
+						<strong style="margin-left:8px">Mjerenje u tijeku (<?php echo esc_html( $pending ); ?>).</strong> <button type="submit" class="button" name="olr_then" value="poll_dfs">Spremi i pokupi rezultate</button>
+					<?php else : ?>
+						<button type="submit" class="button" name="olr_then" value="run_dfs" data-olr-trosak="<?php echo esc_attr( sprintf( '%.4f', OLR_DFS::estimate() ) ); ?>"><?php echo esc_html( sprintf( 'Spremi i izmjeri pozicije sada (oko %.4f $)', OLR_DFS::estimate() ) ); ?></button>
+					<?php endif; ?>
+				</p>
 
 				<h2>Claude u nadzornoj ploči (Anthropic API)</h2>
 				<table class="form-table" role="presentation">
@@ -376,35 +419,46 @@ class OLR_Radar_Admin {
 						<label style="margin-left:12px">Dnevni limit poziva <input type="number" name="ai_daily_limit" class="small-text" min="1" max="2000" value="<?php echo (int) $s['ai_daily_limit']; ?>"></label>
 					</td></tr>
 				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="test_ai">Spremi i provjeri Claude ključ</button></p>
 				<?php submit_button( 'Spremi postavke' ); ?>
 			</form>
-
-			<h2>Provjere i ručno pokretanje</h2>
-			<p>
-				<?php
-				self::button( 'test_gsc', 'Provjeri Google vezu' );
-				self::button( 'collect_gsc', 'Preuzmi Google podatke sada' );
-				self::button( 'test_dfs', 'Provjeri DataForSEO prijavu (besplatno)' );
-				self::button( 'test_ai', 'Provjeri Claude ključ' );
-				?>
-			</p>
-			<p>
-				<?php
-				if ( $pending ) {
-					echo '<strong>Mjerenje u tijeku (' . esc_html( $pending ) . ').</strong> ';
-					self::button( 'poll_dfs', 'Pokupi rezultate' );
-				} else {
-					self::button( 'run_dfs', sprintf( 'Izmjeri pozicije sada (oko %.4f $)', OLR_DFS::estimate() ), 'button button-secondary' );
-				}
-				?>
-			</p>
+			<script>
+			( function () {
+				// Upozorenje na nespremljene promjene i potvrda troška mjerenja.
+				var form = document.querySelector( 'form input[name="action"][value="olr_save"]' ).form, dirty = false;
+				form.addEventListener( 'input', function () { dirty = true; } );
+				form.addEventListener( 'change', function () { dirty = true; } );
+				form.addEventListener( 'submit', function ( e ) {
+					var b = e.submitter;
+					if ( b && b.getAttribute( 'data-olr-brisi' ) && ! window.confirm( 'Obrisati ovaj ključ iz baze?' ) ) {
+						e.preventDefault();
+						return;
+					}
+					if ( b && b.getAttribute( 'data-olr-trosak' ) && ! window.confirm( 'Pokrenuti mjerenje pozicija? Trošak je oko ' + b.getAttribute( 'data-olr-trosak' ) + ' $ s DataForSEO računa.' ) ) {
+						e.preventDefault();
+						return;
+					}
+					dirty = false;
+				} );
+				// Na razini dokumenta jer obrazac za uvoz dolazi tek nakon ove skripte.
+				document.addEventListener( 'submit', function ( e ) {
+					if ( e.target === form || ! dirty ) { return; }
+					if ( window.confirm( 'Imaš nespremljene promjene u postavkama. Nastaviti bez spremanja?' ) ) {
+						dirty = false;
+					} else {
+						e.preventDefault();
+					}
+				}, true );
+				window.addEventListener( 'beforeunload', function ( e ) { if ( dirty ) { e.preventDefault(); e.returnValue = ''; } } );
+			} )();
+			</script>
 
 			<h2>Uvoz iz Radara na claude.ai</h2>
 			<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'olr_import' ); ?>
 				<input type="hidden" name="action" value="olr_import">
 				<input type="file" name="datoteka" accept="application/json,.json">
-				<?php submit_button( 'Uvezi', 'secondary', 'submit', false ); ?>
+				<?php submit_button( 'Uvezi', 'secondary', 'olr_uvezi', false ); ?>
 				<p class="description">Arhiva Ahrefsa, nalazi, plan sadržaja i povijest. Datoteku priprema Claude.</p>
 			</form>
 

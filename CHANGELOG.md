@@ -1,5 +1,10 @@
 # Promjene
 
+## 2026-11-12 (popodne)
+- **Dodatak 2.0.1:** gumbi za provjeru, preuzimanje i mjerenje na stranici Postavke sada najprije spremaju upisano (prije su se ključevi gubili ako se kliknula provjera prije „Spremi postavke”). Dodano je upozorenje na nespremljene promjene i potvrda troška prije mjerenja.
+  - **Važan popravak:** gumbi „obriši” bili su ugniježđeni obrasci unutar glavnog obrasca, a preglednik ih spaja s njim. Zato su „Spremi postavke” i gumbi za provjeru, čim je neki ključ već bio spremljen, zapravo pokretali brisanje ključa. „Obriši” je sada običan gumb u glavnom obrascu, s potvrdom.
+  - Enter u polju radi obično spremanje. Polja za lozinku i API ključ imaju `autocomplete="new-password"`, da preglednik u njih ne upiše spremljenu lozinku za wp-admin.
+
 ## 2026-11-12
 - **WordPress dodatak 2.0.0: OL Radar na hostingu.**
   - Nadzorna ploča u wp-adminu, preko cijelog zaslona, samo za administratore. Isti kod kao Radar na claude.ai (`app/hosted-shim.js`, `tools/build-hosted.py`).

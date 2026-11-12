@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.0.0)
+# OL Radar – most za Claudea (v2.0.1)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -45,7 +45,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 3. **Claude:**
    - Anthropic API ključ iz Claude Console, model i dnevni limit poziva.
    - Za mjesečne kredite Ultra plana poveži Console organizaciju u claude.ai (Postavke → Billing → API credits).
-4. **Provjere:** „Provjeri Google vezu”, „Provjeri DataForSEO prijavu” (besplatno) i „Provjeri Claude ključ”.
+4. **Provjere:** gumbi „Spremi i provjeri…” uz svaki odjeljak (Google, DataForSEO besplatno, Claude). Najprije spremaju upisano, pa provjeravaju; rezultat se vidi na vrhu stranice.
 5. **Uvoz iz Radara na claude.ai:** u claude.ai Radaru otvori Arhiva → „Izvezi za hosting”, pa ovdje učitaj datoteku. Uvozi arhivu Ahrefsa, nalaze, plan, snimke i postavke. Podatke izvora (gsc, rank, serp) uvoz ne dira.
 
 ### Ključevi
@@ -105,7 +105,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 
 ## Instalacija i nadogradnja
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.0.0.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.0.1.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga.
 3. U izborniku se pojavljuje **OL Radar** s podstranicama Nadzorna ploča i Postavke. Stara stranica Alati → OL Radar (crawl) ostaje.
 
 ## Spajanje s Claudeom (claude.ai, desktop, mobitel)
