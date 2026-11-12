@@ -288,11 +288,16 @@ async def main():
             txt:document.querySelector('#sur-list').textContent, tiles:[...document.querySelectorAll('#sur-tiles .tile')].map(t=>t.querySelector('.k').textContent+':'+t.querySelector('.v').textContent).join(' | '),
             meta:document.querySelector('#sur-meta').textContent, cnt:+document.querySelector('#cnt-suradnje').textContent, mail:document.querySelectorAll('#sur-list a[href^="mailto:"]').length,
             dr:document.querySelectorAll('#sur-dr-body tbody tr').length, me:document.querySelectorAll('#sur-dr-body tr.me').length, drm:document.querySelector('#sur-dr-meta').textContent,
-            gsc:document.querySelectorAll('#sur-gsc-body tbody tr').length, html:document.querySelector('#sur-list').innerHTML.includes('<b>'), w:document.documentElement.scrollWidth-document.documentElement.clientWidth}))()""")
+            gsc:document.querySelectorAll('#sur-gsc-body tbody tr').length, html:document.querySelector('#sur-list').innerHTML.includes('<b>'), w:document.documentElement.scrollWidth-document.documentElement.clientWidth,
+            how:[...document.querySelectorAll('#sur-list .prop')].filter(p=>p.textContent.includes('Kako su drugi došli do poveznice:')).map(p=>({d:p.querySelector('header a').textContent, a:(p.querySelector('a[rel="noopener nofollow"]')||{}).href||'', t:(p.querySelector('a[rel="noopener nofollow"]')||{}).textContent||'', pill:[...p.querySelectorAll('.pill')].map(x=>x.textContent).join('|')})),
+            spark:document.querySelectorAll('#sur-dr-body svg.spark').length}))()""")
         oku1 = su["on"] and su["nav"] == "12" and su["n"] >= 6 and su["chg"] >= 2 * su["n"] and su["copy"] == su["n"] and su["cnt"] == su["n"] and su["mail"] >= su["n"] and "Stručni komentar optometrista" in su["txt"] and "urednik rubrike Zdravlje" in su["txt"] and not su["html"] and su["w"] <= 0
         print(("OK  " if oku1 else "FAIL") + " suradnje: kartice s prijedlogom, nacrtom poruke i javnim kontaktom, bez vodoravnog pomaka:", {k: su[k] for k in ("n", "chg", "cnt", "mail", "w")}); bad += 0 if oku1 else 1
         oku2 = "Naš DR:1,4" in su["tiles"] and "Najjači konkurent:29" in su["tiles"] and "Poveznice (Google):3" in su["tiles"] and "Kandidata:" in su["tiles"] and su["dr"] == 6 and su["me"] == 1 and "Domain Rating by Ahrefs" in su["drm"] and "tjedna provjera je isključena" in su["drm"] and su["gsc"] == 3 and "jednom tjedno" in su["meta"]
         print(("OK  " if oku2 else "FAIL") + " suradnje: pločice, DR nas i konkurenata s oznakom izvora, poveznice koje vidi Google:", su["tiles"]); bad += 0 if oku2 else 1
+        h0 = su["how"][0] if su["how"] else {}
+        oku2b = len(su["how"]) == 1 and h0.get("d") == "gloria.hr" and h0.get("a", "").startswith("https://www.gloria.hr/promo/") and h0.get("t") == "Primjer naslova članka" and "traži stručni sadržaj" in h0.get("pill", "") and "već povezuje:" in su["txt"]
+        print(("OK  " if oku2b else "FAIL") + " suradnje: kartica pokazuje kako su drugi došli do poveznice, primjer stranice i ocjenu izvedivosti:", su["how"]); bad += 0 if oku2b else 1
         await pg.screenshot(path=f"{OUT}/hosted_suradnje.png", full_page=True)
         # stanje: poruka poslana → dogovoreno → upis adrese s poveznicom, koju server provjeri
         sid = await fr.evaluate("document.querySelector('#sur-list [data-sur-set$=\"|kontaktirano\"]').dataset.surSet.split('|')[0]")

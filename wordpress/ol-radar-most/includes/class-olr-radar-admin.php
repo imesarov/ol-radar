@@ -727,7 +727,7 @@ class OLR_Radar_Admin {
 				<table class="form-table" role="presentation">
 					<tr><th scope="row">Tjedni prijedlozi</th><td>
 						<label><input type="checkbox" name="suradnje_auto" value="1" <?php checked( ! empty( $s['suradnje_auto'] ) ); ?>> Jednom tjedno napiši prijedloge za kandidate koji ih još nemaju</label>
-						<p class="description">Najviše <input type="number" name="suradnje_max" class="small-text" min="1" max="8" value="<?php echo (int) $s['suradnje_max']; ?>"> po prolazu. Jedan Claudeov poziv tjedno; trošak vidiš u tablici „Claude trošak”. Prije poziva server provjeri da web kandidata postoji i s njega pročita javni kontakt.</p>
+						<p class="description">Najviše <input type="number" name="suradnje_max" class="small-text" min="1" max="8" value="<?php echo (int) $s['suradnje_max']; ?>"> po prolazu, jednom tjedno; svaki prijedlog je zaseban Claudeov poziv. Trošak vidiš u tablici „Claude trošak”. Prije poziva server provjeri da web kandidata postoji i s njega pročita javni kontakt.</p>
 					</td></tr>
 					<tr><th scope="row">Nove tvrtke (web pretraga)</th><td>
 						<label><input type="checkbox" name="suradnje_trazi" value="1" <?php checked( ! empty( $s['suradnje_trazi'] ) ); ?>> Jednom tjedno neka Claude web pretragom pronađe nove tvrtke i ustanove za suradnju</label>

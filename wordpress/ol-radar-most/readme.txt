@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, suradnje i poveznice, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,14 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.4.1 =
+* Popravak: prijedlozi suradnje na modelu Claude Opus 5.5 više se ne prekidaju zbog duljine. Svaki prijedlog je sada zaseban, kratak poziv i sprema se čim stigne.
+* Web pretraga za nove tvrtke vraća samo kandidate, a prijedlog za svakoga piše zaseban poziv.
+* Završna arhiva Ahrefsa (13. 11. 2026.): popis kandidata za suradnju proširen s 20 na 74 domene koje povezuju konkurente i srodne tvrtke, a ne nas.
+* Uz svakog kandidata sada stoji ocjena izvedivosti (najizvedivije, traži stručni sadržaj, većinom plaćene objave), kako su drugi došli do poveznice i primjer takve stranice. Prijedlozi se pišu tim redom: prvo imenici, programi pogodnosti i lokalni partneri, zadnji mediji u kojima su poveznice većinom plaćene.
+* Domain Rating: mjesečna povijest od siječnja 2025. za nas i konkurente, s crtom kretanja.
+* Nadogradnja ne dira postojeće prijedloge, stanja, kontakte ni vlastita mjerenja DR-a; arhiva samo dopunjava.
 
 = 2.4.0 =
 * Suradnje i poveznice: popis mogućih partnera (mediji, portali, ustanove, tvrtke, klubovi) i za svakoga Claudeov prijedlog: zašto baš on, što ponuditi, koraci i nacrt poruke. Server prije toga provjeri da web postoji i pročita javni kontakt. Ništa se ne šalje nikome.

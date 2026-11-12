@@ -2,7 +2,7 @@
 
 Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
 
-## Već radi (dodatak 2.4.0; na webu je 2.3.0 dok Ivan ne učita novu verziju)
+## Već radi (dodatak 2.4.1; na webu je 2.4.0 dok Ivan ne učita novu verziju)
 - Google Search Console na serveru (servisni račun), pozicije (DataForSEO), crawl i audit weba, model konkurencije, Claude u ploči.
 - **Dnevni prijedlozi izmjena:** server sam analizira i priprema gotove prijedloge (modul Prijedlozi, MCP `ol-radar/radar-prijedlozi`).
 - **Mjerenje učinka provedenih izmjena** (2.2.0): za svaki prijedlog označen „provedeno” Radar sam usporedi Search Console prije i poslije (7, 14 i 28 dana), uz trend cijelog weba.
@@ -10,7 +10,8 @@ Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - **AI Overview u našim mjerenjima** (2.2.0): za koje se ciljane riječi pojavljuje i citira li nas. Pregledi koji se učitavaju naknadno stižu samo uz doplatu od 0,0006 $ po riječi, pa je ta opcija zadano isključena.
 - **Kretanje konkurenata** (2.2.0): tko raste, tko pada, tko je ušao u top 10 i tko nas je pretekao, iz prvih 20 rezultata svakog mjerenja. Ima smisla tek uz redovito mjerenje (tjedno, oko 0,07 $ po mjerenju).
 - **Društvene mreže na hostingu** (2.3.0): Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Vlastite objave s brojkama, što prolazi prema medijanu vlastite mreže, uzori (YouTube po temama, navedeni Instagram profili) i tjedne Claudeove preporuke. Radi kad Ivan upiše pristupne podatke u Postavke.
-- **Suradnje i poveznice** (2.4.0): kandidati za suradnju (arhiva poveznica konkurenata, tvrtke koje Claude nađe web pretragom, ručno dodani), tjedni Claudeovi prijedlozi s nacrtom poruke i javnim kontaktom, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata. Web pretraga i tjedni DR su zadano isključeni.
+- **Suradnje i poveznice** (2.4.0; u 2.4.1 završna arhiva i popravak): kandidati za suradnju (74 domene iz završne arhive Ahrefsa s ocjenom izvedivosti i primjerom kako je poveznica nastala, tvrtke koje Claude nađe web pretragom, ručno dodani), tjedni Claudeovi prijedlozi s nacrtom poruke i javnim kontaktom, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata s mjesečnom poviješću od siječnja 2025. Web pretraga i tjedni DR su zadano isključeni.
+  - Popravak u 2.4.1: prvi stvarni prolaz u 2.4.0 bio je prekinut zbog duljine, jer Opus 5.5 uvijek razmišlja i to troši isti okvir tokena kao odgovor. Sada je svaki prijedlog zaseban poziv.
 - **Claude trošak** (2.4.0): u Postavkama, po danu i mjesecu, iz stvarnih tokena svakog poziva.
 
 ## Odluka: GSC je glavni izvor, Ahrefs samo arhiva (Ivan, 12. 11. 2026.)
@@ -38,8 +39,9 @@ Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - **YouTube zadržavanje publike i izvori prometa** (YouTube Analytics API). Traži OAuth prijavu vlasnika kanala (kao TikTok), ne radi s API ključem. Dalo bi prosječno gledanje i krivulju zadržavanja po videu.
 - **Praćenje pratitelja kroz vrijeme** (dnevna snimka po mreži) i **najbolje vrijeme objave** kad se skupi dovoljno objava.
 - **TikTok u produkcijskom načinu:** Sandbox je dovoljan za vlastiti račun; produkcija traži TikTokov pregled aplikacije i potvrdu vlasništva nad adresama.
-- **Poveznice konkurenata uživo:** modul Suradnje polazi od arhive Ahrefsa (12. 11. 2026.). DataForSEO je 1. 7. 2026. ukinuo mjesečni minimum od 100 $ za Backlinks API, pa je moguć mjesečni snimak domena koje povezuju 3–5 konkurenata, iz kojeg bi novi kandidati stizali sami. Cijenu po upitu treba provjeriti prije uključivanja.
-- **Završna arhiva Ahrefsa prije 30. 11.:** šire poveznice konkurenata (više od 20 kandidata) i zadnji snimak ključnih riječi, dok pretplata traje. Čeka Ivanov OK.
+- **Poveznice konkurenata uživo:** modul Suradnje polazi od završne arhive Ahrefsa (13. 11. 2026.). DataForSEO je 1. 7. 2026. ukinuo mjesečni minimum od 100 $ za Backlinks API, pa je moguć mjesečni snimak domena koje povezuju 3–5 konkurenata, iz kojeg bi novi kandidati stizali sami. Cijenu po upitu treba provjeriti prije uključivanja.
+- **Manje razmišljanja, manji trošak (Claude API):** parametar `output_config.effort` (`low`) smanjio bi broj tokena po prijedlogu. Prije uključivanja treba provjeriti da ga podržavaju sva tri modela koja se mogu odabrati u Postavkama i usporediti kvalitetu prijedloga.
+- **Prikaz završne arhive u ploči:** naše poveznice bez spama, kretanje broja domena koje nas povezuju i ključne riječi strukovnih portala zasad su samo u datotekama arhive i u bazi (`arch_misc/zavrsna-2026-11-13`); panel u modulu Arhiva bi ih pokazao.
 - **Spominjanja u AI chatovima (LLM Mentions):** dostupno bez mjesečnog minimuma, ali baza za ChatGPT pri pokretanju pokriva samo SAD. Za hrvatsko tržište zasad mala korist; pratimo.
 - **Google AI Mode:** poseban DataForSEO endpoint (0,0024–0,004 $ po upitu). Ima smisla tek kad AI Mode zaživi u Hrvatskoj.
 - **Novi sadržaj → planer:** gumb „Dodaj u planer” na prijedlozima vrste „Novi sadržaj”.
@@ -50,7 +52,8 @@ Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - Vlastiti indeks poveznica i procjene prometa „odoka” (Ahrefsov model): za lokalnu optiku promašuju, a Search Console daje stvarne brojke.
 - Automatske izmjene weba bez odobrenja.
 
-## Izvori (provjereno 12. 11. 2026.)
+## Izvori (provjereno 12. i 13. 11. 2026.)
+- Anthropic, razmišljanje je na Opusu 5.5 uvijek uključeno, naplaćuje se kao izlaz i ulazi u `max_tokens`; dubinu određuje `effort` (zadano `medium`): https://platform.claude.com/docs/en/build-with-claude/effort i https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5
 - Ahrefs, besplatni javni DR (GET bez ključa; obvezna oznaka „Domain Rating by Ahrefs”): https://docs.ahrefs.com/en/api/reference/public/get-domain-rating-free
 - Anthropic, cjenik modela i web pretrage: https://platform.claude.com/docs/en/about-claude/pricing
 - Anthropic, Opus 5.5 i Sonnet 5.5 ne podržavaju prisilni poziv alata: https://platform.claude.com/docs/en/models/opus-5-5/migration-guide i https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5

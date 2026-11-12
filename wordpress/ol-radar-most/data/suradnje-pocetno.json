@@ -1,27 +1,1327 @@
 {
-  "izvor": "ahrefs-2026-11-12",
-  "opis": "Domene koje upućuju na konkurente, a ne na optikaljiljana.hr. Ahrefs, 12. 11. 2026., prvih 70 domena po DR-u za svakog konkurenta; spam trgovine poveznicama i automatski imenici su izostavljeni. Broj uz konkurenta je broj dofollow poveznica s te domene.",
-  "dr": { "optikaljiljana.hr": 0, "optika-anda.com": 28, "jojo-optika.hr": 27, "adrialece.hr": 25, "livision-optika.com": 16, "optika-dado.hr": 7 },
-  "kandidati": [
-    { "domena": "24sata.hr", "naziv": "24sata", "vrsta": "medij", "dr": 76, "konkurenti": { "livision-optika.com": 181, "optika-anda.com": 102, "adrialece.hr": 3, "jojo-optika.hr": 1 } },
-    { "domena": "vecernji.hr", "naziv": "Večernji list", "vrsta": "medij", "dr": 78, "konkurenti": { "livision-optika.com": 295, "optika-anda.com": 53, "adrialece.hr": 22 } },
-    { "domena": "jutarnji.hr", "naziv": "Jutarnji list", "vrsta": "medij", "dr": 79, "konkurenti": { "livision-optika.com": 59, "optika-anda.com": 49, "adrialece.hr": 2 } },
-    { "domena": "index.hr", "naziv": "Index.hr", "vrsta": "medij", "dr": 76, "konkurenti": { "optika-anda.com": 97, "adrialece.hr": 26 } },
-    { "domena": "tportal.hr", "naziv": "tportal", "vrsta": "medij", "dr": 75, "konkurenti": { "livision-optika.com": 161, "optika-anda.com": 15 } },
-    { "domena": "net.hr", "naziv": "Net.hr", "vrsta": "medij", "dr": 75, "konkurenti": { "optika-anda.com": 50, "livision-optika.com": 30 } },
-    { "domena": "dnevnik.hr", "naziv": "Dnevnik.hr", "vrsta": "medij", "dr": 77, "konkurenti": { "optika-anda.com": 9, "adrialece.hr": 5 } },
-    { "domena": "gloria.hr", "naziv": "Gloria", "vrsta": "medij", "dr": 67, "konkurenti": { "livision-optika.com": 141, "optika-anda.com": 46, "adrialece.hr": 1 } },
-    { "domena": "story.hr", "naziv": "Story", "vrsta": "medij", "dr": 64, "konkurenti": { "livision-optika.com": 164, "optika-anda.com": 56 } },
-    { "domena": "fashion.hr", "naziv": "Fashion.hr", "vrsta": "medij", "dr": 52, "konkurenti": { "optika-anda.com": 38, "jojo-optika.hr": 4 } },
-    { "domena": "bug.hr", "naziv": "Bug.hr", "vrsta": "medij", "dr": 67, "konkurenti": { "livision-optika.com": 4, "adrialece.hr": 3, "optika-anda.com": 1 } },
-    { "domena": "poslovni.hr", "naziv": "Poslovni dnevnik", "vrsta": "medij", "dr": 73, "konkurenti": { "optika-anda.com": 5 } },
-    { "domena": "telegram.hr", "naziv": "Telegram", "vrsta": "medij", "dr": 71, "konkurenti": { "optika-anda.com": 2 } },
-    { "domena": "diners.hr", "naziv": "Diners Club", "vrsta": "partnerski_program", "dr": 71, "konkurenti": { "jojo-optika.hr": 1 } },
-    { "domena": "americanexpress.com", "naziv": "American Express", "vrsta": "partnerski_program", "dr": 91, "konkurenti": { "jojo-optika.hr": 2 } },
-    { "domena": "mojposao.hr", "naziv": "MojPosao", "vrsta": "imenik", "dr": 64, "konkurenti": { "adrialece.hr": 6, "livision-optika.com": 2 } },
-    { "domena": "njuskalo.hr", "naziv": "Njuškalo", "vrsta": "imenik", "dr": 76, "konkurenti": { "jojo-optika.hr": 2 } },
-    { "domena": "boxnow.hr", "naziv": "BOX NOW", "vrsta": "partnerski_program", "dr": 62, "konkurenti": { "adrialece.hr": 16 } },
-    { "domena": "skole.hr", "naziv": "Škole.hr", "vrsta": "obrazovanje", "dr": 75, "konkurenti": { "optika-anda.com": 1 } },
-    { "domena": "asoo.hr", "naziv": "Agencija za strukovno obrazovanje i obrazovanje odraslih", "vrsta": "obrazovanje", "dr": 56, "konkurenti": { "adrialece.hr": 1 } }
-  ]
+ "izvor": "ahrefs-2026-11-13",
+ "opis": "Završna arhiva Ahrefsa od 13. 11. 2026.: domene koje povezuju konkurente i srodne tvrtke (optike, očne klinike, strukovni portal), a ne nas. Uz svaku: DR, broj poveznica po tvrtki, kako je poveznica nastala i primjer stranice. Prioritet 1 je najizvedivije za malu optiku, 3 su mediji u kojima su poveznice većinom iz plaćenih članaka.",
+ "dr": {
+  "optikaljiljana.hr": 0,
+  "optika-anda.com": 28,
+  "jojo-optika.hr": 27,
+  "adrialece.hr": 25,
+  "livision-optika.com": 16,
+  "optika-dado.hr": 7
+ },
+ "dr_povijest": {
+  "datumi": [
+   "2025-01-01",
+   "2025-02-01",
+   "2025-03-01",
+   "2025-04-01",
+   "2025-05-01",
+   "2025-06-01",
+   "2025-07-01",
+   "2025-08-01",
+   "2025-09-01",
+   "2025-10-01",
+   "2025-11-01",
+   "2025-12-01",
+   "2026-01-01",
+   "2026-02-01",
+   "2026-03-01",
+   "2026-04-01",
+   "2026-05-01",
+   "2026-06-01",
+   "2026-07-01",
+   "2026-08-01",
+   "2026-09-01",
+   "2026-10-01",
+   "2026-11-01"
+  ],
+  "po": {
+   "optikaljiljana.hr": [
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "optika-anda.com": [
+    27.0,
+    27.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    27.0,
+    21.0,
+    19.0,
+    18.0,
+    18.0,
+    17.0,
+    19.0,
+    18.0,
+    18.0,
+    23.0,
+    28.0,
+    29.0,
+    30.0,
+    30.0,
+    28.0
+   ],
+   "jojo-optika.hr": [
+    11.0,
+    20.0,
+    19.0,
+    21.0,
+    21.0,
+    24.0,
+    16.0,
+    13.0,
+    12.0,
+    14.0,
+    15.0,
+    16.0,
+    10.0,
+    10.0,
+    9.0,
+    14.0,
+    10.0,
+    10.0,
+    10.0,
+    10.0,
+    10.0,
+    19.0,
+    19.0
+   ],
+   "adrialece.hr": [
+    29.0,
+    29.0,
+    29.0,
+    29.0,
+    29.0,
+    25.0,
+    25.0,
+    26.0,
+    25.0,
+    16.0,
+    16.0,
+    17.0,
+    16.0,
+    15.0,
+    14.0,
+    15.0,
+    19.0,
+    19.0,
+    18.0,
+    18.0,
+    18.0,
+    24.0,
+    25.0
+   ],
+   "livision-optika.com": [
+    22.0,
+    29.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    28.0,
+    27.0,
+    24.0,
+    23.0,
+    24.0,
+    22.0,
+    21.0,
+    12.0,
+    12.0,
+    14.0,
+    15.0,
+    15.0,
+    15.0,
+    15.0,
+    16.0,
+    16.0
+   ]
+  }
+ },
+ "kandidati": [
+  {
+   "domena": "brzipregled.hr",
+   "naziv": "Brzi pregled",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 4.7,
+   "konkurenti": {
+    "optika-anda.com": 25,
+    "jojo-optika.hr": 4,
+    "livision-optika.com": 2,
+    "optika-dado.hr": 2,
+    "adrialece.hr": 1
+   },
+   "nacin": "upis u imenik (povezuje svih pet konkurenata)"
+  },
+  {
+   "domena": "dioptrija.hr",
+   "naziv": "Dioptrija.hr",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 16.0,
+   "konkurenti": {
+    "adrialece.hr": 22,
+    "optika-anda.com": 5,
+    "livision-optika.com": 1,
+    "svjetlost.hr": 1
+   },
+   "nacin": "upis u imenik optika"
+  },
+  {
+   "domena": "centarzdravlja.hr",
+   "naziv": "Centar zdravlja",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 44.0,
+   "konkurenti": {
+    "ghetaldus.hr": 12,
+    "svjetlost.hr": 8,
+    "livision-optika.com": 5
+   },
+   "nacin": "adresar optika",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://www.centarzdravlja.hr/adresar/optike-9/livision-optika/",
+    "naslov": "Livision optika - CentarZdravlja (adresar)"
+   }
+  },
+  {
+   "domena": "sindikatpolicije.hr",
+   "naziv": "Sindikat policije Hrvatske",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 18.0,
+   "konkurenti": {
+    "svjetlost.hr": 11,
+    "ghetaldus.hr": 2,
+    "jojo-optika.hr": 2
+   },
+   "nacin": "stranica pogodnosti za članove",
+   "primjer": {
+    "kod": "jojo-optika.hr",
+    "url": "https://www.sindikatpolicije.hr/pogodnosti/optika-jo-jo/",
+    "naslov": "Optika JO - JO - pogodnosti za članove SPH"
+   }
+  },
+  {
+   "domena": "njuskalo.hr",
+   "naziv": "Njuškalo (katalozi trgovina)",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 76.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2,
+    "jojo-optika.hr": 2
+   },
+   "nacin": "stranica trgovine s akcijama",
+   "primjer": {
+    "kod": "jojo-optika.hr",
+    "url": "https://katalozi.njuskalo.hr/trgovina/optika-jo-jo",
+    "naslov": "Optika Jo-Jo akcije i popusti - Njuškalo katalozi"
+   }
+  },
+  {
+   "domena": "hak.hr",
+   "naziv": "HAK",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 75.0,
+   "konkurenti": {
+    "ghetaldus.hr": 10,
+    "svjetlost.hr": 4
+   },
+   "nacin": "popusti za članove"
+  },
+  {
+   "domena": "vvg.hr",
+   "naziv": "Veleučilište Velika Gorica",
+   "vrsta": "obrazovanje",
+   "prioritet": 1,
+   "dr": 40.0,
+   "konkurenti": {
+    "ghetaldus.hr": 4,
+    "optika-anda.com": 1
+   },
+   "nacin": "stranica „Poslovna suradnja”",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://vvg.hr/nekategorizirano/poslovna-suradnja/",
+    "naslov": "Poslovna suradnja - VVG.hr"
+   }
+  },
+  {
+   "domena": "reputacija.hr",
+   "naziv": "Reputacija.hr",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 8.0,
+   "konkurenti": {
+    "jojo-optika.hr": 2,
+    "optika-anda.com": 2
+   },
+   "nacin": "profil tvrtke s recenzijama"
+  },
+  {
+   "domena": "diners.hr",
+   "naziv": "Diners Club",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 71.0,
+   "konkurenti": {
+    "jojo-optika.hr": 1
+   },
+   "nacin": "stranica s pogodnostima za korisnike kartice",
+   "primjer": {
+    "kod": "jojo-optika.hr",
+    "url": "https://diners.hr/pogodnosti/d-utorak/",
+    "naslov": "D-UTORAK - Diners Club (pogodnosti)"
+   }
+  },
+  {
+   "domena": "hck.hr",
+   "naziv": "Hrvatski Crveni križ",
+   "vrsta": "udruga",
+   "prioritet": 1,
+   "dr": 64.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2
+   },
+   "nacin": "zajednička akcija „Staro za novo”",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.hck.hr/novosti/staro-za-novo/3589",
+    "naslov": "Staro za novo - Hrvatski Crveni križ"
+   }
+  },
+  {
+   "domena": "poslovniforum.hr",
+   "naziv": "Poslovni forum",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 52.0,
+   "konkurenti": {
+    "svjetlost.hr": 8
+   },
+   "nacin": "besplatan upis u poslovni imenik",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "http://www.poslovniforum.hr/internet_stranice_web_katalog_imenik_adresar/internet_tvrtke_web_stranice_imenik.asp?id=3818",
+    "naslov": "IMENIK: POLIKLINIKA SVJETLOST (Poslovni forum)"
+   }
+  },
+  {
+   "domena": "zgportal.com",
+   "naziv": "ZGportal",
+   "vrsta": "lokalni_portal",
+   "prioritet": 1,
+   "dr": 36.0,
+   "konkurenti": {
+    "optika-anda.com": 2
+   },
+   "nacin": "članak na zagrebačkom portalu"
+  },
+  {
+   "domena": "nsz.hr",
+   "naziv": "Nezavisni sindikat znanosti i visokog obrazovanja",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 31.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2
+   },
+   "nacin": "prednosti članstva: popust na naočale",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.nsz.hr/prednosti-clanstva/proizvodi/optika-gethaldus-nudi-popust-na-naocale/",
+    "naslov": "Optika Ghetaldus nudi popust na naočale — Nezavisni sindikat znanosti i visokog obrazovanja"
+   }
+  },
+  {
+   "domena": "sindikatbiciklista.hr",
+   "naziv": "Sindikat biciklista",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 30.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2
+   },
+   "nacin": "lista popusta uz članstvo",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://sindikatbiciklista.hr/popusti/",
+    "naslov": "Lista popusta uz članstvo - Sindikat biciklista"
+   }
+  },
+  {
+   "domena": "sdlsn.hr",
+   "naziv": "Sindikat državnih i lokalnih službenika i namještenika",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 27.0,
+   "konkurenti": {
+    "svjetlost.hr": 2
+   },
+   "nacin": "stranica pogodnosti za članove",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "https://www.sdlsn.hr/pogodnosti-za-clanove/",
+    "naslov": "Pogodnosti za članove | Sindikat državnih i lokalnih službenika i namještenika RH"
+   }
+  },
+  {
+   "domena": "matica-sindikata.hr",
+   "naziv": "Matica hrvatskih sindikata",
+   "vrsta": "partnerski_program",
+   "prioritet": 1,
+   "dr": 26.0,
+   "konkurenti": {
+    "adrialece.hr": 2
+   },
+   "nacin": "pogodnosti za članove"
+  },
+  {
+   "domena": "optometrija.net",
+   "naziv": "Optometrija.net",
+   "vrsta": "imenik",
+   "prioritet": 1,
+   "dr": 30.0,
+   "konkurenti": {},
+   "nacin": "strukovni portal s adresarom optika"
+  },
+  {
+   "domena": "hok.hr",
+   "naziv": "Hrvatska obrtnička komora (HOK ZNA, zajednička nabava)",
+   "vrsta": "udruga",
+   "prioritet": 1,
+   "dr": null,
+   "konkurenti": {},
+   "nacin": "partner projekta HOK ZNA s pogodnostima za obrtnike (primjer je s weba Obrtničke komore PGŽ)",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://okpgz.hr/ghetaldus-optika-novi-partner-projekta-hok-zna-zajednicka-nabava/",
+    "naslov": "Ghetaldus optika novi partner projekta HOK ZNA - Zajednička nabava"
+   }
+  },
+  {
+   "domena": "dnevnik.hr",
+   "naziv": "Dnevnik.hr",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 77.0,
+   "konkurenti": {
+    "ghetaldus.hr": 23,
+    "svjetlost.hr": 12,
+    "optika-anda.com": 9,
+    "adrialece.hr": 5
+   },
+   "nacin": "savjetodavni članak o očima i ekranima; vijest o humanitarnoj akciji",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://dnevnik.hr/vijesti/zanimljivosti/provodite-puno-vremena-na-racunalu-ili-pametnom-telefonu-vase-su-oci-u-opasnosti-ali-evo-sto-mozete-uciniti---579615.html",
+    "naslov": "Provodite puno vremena na računalu ili pametnom telefonu? Vaše su oči u opasnosti, ali evo što možete učiniti..."
+   }
+  },
+  {
+   "domena": "slobodnadalmacija.hr",
+   "naziv": "Slobodna Dalmacija",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 75.0,
+   "konkurenti": {
+    "optika-anda.com": 58,
+    "svjetlost.hr": 9,
+    "optometrija.net": 2
+   },
+   "nacin": "članak o prvom pregledu vida kod djece",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://slobodnadalmacija.hr/mozaik/zdravlje/zasto-je-vazan-pravovremeni-oftamoloski-pregled-vida-kod-djece-i-odraslih-1095235",
+    "naslov": "Što mislite kada je potrebno obaviti prvi oftalmološki pregled kod djece? Odgovor će vas iznenaditi!"
+   }
+  },
+  {
+   "domena": "poslovni.hr",
+   "naziv": "Poslovni dnevnik",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 73.0,
+   "konkurenti": {
+    "ghetaldus.hr": 17,
+    "optika-anda.com": 5,
+    "svjetlost.hr": 3
+   },
+   "nacin": "vijest uz Svjetski dan vida",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://www.poslovni.hr/kompanije/za-svjetski-dan-vida-anda-pandametar-mjeri-koliko-vam-je-dobar-vid-4358348",
+    "naslov": "Za Svjetski dan vida Anda Pandametar mjeri koliko vam je dobar vid!"
+   }
+  },
+  {
+   "domena": "mojposao.hr",
+   "naziv": "MojPosao",
+   "vrsta": "imenik",
+   "prioritet": 2,
+   "dr": 64.0,
+   "konkurenti": {
+    "ghetaldus.hr": 10,
+    "adrialece.hr": 6,
+    "livision-optika.com": 2
+   },
+   "nacin": "profil poslodavca i oglas za posao (ima smisla kad zapošljavamo)",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://mojposao.hr/posao/4263ffa1-ce01-11f1-8b88-0280a8fb46bd/optometrist-m-z",
+    "naslov": "Optometrist (m/ž) | Zadar, Osijek | ADRIALECE d.o.o. | MojPosao"
+   }
+  },
+  {
+   "domena": "naturala.hr",
+   "naziv": "Naturala",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 41.0,
+   "konkurenti": {
+    "ghetaldus.hr": 79,
+    "svjetlost.hr": 3,
+    "optika-anda.com": 2
+   },
+   "nacin": "intervjui i članci o zdravlju",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.naturala.hr/dasak-luksuza-za-putovanje-sa-stilom/",
+    "naslov": "Dašak luksuza za putovanje sa stilom"
+   }
+  },
+  {
+   "domena": "n1info.hr",
+   "naziv": "N1",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 72.0,
+   "konkurenti": {
+    "optometrija.net": 4,
+    "svjetlost.hr": 2
+   },
+   "nacin": "članci u rubrici Zdravlje",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://n1info.hr/zdravlje/podljev-ispod-oka-uzrok-simptomi-i-sto-mozete-uciniti-da-ubrzate-oporavak/",
+    "naslov": "Podljev ispod oka: Uzrok, simptomi i što možete učiniti da ubrzate oporavak?"
+   }
+  },
+  {
+   "domena": "lidermedia.hr",
+   "naziv": "Lider",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 68.0,
+   "konkurenti": {
+    "ghetaldus.hr": 7,
+    "svjetlost.hr": 2
+   },
+   "nacin": "poslovni članak o tržištu zdravlja vida",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://lidermedia.hr/info/novi-standardi-zdravlja-vida-globalno-trziste-raste-na-247-milijarde-dolara/",
+    "naslov": "Novi standardi zdravlja vida: Globalno tržište raste na 247 milijarde dolara"
+   }
+  },
+  {
+   "domena": "asoo.hr",
+   "naziv": "ASOO (strukovno obrazovanje)",
+   "vrsta": "obrazovanje",
+   "prioritet": 2,
+   "dr": 56.0,
+   "konkurenti": {
+    "optometrija.net": 3,
+    "adrialece.hr": 1
+   },
+   "nacin": "nastavni materijal za optičare navodi članak s bloga",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://edu.asoo.hr/wp-content/uploads/2026/03/06-21_Okviri-sun%C4%8Danih-i-dioptrijskih-nao%C4%8Dala.pdf",
+    "naslov": "Okviri sunčanih i dioptrijskih naočala (nastavni materijal)"
+   }
+  },
+  {
+   "domena": "adiva.hr",
+   "naziv": "ADIVA",
+   "vrsta": "zdravstvo",
+   "prioritet": 2,
+   "dr": 53.0,
+   "konkurenti": {
+    "svjetlost.hr": 80,
+    "optometrija.net": 2
+   },
+   "nacin": "članci u rubrici Zdravlje, Oči",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "https://www.adiva.hr/zdravlje/oci/transplantacija-roznice-o-cemu-ovisi-uspjeh-zahvata/",
+    "naslov": "Transplantacija rožnice: o čemu ovisi uspjeh zahvata"
+   }
+  },
+  {
+   "domena": "americanexpress.com",
+   "naziv": "American Express",
+   "vrsta": "partnerski_program",
+   "prioritet": 2,
+   "dr": 91.0,
+   "konkurenti": {
+    "jojo-optika.hr": 2
+   },
+   "nacin": "pogodnosti uz karticu"
+  },
+  {
+   "domena": "skole.hr",
+   "naziv": "skole.hr (CARNET, mrežne stranice škola)",
+   "vrsta": "obrazovanje",
+   "prioritet": 2,
+   "dr": 75.0,
+   "konkurenti": {
+    "optika-anda.com": 1
+   },
+   "nacin": "spominjanje u školskom programu događanja"
+  },
+  {
+   "domena": "total-croatia-news.com",
+   "naziv": "Total Croatia News",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 71.0,
+   "konkurenti": {
+    "adrialece.hr": 1
+   },
+   "nacin": "vijest na engleskom"
+  },
+  {
+   "domena": "rba.hr",
+   "naziv": "Raiffeisen banka",
+   "vrsta": "partnerski_program",
+   "prioritet": 2,
+   "dr": 59.0,
+   "konkurenti": {
+    "ghetaldus.hr": 4
+   },
+   "nacin": "pogodnosti uz karticu",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.rba.hr/hr/gradani/proizvodi-i-usluge/racuni-i-kartice/kreditne-kartice/zlatna-rbica.html",
+    "naslov": "Zlatna RBICA (pogodnosti kartice)"
+   }
+  },
+  {
+   "domena": "pbzcard-premium.hr",
+   "naziv": "PBZ Card Premium",
+   "vrsta": "partnerski_program",
+   "prioritet": 2,
+   "dr": 50.0,
+   "konkurenti": {
+    "oculus-zagreb.hr": 1
+   },
+   "nacin": "pogodnosti uz karticu"
+  },
+  {
+   "domena": "studentski.hr",
+   "naziv": "Studentski.hr",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 44.0,
+   "konkurenti": {
+    "adrialece.hr": 3
+   },
+   "nacin": "savjetodavni članak o naočalama",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.studentski.hr/zabava/studentski-zivot/6-nacina-kako-izbjeci-zamagljivanje-naocala",
+    "naslov": "6 načina kako izbjeći zamagljivanje naočala"
+   }
+  },
+  {
+   "domena": "monitor.hr",
+   "naziv": "Monitor.hr",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 44.0,
+   "konkurenti": {
+    "optometrija.net": 21
+   },
+   "nacin": "prenesene objave o zdravlju",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://www.monitor.hr/zdrava-i-sretna-zapocnite-svaki-dan-sa-srecom-10/",
+    "naslov": "Zdrava i sretna: Započnite svaki dan sa srećom - Monitor.hr"
+   }
+  },
+  {
+   "domena": "mirovina.hr",
+   "naziv": "Mirovina.hr",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 43.0,
+   "konkurenti": {
+    "optometrija.net": 1
+   },
+   "nacin": "portal za umirovljenike, članci o zdravlju",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://www.mirovina.hr/istaknuto/vijesti/65119/ovo-je-osam-stvari-koje-morate-znati-o-smrti-vladimira-matijanica-mogu-se-dogoditi-i-vama/vijest",
+    "naslov": "Ovo je osam stvari koje morate znati ... (Mirovina.hr)"
+   }
+  },
+  {
+   "domena": "merkur.hr",
+   "naziv": "Merkur osiguranje",
+   "vrsta": "partnerski_program",
+   "prioritet": 2,
+   "dr": 37.0,
+   "konkurenti": {
+    "ghetaldus.hr": 6
+   },
+   "nacin": "popis partnera za specijalističke preglede",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.merkur.hr/partneri-za-specijalisticke-preglede",
+    "naslov": "Partneri za specijalističke preglede - health4me Premium"
+   }
+  },
+  {
+   "domena": "runcroatia.hr",
+   "naziv": "Run Croatia",
+   "vrsta": "sport",
+   "prioritet": 2,
+   "dr": 32.0,
+   "konkurenti": {
+    "svjetlost.hr": 2
+   },
+   "nacin": "partner na naslovnici trkačkog portala",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "https://www.runcroatia.hr/en/home",
+    "naslov": "Run Croatia - Homepage"
+   }
+  },
+  {
+   "domena": "progressive.hr",
+   "naziv": "Progressive magazin",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 31.0,
+   "konkurenti": {
+    "adrialece.hr": 1
+   },
+   "nacin": "trgovački stručni magazin"
+  },
+  {
+   "domena": "slowliving.hr",
+   "naziv": "Slowliving",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 30.0,
+   "konkurenti": {
+    "ghetaldus.hr": 4
+   },
+   "nacin": "savjetodavni članak o zaštiti očiju od sunca",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.slowliving.hr/brinete-li-se-kako-zastiti-oci-od-sunca-ovim-savjetima-ocuvajte-zdravlje-ociju/",
+    "naslov": "Brinete li se kako zaštiti oči od sunca? Ovim savjetima očuvajte zdravlje očiju"
+   }
+  },
+  {
+   "domena": "pitajmamu.hr",
+   "naziv": "Pitaj mamu",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 29.0,
+   "konkurenti": {
+    "svjetlost.hr": 2
+   },
+   "nacin": "članci o zdravlju za roditelje",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "https://www.pitajmamu.hr/clanak/trudnoca-i-dijabetes/",
+    "naslov": "Trudnoća i dijabetes - pitajmamu"
+   }
+  },
+  {
+   "domena": "wishmama.hr",
+   "naziv": "Wish mama",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 27.0,
+   "konkurenti": {
+    "ghetaldus.hr": 18
+   },
+   "nacin": "članak o događanju za djecu",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.wishmama.hr/preporuke/ekozeko-u-zoo/preko-10-000-posjetitelja-na-zekanju-u-zoo-vrtu/",
+    "naslov": "Preko 10.000 posjetitelja na Zekanju u Zoo vrtu - Wish mama"
+   }
+  },
+  {
+   "domena": "kvantum-tim.hr",
+   "naziv": "Kvantum-tim (medicinska oprema)",
+   "vrsta": "dobavljac",
+   "prioritet": 2,
+   "dr": 23.0,
+   "konkurenti": {
+    "svjetlost.hr": 1
+   },
+   "nacin": "stranica „Reference” dobavljača opreme (ima smisla samo ako smo njihov kupac; isti obrazac vrijedi za naše dobavljače)",
+   "primjer": {
+    "kod": "svjetlost.hr",
+    "url": "https://www.kvantum-tim.hr/reference",
+    "naslov": "Reference | Kvantum-tim Medicinska Trgovina"
+   }
+  },
+  {
+   "domena": "bebe.hr",
+   "naziv": "Bebe.hr",
+   "vrsta": "medij",
+   "prioritet": 2,
+   "dr": 22.0,
+   "konkurenti": {
+    "optometrija.net": 3
+   },
+   "nacin": "savjeti za kupnju dječjih naočala",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://www.bebe.hr/djeca/kupujete-djecje-naocale-donosimo-nekoliko-savjeta/",
+    "naslov": "Kupujete dječje naočale? Donosimo nekoliko savjeta | Bebe.hr"
+   }
+  },
+  {
+   "domena": "dubrava.hr",
+   "naziv": "dubrava.hr",
+   "vrsta": "lokalni_portal",
+   "prioritet": 2,
+   "dr": 20.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2
+   },
+   "nacin": "stranica s popisom optika u Dubravi (susjedni kvart)",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.dubrava.hr/optike/",
+    "naslov": "Optike - dubrava.hr"
+   }
+  },
+  {
+   "domena": "poliklinike.hr",
+   "naziv": "Poliklinike.hr",
+   "vrsta": "imenik",
+   "prioritet": 2,
+   "dr": 0.0,
+   "konkurenti": {
+    "optika-dado.hr": 1
+   },
+   "nacin": "upis u imenik"
+  },
+  {
+   "domena": "24sata.hr",
+   "naziv": "24sata",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 76.0,
+   "konkurenti": {
+    "livision-optika.com": 181,
+    "optika-anda.com": 102,
+    "svjetlost.hr": 65,
+    "ghetaldus.hr": 27,
+    "adrialece.hr": 3,
+    "eyerim.hr": 3,
+    "optometrija.net": 2,
+    "jojo-optika.hr": 1
+   },
+   "nacin": "plaćeni native i promo članci; nagradne igre na Miss7",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://www.24sata.hr/native-sadrzaj/uvrstite-ove-vjezbe-u-svoju-rutinu-i-oci-ce-vam-biti-zahvalne-962920",
+    "naslov": "Uvrstite ove vježbe u svoju rutinu i oči će vam biti zahvalne"
+   }
+  },
+  {
+   "domena": "vecernji.hr",
+   "naziv": "Večernji list",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 78.0,
+   "konkurenti": {
+    "livision-optika.com": 327,
+    "optika-anda.com": 59,
+    "ghetaldus.hr": 50,
+    "svjetlost.hr": 46,
+    "adrialece.hr": 22,
+    "optometrija.net": 3
+   },
+   "nacin": "lifestyle članci o vidu i rubrika Ordinacija",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://www.vecernji.hr/lifestyle/imate-dioptriju-i-razmisljate-o-lecama-ovo-morate-znati-901276",
+    "naslov": "Imate dioptriju i razmišljate o lećama? Ovo morate znati"
+   }
+  },
+  {
+   "domena": "net.hr",
+   "naziv": "Net.hr",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 75.0,
+   "konkurenti": {
+    "optika-anda.com": 50,
+    "ghetaldus.hr": 32,
+    "livision-optika.com": 30,
+    "svjetlost.hr": 3,
+    "optometrija.net": 2,
+    "eyerim.hr": 1
+   },
+   "nacin": "članci o zdravlju i Žena.hr",
+   "primjer": {
+    "kod": "optometrija.net",
+    "url": "https://net.hr/magazin/zdravlje/fizioloska-otopina-saznajte-zasto-je-odlicna-za-oci-nos-lice-ali-i-kako-pomaze-bebama-59ffdb7e-b1d0-11eb-93e4-0242ac14003f",
+    "naslov": "Saznajte zašto je odlična za oči, nos, lice, ali i kako pomaže bebama"
+   }
+  },
+  {
+   "domena": "jutarnji.hr",
+   "naziv": "Jutarnji list",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 79.0,
+   "konkurenti": {
+    "svjetlost.hr": 83,
+    "ghetaldus.hr": 65,
+    "livision-optika.com": 59,
+    "optika-anda.com": 49,
+    "adrialece.hr": 2
+   },
+   "nacin": "promo članci",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.jutarnji.hr/promo/online-kupovina-suncanih-i-dioptrijskih-naocala-nikada-vise-nece-biti-ista-15181270",
+    "naslov": "Online kupovina sunčanih i dioptrijskih naočala nikada više neće biti ista"
+   }
+  },
+  {
+   "domena": "index.hr",
+   "naziv": "Index.hr",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 76.0,
+   "konkurenti": {
+    "ghetaldus.hr": 396,
+    "optika-anda.com": 97,
+    "svjetlost.hr": 41,
+    "adrialece.hr": 26,
+    "eyerim.hr": 7
+   },
+   "nacin": "PR članci u rubrikama Rouge i Magazin",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.index.hr/rouge/clanak/nosite-suncane-i-dioptrijske-naocale-te-vam-je-dosadilo-konstantno-mijenjanje/2126506.aspx",
+    "naslov": "Nosite sunčane i dioptrijske naočale te vam je dosadilo konstantno mijenjanje?"
+   }
+  },
+  {
+   "domena": "tportal.hr",
+   "naziv": "tportal",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 75.0,
+   "konkurenti": {
+    "livision-optika.com": 161,
+    "svjetlost.hr": 17,
+    "optika-anda.com": 15,
+    "ghetaldus.hr": 8
+   },
+   "nacin": "PR objave (humanitarna akcija, akcije)",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://www.tportal.hr/lifestyle/clanak/odlucimo-sami-kakav-svijet-zelimo-gledati-i-zajedno-pomozimo-ukrajini-20220516",
+    "naslov": "Odlučimo sami kakav svijet želimo gledati i zajedno pomozimo Ukrajini"
+   }
+  },
+  {
+   "domena": "gloria.hr",
+   "naziv": "Gloria",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 67.0,
+   "konkurenti": {
+    "livision-optika.com": 141,
+    "optika-anda.com": 46,
+    "ghetaldus.hr": 44,
+    "adrialece.hr": 1
+   },
+   "nacin": "promo i native članci",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.gloria.hr/promo/pametno-rjesenje-za-ljeto-suncane-naocale-s-dioptrijom/833328",
+    "naslov": "Pametno rješenje za ljeto – sunčane naočale s dioptrijom!"
+   }
+  },
+  {
+   "domena": "bug.hr",
+   "naziv": "Bug",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 67.0,
+   "konkurenti": {
+    "livision-optika.com": 4,
+    "adrialece.hr": 3,
+    "eyerim.hr": 3,
+    "optika-anda.com": 1
+   },
+   "nacin": "spominjanja na forumu",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://m.bug.hr/forum/topic/ostalo/black-friday-2023/297002",
+    "naslov": "Black Friday 2023   Bug Online Forum"
+   }
+  },
+  {
+   "domena": "story.hr",
+   "naziv": "Story",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 64.0,
+   "konkurenti": {
+    "livision-optika.com": 164,
+    "ghetaldus.hr": 65,
+    "optika-anda.com": 56,
+    "svjetlost.hr": 16
+   },
+   "nacin": "promo članci",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://story.hr/Promo/a230877/Provjera-vida-s-Optika-Anda-Pandametrom.html",
+    "naslov": "Provjera vida s Optika Anda Pandametrom"
+   }
+  },
+  {
+   "domena": "fashion.hr",
+   "naziv": "Fashion.hr",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 52.0,
+   "konkurenti": {
+    "ghetaldus.hr": 108,
+    "optika-anda.com": 38,
+    "jojo-optika.hr": 4,
+    "eyerim.hr": 2
+   },
+   "nacin": "modni članci (naočale prema obliku lica)",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://fashion.hr/moda/modeli-naocala-za-svaki-oblik-lica-133776/",
+    "naslov": "Modeli naočala za svaki oblik lica"
+   }
+  },
+  {
+   "domena": "ljepotaizdravlje.hr",
+   "naziv": "Ljepota & Zdravlje",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 48.0,
+   "konkurenti": {
+    "optika-anda.com": 24,
+    "ghetaldus.hr": 8,
+    "adrialece.hr": 1
+   },
+   "nacin": "članci o kolekcijama i sniženjima",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.ljepotaizdravlje.hr/suncane-naocale-na-snizenju/",
+    "naslov": "Gucci i Fendi: pronašli smo 10 top modela sunčanih naočala na sniženju"
+   }
+  },
+  {
+   "domena": "jolie.hr",
+   "naziv": "Jolie",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 40.0,
+   "konkurenti": {
+    "ghetaldus.hr": 59,
+    "livision-optika.com": 29,
+    "optika-anda.com": 4
+   },
+   "nacin": "modni članak o dioptrijskim naočalama",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://jolie.hr/moda/vijesti-moda/gdje-pronaci-zanimljive-diotprijske-naocale-koje-se-izdvajaju-od-svakodnevne-ponude/",
+    "naslov": "Gdje pronaći zanimljive dioptrijske naočale koje se izdvajaju od svakodnevne ponude?"
+   }
+  },
+  {
+   "domena": "novilist.hr",
+   "naziv": "Novi list",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 74.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2,
+    "optika-anda.com": 2
+   },
+   "nacin": "promo objava humanitarne akcije",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://www.novilist.hr/ostalo/promo/otvori-oci-jer-svatko-moze-pomoci-optika-anda-i-hrvatski-caritas-zajedno-za-1000-radosti/",
+    "naslov": "\"Otvori oči jer svatko može pomoći\" - Optika Anda i Hrvatski Caritas zajedno za 1000 radosti"
+   }
+  },
+  {
+   "domena": "telegram.hr",
+   "naziv": "Telegram (Super1)",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 71.0,
+   "konkurenti": {
+    "optika-anda.com": 50,
+    "ghetaldus.hr": 39
+   },
+   "nacin": "shopping vodiči",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://www.telegram.hr/super1/life/kako-sloziti-shopping-kosaricu-retail-parkovi-stop-shop/",
+    "naslov": "Kako složiti proljetnu shopping košaricu na praktičan način | Super1.hr"
+   }
+  },
+  {
+   "domena": "nacional.hr",
+   "naziv": "Nacional",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 69.0,
+   "konkurenti": {
+    "ghetaldus.hr": 4,
+    "svjetlost.hr": 2
+   },
+   "nacin": "PR objava uz početak školske godine",
+   "primjer": {
+    "kod": "ghetaldus.hr",
+    "url": "https://www.nacional.hr/back-to-school-u-ghetaldus-optici/",
+    "naslov": "BACK TO SCHOOL u GHETALDUS OPTICI"
+   }
+  },
+  {
+   "domena": "boxnow.hr",
+   "naziv": "BOX NOW",
+   "vrsta": "partnerski_program",
+   "prioritet": 3,
+   "dr": 62.0,
+   "konkurenti": {
+    "adrialece.hr": 16,
+    "ghetaldus.hr": 8
+   },
+   "nacin": "popis partnerskih web trgovina (samo za web trgovine)",
+   "primjer": {
+    "kod": "adrialece.hr",
+    "url": "https://www.boxnow.hr/en/eshop-partners",
+    "naslov": "BOX NOW - List of e-shop partners"
+   }
+  },
+  {
+   "domena": "grazia.hr",
+   "naziv": "Grazia",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 56.0,
+   "konkurenti": {
+    "ghetaldus.hr": 72,
+    "optika-anda.com": 6
+   },
+   "nacin": "modni članci",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://grazia.hr/severinina-ljubav-na-prvi-pogled/",
+    "naslov": "Ljubav na prvi pogled - Grazia"
+   }
+  },
+  {
+   "domena": "magme.hr",
+   "naziv": "MagMe",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 42.0,
+   "konkurenti": {
+    "optika-anda.com": 34,
+    "livision-optika.com": 19
+   },
+   "nacin": "izvještaj s otvorenja poslovnice",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://magme.hr/fashion/bili-smo-na-otvorenju-nove-poslovnice-livision-optike-i-medu-prvima-otkrili-proljetne-novitete/",
+    "naslov": "Bili smo na otvorenju nove poslovnice LIVISION optike"
+   }
+  },
+  {
+   "domena": "metro-portal.hr",
+   "naziv": "Metro portal",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 42.0,
+   "konkurenti": {
+    "livision-optika.com": 54,
+    "optika-anda.com": 3
+   },
+   "nacin": "PR članci",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://metro-portal.hr/tri-para-naocala-u-jednima-to-moze-samo-essilor-i-livision-optika/155569",
+    "naslov": "Tri para naočala u jednima - to može samo Essilor i Livision optika"
+   }
+  },
+  {
+   "domena": "zenskirecenziraj.com",
+   "naziv": "Ženski recenziraj",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 34.0,
+   "konkurenti": {
+    "adrialece.hr": 8,
+    "optika-anda.com": 2
+   },
+   "nacin": "recenzije i preporuke"
+  },
+  {
+   "domena": "cromoda.com",
+   "naziv": "CroModa",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 30.0,
+   "konkurenti": {
+    "optika-anda.com": 37,
+    "livision-optika.com": 3
+   },
+   "nacin": "modni članci"
+  },
+  {
+   "domena": "modnialmanah.com",
+   "naziv": "Modni almanah",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 30.0,
+   "konkurenti": {
+    "optika-anda.com": 9,
+    "livision-optika.com": 8
+   },
+   "nacin": "modni članci"
+  },
+  {
+   "domena": "elle.hr",
+   "naziv": "Elle",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 48.0,
+   "konkurenti": {
+    "optika-anda.com": 1
+   },
+   "nacin": "modni članci",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://elle.hr/moda/steal-the-look-tamara-kalinic-kao-nasa-inspiracija/",
+    "naslov": "Steal the look: Tamara Kalinić kao naša inspiracija"
+   }
+  },
+  {
+   "domena": "extravagant.com.hr",
+   "naziv": "Extravagant",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 43.0,
+   "konkurenti": {
+    "optika-anda.com": 30
+   },
+   "nacin": "modni članci",
+   "primjer": {
+    "kod": "optika-anda.com",
+    "url": "https://extravagant.com.hr/article-1-7-modela-suncanih-naocala-koje-necete-skidati-ovo-ljeto/",
+    "naslov": "7 modela sunčanih naočala koje nećete skidati ovo ljeto"
+   }
+  },
+  {
+   "domena": "wish.hr",
+   "naziv": "Wish",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 40.0,
+   "konkurenti": {
+    "ghetaldus.hr": 16
+   },
+   "nacin": "lifestyle članci"
+  },
+  {
+   "domena": "gloriaglam.hr",
+   "naziv": "Gloria Glam",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 39.0,
+   "konkurenti": {
+    "ghetaldus.hr": 2
+   },
+   "nacin": "modni članci"
+  },
+  {
+   "domena": "budidobro.com",
+   "naziv": "Budi.Dobro",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 32.0,
+   "konkurenti": {
+    "livision-optika.com": 25
+   },
+   "nacin": "lifestyle članci"
+  },
+  {
+   "domena": "itgirl.hr",
+   "naziv": "It Girl",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 29.0,
+   "konkurenti": {
+    "livision-optika.com": 466
+   },
+   "nacin": "velik broj poveznica s modnog portala"
+  },
+  {
+   "domena": "marieclaire.hr",
+   "naziv": "Marie Claire",
+   "vrsta": "medij",
+   "prioritet": 3,
+   "dr": 26.0,
+   "konkurenti": {
+    "optika-anda.com": 1
+   },
+   "nacin": "modni članci"
+  }
+ ]
 }

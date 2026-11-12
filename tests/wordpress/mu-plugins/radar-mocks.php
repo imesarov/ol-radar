@@ -4,6 +4,15 @@
  * Google token mock provjerava potpis JWT-a javnim ključem iz opcije olr_test_pub.
  */
 
+// Popis kandidata za suradnju iz testne datoteke (opcija olr_test_seed_file), da test ne ovisi o snimku priloženom dodatku.
+add_filter(
+	'olr_suradnje_seed_file',
+	static function ( $file ) {
+		$t = get_option( 'olr_test_seed_file' );
+		return is_string( $t ) && '' !== $t ? $t : $file;
+	}
+);
+
 add_filter(
 	'pre_http_request',
 	static function ( $pre, $args, $url ) {
@@ -600,7 +609,7 @@ add_filter(
 				}
 				return $html( '<p>Stranica bez poveznice. <a href="https://example.com/">Drugi</a></p>' );
 			}
-			$alive = array( '24sata.hr', 'vecernji.hr', 'jutarnji.hr', 'index.hr', 'tportal.hr', 'net.hr', 'dnevnik.hr', 'gloria.hr', 'poliklinika-test.hr', 'klub-test.hr' );
+			$alive = array( '24sata.hr', 'vecernji.hr', 'jutarnji.hr', 'index.hr', 'tportal.hr', 'net.hr', 'dnevnik.hr', 'gloria.hr', 'poliklinika-test.hr', 'klub-test.hr', 'brzipregled.hr', 'dioptrija.hr', 'rucni-test.hr' );
 			if ( ! in_array( $host, $alive, true ) || get_option( 'olr_test_site_down' ) === $host ) {
 				return new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: ' . $host );
 			}
@@ -647,17 +656,22 @@ add_filter(
 				};
 				if ( in_array( 'web_search_20250305', $names, true ) ) {
 					// Traženje novih tvrtki. Opcija olr_test_ai_trazi: iskljuceno, pauza, bez_alata.
+					// Pretraga vraća samo kandidate (domena, naziv, vrsta, zašto); prijedlog piše zaseban poziv. Jedan kandidat ipak dolazi s cijelim prijedlogom.
+					update_option( 'olr_test_ai_last_trazi', $req, false );
+					$kand = static function ( $d, $extra = array() ) {
+						return array_merge( array( 'domena' => $d, 'naziv' => 'Naziv ' . $d, 'vrsta' => 'medij', 'zasto' => 'Ustanova s vlastitim webom u Sesvetama.', 'ponuda' => '', 'poruka' => '' ), $extra );
+					};
 					$mode = (string) get_option( 'olr_test_ai_trazi' );
 					if ( 'iskljuceno' === $mode ) {
 						return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'Web search is not enabled for this organization.' ) ) );
 					}
 					$found  = array(
-						$prop( 'https://www.poliklinika-test.hr/o-nama/', array( 'naziv' => 'Poliklinika Test', 'vrsta' => 'zdravstvo', 'kome' => 'voditelj poliklinike' ) ),
-						$prop( 'ne-postoji-test.hr', array( 'vrsta' => 'tvrtka' ) ),
-						$prop( '24sata.hr' ),
-						$prop( 'jojo-optika.hr' ),
+						$kand( 'https://www.poliklinika-test.hr/o-nama/', array( 'naziv' => 'Poliklinika Test', 'vrsta' => 'zdravstvo', 'zasto' => 'Poliklinika u Sesvetama bez vlastite optike.' ) ),
+						$kand( 'ne-postoji-test.hr', array( 'vrsta' => 'tvrtka' ) ),
+						$kand( '24sata.hr' ),
+						$kand( 'jojo-optika.hr' ),
 						$prop( 'klub-test.hr', array( 'naziv' => 'Klub Test', 'vrsta' => 'sport' ) ),
-						$prop( 'facebook.com' ),
+						$kand( 'facebook.com' ),
 					);
 					$search = array(
 						array( 'type' => 'server_tool_use', 'id' => 'srvtoolu_1', 'name' => 'web_search', 'input' => array( 'query' => 'poliklinika Sesvete' ) ),
@@ -676,18 +690,20 @@ add_filter(
 				}
 				// Prijedlozi za postojeće kandidate. Opcija olr_test_ai_suradnje: tekst = prvi odgovor bez alata, prekid = prekinut.
 				$mode = (string) get_option( 'olr_test_ai_suradnje' );
-				$use  = array( 'input_tokens' => 1800, 'output_tokens' => 2200 );
+				$use  = array( 'input_tokens' => 1800, 'output_tokens' => 2200, 'output_tokens_details' => array( 'thinking_tokens' => 1500 ) );
 				if ( 'prekid' === $mode ) {
 					return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'max_tokens', 'usage' => $use, 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_s', 'name' => 'spremi_suradnje', 'input' => array() ) ) ) );
 				}
 				if ( 'tekst' === $mode && false === strpos( $req['system'], 'VAŽNO: u prethodnom pokušaju alat nije pozvan' ) ) {
 					return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'end_turn', 'usage' => $use, 'content' => array( array( 'type' => 'text', 'text' => 'Evo prijedloga u tekstu, bez alata.' ) ) ) );
 				}
+				// Jedan kandidat po pozivu. Opcija olr_test_ai_nepotpun: domena za koju je odgovor nepotpun (bez poruke).
 				$in  = json_decode( $last['content'], true );
-				$out = array();
-				foreach ( $in['kandidati'] as $i => $c ) {
-					$out[] = 1 === $i ? $prop( $c['domena'], array( 'poruka' => '' ) ) : $prop( $c['domena'], array( 'zasto' => 'Konkurenti imaju ' . array_sum( (array) $c['poveznice_konkurenata'] ) . ' poveznica s domene ' . $c['domena'] . '.' ) );
-				}
+				$c   = $in['kandidati'][0];
+				$log = (array) get_option( 'olr_test_ai_suradnje_log', array() );
+				$log[] = $c['domena'] . ( 1 === count( $in['kandidati'] ) ? '' : ' +' . ( count( $in['kandidati'] ) - 1 ) );
+				update_option( 'olr_test_ai_suradnje_log', array_slice( $log, -40 ), false );
+				$out = array( get_option( 'olr_test_ai_nepotpun' ) === $c['domena'] ? $prop( $c['domena'], array( 'poruka' => '' ) ) : $prop( $c['domena'], array( 'zasto' => 'Konkurenti imaju ' . array_sum( (array) $c['poveznice_konkurenata'] ) . ' poveznica s domene ' . $c['domena'] . '.' ) ) );
 				$out[] = $prop( 'nije-u-ulazu.hr' );
 				return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'tool_use', 'usage' => $use, 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'sig' ), array( 'type' => 'tool_use', 'id' => 'toolu_s', 'name' => 'spremi_suradnje', 'input' => array( 'prijedlozi' => $out ) ) ) ) );
 			}

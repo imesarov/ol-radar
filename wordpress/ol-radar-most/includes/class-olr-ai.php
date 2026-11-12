@@ -331,10 +331,12 @@ class OLR_AI {
 		// kad ploča javi da je odgovor prekinut ili u krivom obliku.
 		$stop = isset( $out['stop_reason'] ) ? (string) $out['stop_reason'] : '';
 		$usd  = self::cost( $model, $tin, $tout, $used );
+		// Koliko je izlaza otišlo na razmišljanje modela (naplaćuje se kao izlaz i ulazi u max_tokens).
+		$think = isset( $out['usage']['output_tokens_details']['thinking_tokens'] ) && is_numeric( $out['usage']['output_tokens_details']['thinking_tokens'] ) ? (int) $out['usage']['output_tokens_details']['thinking_tokens'] : 0;
 		OLR_Settings::set_status(
 			'ai_poziv',
 			'max_tokens' !== $stop,
-			$model . ' · ' . ( 'max_tokens' === $stop ? 'odgovor prekinut zbog duljine' : ( 'tool_use' === $stop ? 'odgovor alatom' : ( 'pause_turn' === $stop ? 'odgovor se nastavlja' : 'odgovor završen' ) ) ) . ' · ulaz ' . $tin . ', izlaz ' . $tout . ' tokena' . ( $used ? ', web pretraga: ' . $used : '' ) . ( null === $usd ? '' : ' · ' . number_format( $usd, 4, ',', '.' ) . ' $' ),
+			$model . ' · ' . ( 'max_tokens' === $stop ? 'odgovor prekinut zbog duljine' : ( 'tool_use' === $stop ? 'odgovor alatom' : ( 'pause_turn' === $stop ? 'odgovor se nastavlja' : 'odgovor završen' ) ) ) . ' · ulaz ' . $tin . ', izlaz ' . $tout . ' tokena' . ( $think ? ' (od toga razmišljanje ' . $think . ')' : '' ) . ( $used ? ', web pretraga: ' . $used : '' ) . ( null === $usd ? '' : ' · ' . number_format( $usd, 4, ',', '.' ) . ' $' ),
 			array( 'stop' => $stop )
 		);
 		return array(

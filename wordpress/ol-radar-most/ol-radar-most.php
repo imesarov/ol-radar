@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, društvene mreže, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba i mreže samo čita, ne mijenja ih.
- * Version:           2.4.0
+ * Version:           2.4.1
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.4.0' );
+define( 'OLR_VERSION', '2.4.1' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );

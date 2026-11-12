@@ -1255,8 +1255,11 @@ class OLR_Social {
 					),
 					'tools'       => array( self::tool() ),
 					'tool_choice' => array( 'name' => self::TOOL ),
-					'max_tokens'  => 4000,
-				)
+					// Razmišljanje modela troši isti okvir (Opus 5.5 ga ne može isključiti), pa je okvir širok.
+					'max_tokens'  => OLR_AI::MAX_TOKENS_JOB,
+					'long'        => true,
+				),
+				true
 			);
 			if ( is_wp_error( $res ) ) {
 				OLR_Settings::set_status( 'mreze_preporuke', false, $res->get_error_message() );

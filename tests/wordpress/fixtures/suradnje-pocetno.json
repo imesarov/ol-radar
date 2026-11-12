@@ -1,0 +1,226 @@
+{
+ "izvor": "ahrefs-2026-11-12",
+ "opis": "Samo za test: snimak od 12. 11. 2026. (20 kandidata), kakav je bio priložen dodatku 2.4.0. Prvi kandidat ima i polja iz novijeg snimka.",
+ "dr": {
+  "optikaljiljana.hr": 0,
+  "optika-anda.com": 28,
+  "jojo-optika.hr": 27,
+  "adrialece.hr": 25,
+  "livision-optika.com": 16,
+  "optika-dado.hr": 7
+ },
+ "kandidati": [
+  {
+   "domena": "24sata.hr",
+   "naziv": "24sata",
+   "vrsta": "medij",
+   "dr": 76,
+   "konkurenti": {
+    "livision-optika.com": 181,
+    "optika-anda.com": 102,
+    "adrialece.hr": 3,
+    "jojo-optika.hr": 1
+   },
+   "nacin": "plaćeni native i promo članci",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://www.24sata.hr/native-sadrzaj/primjer-clanka-123",
+    "naslov": "Primjer naslova <b>članka</b>"
+   },
+   "prioritet": 2
+  },
+  {
+   "domena": "vecernji.hr",
+   "naziv": "Večernji list",
+   "vrsta": "medij",
+   "dr": 78,
+   "konkurenti": {
+    "livision-optika.com": 295,
+    "optika-anda.com": 53,
+    "adrialece.hr": 22
+   }
+  },
+  {
+   "domena": "jutarnji.hr",
+   "naziv": "Jutarnji list",
+   "vrsta": "medij",
+   "dr": 79,
+   "konkurenti": {
+    "livision-optika.com": 59,
+    "optika-anda.com": 49,
+    "adrialece.hr": 2
+   }
+  },
+  {
+   "domena": "index.hr",
+   "naziv": "Index.hr",
+   "vrsta": "medij",
+   "dr": 76,
+   "konkurenti": {
+    "optika-anda.com": 97,
+    "adrialece.hr": 26
+   }
+  },
+  {
+   "domena": "tportal.hr",
+   "naziv": "tportal",
+   "vrsta": "medij",
+   "dr": 75,
+   "konkurenti": {
+    "livision-optika.com": 161,
+    "optika-anda.com": 15
+   }
+  },
+  {
+   "domena": "net.hr",
+   "naziv": "Net.hr",
+   "vrsta": "medij",
+   "dr": 75,
+   "konkurenti": {
+    "optika-anda.com": 50,
+    "livision-optika.com": 30
+   }
+  },
+  {
+   "domena": "dnevnik.hr",
+   "naziv": "Dnevnik.hr",
+   "vrsta": "medij",
+   "dr": 77,
+   "konkurenti": {
+    "optika-anda.com": 9,
+    "adrialece.hr": 5
+   }
+  },
+  {
+   "domena": "gloria.hr",
+   "naziv": "Gloria",
+   "vrsta": "medij",
+   "dr": 67,
+   "konkurenti": {
+    "livision-optika.com": 141,
+    "optika-anda.com": 46,
+    "adrialece.hr": 1
+   },
+   "nacin": "promo i native članci",
+   "primjer": {
+    "kod": "livision-optika.com",
+    "url": "https://www.gloria.hr/promo/primjer-clanka-456",
+    "naslov": "Primjer naslova članka"
+   },
+   "prioritet": 2
+  },
+  {
+   "domena": "story.hr",
+   "naziv": "Story",
+   "vrsta": "medij",
+   "dr": 64,
+   "konkurenti": {
+    "livision-optika.com": 164,
+    "optika-anda.com": 56
+   }
+  },
+  {
+   "domena": "fashion.hr",
+   "naziv": "Fashion.hr",
+   "vrsta": "medij",
+   "dr": 52,
+   "konkurenti": {
+    "optika-anda.com": 38,
+    "jojo-optika.hr": 4
+   }
+  },
+  {
+   "domena": "bug.hr",
+   "naziv": "Bug.hr",
+   "vrsta": "medij",
+   "dr": 67,
+   "konkurenti": {
+    "livision-optika.com": 4,
+    "adrialece.hr": 3,
+    "optika-anda.com": 1
+   }
+  },
+  {
+   "domena": "poslovni.hr",
+   "naziv": "Poslovni dnevnik",
+   "vrsta": "medij",
+   "dr": 73,
+   "konkurenti": {
+    "optika-anda.com": 5
+   }
+  },
+  {
+   "domena": "telegram.hr",
+   "naziv": "Telegram",
+   "vrsta": "medij",
+   "dr": 71,
+   "konkurenti": {
+    "optika-anda.com": 2
+   }
+  },
+  {
+   "domena": "diners.hr",
+   "naziv": "Diners Club",
+   "vrsta": "partnerski_program",
+   "dr": 71,
+   "konkurenti": {
+    "jojo-optika.hr": 1
+   }
+  },
+  {
+   "domena": "americanexpress.com",
+   "naziv": "American Express",
+   "vrsta": "partnerski_program",
+   "dr": 91,
+   "konkurenti": {
+    "jojo-optika.hr": 2
+   }
+  },
+  {
+   "domena": "mojposao.hr",
+   "naziv": "MojPosao",
+   "vrsta": "imenik",
+   "dr": 64,
+   "konkurenti": {
+    "adrialece.hr": 6,
+    "livision-optika.com": 2
+   }
+  },
+  {
+   "domena": "njuskalo.hr",
+   "naziv": "Njuškalo",
+   "vrsta": "imenik",
+   "dr": 76,
+   "konkurenti": {
+    "jojo-optika.hr": 2
+   }
+  },
+  {
+   "domena": "boxnow.hr",
+   "naziv": "BOX NOW",
+   "vrsta": "partnerski_program",
+   "dr": 62,
+   "konkurenti": {
+    "adrialece.hr": 16
+   }
+  },
+  {
+   "domena": "skole.hr",
+   "naziv": "Škole.hr",
+   "vrsta": "obrazovanje",
+   "dr": 75,
+   "konkurenti": {
+    "optika-anda.com": 1
+   }
+  },
+  {
+   "domena": "asoo.hr",
+   "naziv": "Agencija za strukovno obrazovanje i obrazovanje odraslih",
+   "vrsta": "obrazovanje",
+   "dr": 56,
+   "konkurenti": {
+    "adrialece.hr": 1
+   }
+  }
+ ]
+}

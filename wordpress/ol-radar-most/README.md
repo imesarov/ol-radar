@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.4.0)
+# OL Radar – most za Claudea (v2.4.1)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -112,14 +112,16 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 ### Suradnje i poveznice (od 2.4.0)
 - **Čemu služi.** Prave poveznice s tuđih webova dižu Domain Rating i vidljivost. Modul vodi popis mogućih partnera i za svakoga priprema prijedlog: zašto baš on, što ponuditi, koraci, nacrt poruke i javni kontakt. Ništa se ne šalje nikome; poruku šalje vlasnik.
 - **Odakle kandidati:**
-  - priložena arhiva Ahrefsa od 12. 11. 2026. (`data/suradnje-pocetno.json`): 20 domena koje povezuju konkurente, a ne nas, s brojem poveznica po konkurentu;
+  - priložena završna arhiva Ahrefsa od 13. 11. 2026. (`data/suradnje-pocetno.json`, od 2.4.1): 74 domene koje povezuju konkurente i srodne tvrtke (druge optike, očne klinike, strukovni portal), a ne nas. Uz svaku: DR, broj poveznica po tvrtki, ocjena izvedivosti, kako je poveznica nastala i primjer takve stranice;
   - tvrtke i ustanove koje Claude nađe web pretragom (gumb „Potraži nove tvrtke”, uz potvrdu troška; tjedno samo ako se uključi u Postavkama);
   - ručno dodane domene.
-- **Što radi server, a što Claude.** Server provjeri da web kandidata postoji i s njega pročita javni kontakt (stranica Kontakt, e-pošta, telefon). Claude piše prijedlog iz domene, vrste, DR-a i broja poveznica konkurenata. Claude ne dobiva e-adrese i ne navodi imena osoba, samo ulogu.
+- **Izvedivost (od 2.4.1).** Svaki kandidat iz arhive ima ocjenu: 1 najizvedivije (imenici, programi pogodnosti za članove, lokalni portali, udruge, obrazovanje), 2 traži stručni sadržaj (portali kojima treba savjet optometrista), 3 većinom plaćene objave (nacionalni i modni mediji, gdje su poveznice konkurenata uglavnom iz promo i native članaka). Popis i tjedni prijedlozi idu tim redom; ručno dodani kandidati su prvi. Ocjena je urednička procjena iz arhive, ne mjerenje.
+- **Što radi server, a što Claude.** Server provjeri da web kandidata postoji i s njega pročita javni kontakt (stranica Kontakt, e-pošta, telefon). Claude piše prijedlog iz domene, vrste, DR-a, broja poveznica drugih tvrtki, načina na koji su one došle do poveznice i ocjene izvedivosti. Claude ne dobiva e-adrese i ne navodi imena osoba, samo ulogu. Kad su poveznice većinom plaćene, uputa traži besplatan put (stručni komentar, tema za rubriku, lokalna vijest).
+- **Jedan poziv po kandidatu (od 2.4.1).** Na modelima s uvijek uključenim razmišljanjem (Opus 5.5) razmišljanje troši isti `max_tokens` kao i odgovor, pa je pet prijedloga u jednom pozivu bilo prekinuto zbog duljine. Zato svaki prijedlog piše zaseban poziv i sprema se čim stigne. Satni prolaz piše do `suradnje_max` prijedloga; klik u ploči dva do tri (da zahtjev ne traje predugo), najviše tri klika dnevno. Kandidat s tri neuspjela pokušaja više ne ide Claudeu. Web pretraga vraća samo kandidate; prijedlog za njih piše isti zasebni poziv.
 - **Pravila prijedloga:** bez kupnje i razmjene poveznica; plaćeni članak samo uz napomenu da je poveznica sponzorirana i ne diže DR; bez izmišljenih cijena i brojki.
 - **Stanja:** novo → kontaktirano → dogovoreno → dobiveno (ili odbijeno). Uz „dogovoreno” i „dobiveno” upisuje se adresa stranice s poveznicom; server provjeri postoji li poveznica i je li `nofollow`/`sponsored`.
 - **Poveznice koje vidi Google (glavno mjerilo).** Search Console API ne daje izvještaj o vezama, pa se izvoz iz sučelja (Veze → Vanjske veze → Izvoz, CSV) učitava u modulu. Prihvaća tablice „Najčešće web-lokacije s vezama” i „Najnovije veze”. Svaki uvoz pokazuje nove domene od prošlog; kandidat koji nas već povezuje dobiva oznaku. Domene koje po nazivu izgledaju kao prodavači poveznica samo su označene (gruba oznaka, ne presuda).
-- **Domain Rating.** DR je Ahrefsova brojka i ne može se dobiti iz Search Consolea. Zadano se prikazuje arhiva od 12. 11. 2026. (naš DR 0; konkurenti 7 do 28). Tjedna provjera Ahrefsovim besplatnim javnim servisom (bez pretplate i ključa) uključuje se u Postavkama; gumb „Provjeri DR sada” radi uvijek. Oznaka „Domain Rating by Ahrefs” je uvjet licence.
+- **Domain Rating.** DR je Ahrefsova brojka i ne može se dobiti iz Search Consolea. Zadano se prikazuje arhiva: mjesečna povijest od siječnja 2025. i stanje 13. 11. 2026. (naš DR 0; konkurenti 7 do 28). Arhiva ne prepisuje točke koje je Radar sam izmjerio. Tjedna provjera Ahrefsovim besplatnim javnim servisom (bez pretplate i ključa) uključuje se u Postavkama; gumb „Provjeri DR sada” radi uvijek. Oznaka „Domain Rating by Ahrefs” je uvjet licence.
 - **Raspored:** prijedlozi jednom tjedno (ako je uključeno, zadano jest), nove tvrtke i DR jednom tjedno samo ako su uključeni; svaki posao u svom satnom prolazu. Ručno najviše tri puta dnevno po poslu.
 
 ### Claude trošak (od 2.4.0)
@@ -141,7 +143,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | Indeksiranost | Search Console URL Inspection API, isti servisni račun | 0 |
 | Učinak izmjena | Search Console API (dnevni podaci po stranici) | 0 |
 | Društvene mreže | Meta Graph API, YouTube Data API v3, TikTok Display API | 0 (tjedne preporuke: nekoliko centi API kredita) |
-| Suradnje i poveznice | arhiva Ahrefsa (priložena), webovi kandidata, Claude; po izboru Anthropicova web pretraga i Ahrefsov javni DR | jedan Claudeov poziv tjedno; web pretraga 0,01 $ po upitu uz tokene; DR 0 |
+| Suradnje i poveznice | arhiva Ahrefsa (priložena), webovi kandidata, Claude; po izboru Anthropicova web pretraga i Ahrefsov javni DR | tjedno do pet Claudeovih poziva (jedan po prijedlogu); web pretraga 0,01 $ po upitu uz tokene; DR 0 |
 | Poveznice koje vidi Google | ručni izvoz iz Search Consolea (API ih ne daje) | 0 |
 | Claude u ploči | Anthropic API; Ultra plan uključuje mjesečne API kredite | po upotrebi, uz dnevni limit poziva |
 
