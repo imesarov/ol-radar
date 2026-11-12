@@ -2,9 +2,10 @@
 
 Stanje 12. 11. 2026.:
 - Radar na claude.ai: v3.1.
-- WordPress dodatak 2.0.0 (Radar na hostingu) je izgrađen i testiran i čeka instalaciju; na webu je još 1.0.0.
-- Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.). Treba ga dodati u Search Console, uključiti Search Console API i izraditi JSON ključ.
-- DataForSEO račun je otvoren (12. 11.).
+- WordPress dodatak (Radar na hostingu): na webu je 2.0.0, Google ključ je spremljen. Verzija 2.0.2 je spremna (popravak spremanja ključeva iz 2.0.1, ploča uz WP izbornik, svijetla tema).
+- Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
+- DataForSEO račun je otvoren (12. 11.). DataForSEO i Anthropic ključeve Ivan upisuje nakon nadogradnje na 2.0.1 ili noviju.
+- **Greška u 2.0.0:** gumb „obriši” bio je ugniježđeni obrazac, pa su „Spremi” i provjere brisali već spremljeni ključ. Ako ključ „nestane”, provjeri verziju dodatka.
 - OpenSEO tracker radi i arhiva Ahrefsa je gotova.
 
 **Aplikacija:** https://claude.ai/artifact/FwKJowHqdJUASipjeAkoBT
@@ -20,6 +21,8 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 
 ## Radar na hostingu (dodatak 2.0)
 - **Nadzorna ploča:** `https://www.optikaljiljana.hr/wp-admin/admin.php?page=ol-radar`, samo administrator. Postavke su na `admin.php?page=ol-radar-postavke`.
+  - Od 2.0.2 ploča je u okviru u radnom dijelu wp-admina, a WP izbornik ostaje lijevo (Ivanova želja). Odabrani modul ostaje u adresi (`#pozicije` …).
+  - Svijetla tema je zadana (Ivan: ne mora sve biti crno-zlatno kao web). Tamna je na prekidaču ispod logotipa.
 - **Izvori na serveru:**
   - Google Search Console API (servisni račun, svakih 12 h);
   - DataForSEO (pozicije: tjedno ako je uključeno, ili gumbom; oko 0,065 $ za 27 riječi);
@@ -122,7 +125,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 1.0.0. Verzija 2.0.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+- **Verzija:** na webu 2.0.0. Verzija 2.0.2 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
   - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
   - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.
