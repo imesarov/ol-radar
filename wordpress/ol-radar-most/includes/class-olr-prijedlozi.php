@@ -247,6 +247,7 @@ class OLR_Prijedlozi {
 			. "- novi_clanak: radni naslov i do 6 podnaslova, sve u jednom polju novo.\n"
 			. "- tehnicki: točno što promijeniti i gdje.\n"
 			. "- zasto: jedna do dvije rečenice s brojkama iz ulaza.\n"
+			. "- Ako se na samoj stranici nema što mijenjati (npr. treba pričekati nove podatke ili je radnja u Search Consoleu), ostavi izmjene prazne i napiši korake. Ne izmišljaj izmjenu teksta samo da je bude.\n"
 			. "- Ako je stranica.izmijenjeno_prije_dana manje od 14, prvi korak neka bude provjera je li ta izmjena već riješila nalaz.\n"
 			. ( $plain
 				? "- Vrati isključivo JSON objekt, bez teksta prije ili poslije i bez ograde koda.\n\n" . 'Oblik: {"naslov":"…","zasto":"…","izmjene":[{"polje":"seo_naslov|meta_opis|h1|odlomak|interni_link|novi_clanak|tehnicki","gdje":"…","novo":"…"}],"koraci":["…"]}'
@@ -290,8 +291,9 @@ class OLR_Prijedlozi {
 						),
 					),
 					'koraci'  => array(
-						'type'  => 'array',
-						'items' => array( 'type' => 'string' ),
+						'type'        => 'array',
+						'description' => 'Koraci za vlasnika. Obavezni ako su izmjene prazne.',
+						'items'       => array( 'type' => 'string' ),
 					),
 				),
 				'required'   => array( 'naslov', 'izmjene' ),
@@ -315,11 +317,30 @@ class OLR_Prijedlozi {
 		return wp_json_encode( $item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 	}
 
+	/**
+	 * Ima li odgovor sadržaj: barem jednu izmjenu ili barem jedan korak. Odgovor samo s koracima je valjan
+	 * (npr. „pričekaj nove podatke”, „zatraži indeksiranje”); do 2.2.1 vodio se kao neuspjeh.
+	 */
+	private static function usable( $a ) {
+		if ( ! is_array( $a ) ) {
+			return false;
+		}
+		if ( ! empty( $a['izmjene'] ) && is_array( $a['izmjene'] ) ) {
+			return true;
+		}
+		foreach ( isset( $a['koraci'] ) && is_array( $a['koraci'] ) ? $a['koraci'] : array() as $k ) {
+			if ( is_string( $k ) && '' !== trim( $k ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Iz odgovora vadi prijedlog: poziv alata ili, u rezervnom načinu, JSON u tekstu. */
 	private static function parse_ai( $res ) {
 		$text = '';
 		foreach ( isset( $res['content'] ) ? (array) $res['content'] : array() as $b ) {
-			if ( isset( $b['type'] ) && 'tool_use' === $b['type'] && isset( $b['input'] ) && is_array( $b['input'] ) && ! empty( $b['input']['izmjene'] ) ) {
+			if ( isset( $b['type'] ) && 'tool_use' === $b['type'] && isset( $b['input'] ) && self::usable( $b['input'] ) ) {
 				return $b['input'];
 			}
 			if ( isset( $b['type'] ) && 'text' === $b['type'] ) {
@@ -336,7 +357,7 @@ class OLR_Prijedlozi {
 		if ( is_array( $j ) && isset( $j['prijedlozi'][0] ) && is_array( $j['prijedlozi'][0] ) ) {
 			$j = $j['prijedlozi'][0];
 		}
-		if ( ! is_array( $j ) || empty( $j['izmjene'] ) || ! is_array( $j['izmjene'] ) ) {
+		if ( ! self::usable( $j ) ) {
 			return new WP_Error( 'olr_prijedlozi_json', 'Claude nije vratio prijedlog u očekivanom obliku' . $cut . '.' );
 		}
 		return $j;
@@ -426,19 +447,22 @@ class OLR_Prijedlozi {
 				continue;
 			}
 			$a       = $r['p'];
-			$changes = self::clean_changes( isset( $a['izmjene'] ) ? $a['izmjene'] : array(), $doc );
-			if ( ! $changes ) {
+			$raw     = isset( $a['izmjene'] ) && is_array( $a['izmjene'] ) ? $a['izmjene'] : array();
+			$changes = self::clean_changes( $raw, $doc );
+			$steps   = array();
+			foreach ( ! empty( $a['koraci'] ) && is_array( $a['koraci'] ) ? array_slice( $a['koraci'], 0, 4 ) : array() as $st ) {
+				if ( is_string( $st ) && '' !== trim( $st ) ) {
+					$steps[] = self::cut( $st, 300 );
+				}
+			}
+			// Bez izmjena teksta prijedlog vrijedi ako ima korake. Ako je Claude predložio izmjene, a nijedna
+			// nije prošla provjeru, to je neuspio pokušaj.
+			if ( ! $changes && ( $raw || ! $steps ) ) {
 				$err                = 'Claude nije predložio nijednu valjanu izmjenu.';
 				$doc['ai_greska']   = $err;
 				$doc['ai_pokusaja'] = ( isset( $doc['ai_pokusaja'] ) ? (int) $doc['ai_pokusaja'] : 0 ) + 1;
 				OLR_Store::set( self::COLL, $doc['id'], $doc );
 				continue;
-			}
-			$steps = array();
-			foreach ( ! empty( $a['koraci'] ) && is_array( $a['koraci'] ) ? array_slice( $a['koraci'], 0, 4 ) : array() as $st ) {
-				if ( is_string( $st ) && '' !== trim( $st ) ) {
-					$steps[] = self::cut( $st, 300 );
-				}
 			}
 			$doc['izmjene'] = $changes;
 			$doc['ai']      = true;
@@ -620,6 +644,17 @@ class OLR_Prijedlozi {
 	public static function fill_due() {
 		if ( ! OLR_AI::available() ) {
 			return false;
+		}
+		// Jednom nakon nadogradnje na 2.3.0: otvoreni prijedlozi koji su ostali bez teksta dobivaju još jedan
+		// pokušaj, jer se do 2.2.1 odgovor samo s koracima (bez izmjene teksta) vodio kao neuspjeh.
+		if ( '2.3.0' !== get_option( 'olr_prijedlozi_ponovi' ) ) {
+			foreach ( self::all() as $p ) {
+				if ( self::is_open( $p ) && empty( $p['ai'] ) && isset( $p['ai_pokusaja'] ) && (int) $p['ai_pokusaja'] >= self::AI_TRIES ) {
+					$p['ai_pokusaja'] = self::AI_TRIES - 1;
+					OLR_Store::set( self::COLL, $p['id'], $p );
+				}
+			}
+			update_option( 'olr_prijedlozi_ponovi', '2.3.0', false );
 		}
 		$run = self::last_run();
 		if ( ! empty( $run['tekst_at'] ) && time() - (int) $run['tekst_at'] < 50 * MINUTE_IN_SECONDS ) {

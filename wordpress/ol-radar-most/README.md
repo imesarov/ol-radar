@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.2.1)
+# OL Radar – most za Claudea (v2.3.0)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -14,13 +14,15 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Moduli:** isti kao Radar na claude.ai, jer dijele kod. Ploča se gradi iz `app/index.html` + `app/hosted-shim.js` u `app/radar.html` (`tools/build-hosted.py`).
   - Pregled, Tjedno, Google, Pozicije;
   - Ključne riječi, Planer, Konkurencija (model iz SERP-ova), Trendovi;
-  - Audit weba, Popravci i AI, Arhiva, Kako radi.
+  - Audit weba, Društvene mreže, Popravci i AI, Arhiva, Kako radi.
 - **Pristup:** samo administratori (`manage_options`). Ploča se otvara na `wp-admin/admin.php?page=ol-radar`, u radnom dijelu wp-admina (WP izbornik ostaje lijevo). Svijetla tema je zadana, a tamna je na prekidaču u izborniku ploče; izbor se pamti u pregledniku.
 - **Podaci:** u tablici `{prefix}ol_radar_docs` (zbirka + id + JSON), u istom obliku kao baza Radara na claude.ai.
 - **Claude u ploči:** Anthropic Messages API preko servera; ključ ne napušta server. Alate (podatke Radara) izvršava preglednik.
   - Prijedlog popravka i brief traže strukturiran odgovor. Od 2.2.1 Claude ga daje pozivom alata `odgovor` (prisilni poziv), pa nema teksta oko JSON-a. Ako je odgovor prekinut zbog duljine, ide jedan sažetiji pokušaj; ako API odbije poziv alata, radi rezervni način s JSON-om u tekstu.
   - Zadnji poziv (model, kako je odgovor završio, broj tokena; bez sadržaja) vidi se u stanju izvora kao „Zadnji poziv Claudea”.
-- **Društvene mreže** (Instagram, YouTube) na hostingu dolaze u sljedećoj fazi, preko Metinog API-ja.
+- **Društvene mreže** (Instagram, Facebook, YouTube, TikTok) skuplja server od 2.3.0; vidi odjeljak „Društvene mreže”.
+  - Modul Društvene mreže na hostingu: pločica po mreži, „Što raditi da nas gledaju” (Claudeove preporuke i ideje), „Što prolazi, a što ne” (po mreži) i „Uzori”.
+  - Iste podatke koriste Pregled (pločica s pratiteljima), Tjedni pregled, nalazi u Popravcima, izvoz za Claudea i alat `drustvene_mreze` AI analitičara.
 
 ### Dnevni prijedlozi izmjena (od 2.1.0)
 - **Što radi:** kad stignu novi Google podaci, server sam prođe upite, pozicije i crawl weba (`OLR_Analiza`) i za najvažnije nalaze pripremi gotov prijedlog izmjene (`OLR_Prijedlozi`). Modul **Prijedlozi** u ploči.
@@ -47,6 +49,8 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Stanja:** novo → prihvaćeno → provedeno, ili odbijeno. Sprema ih ploča (`prijedlozi_stanje`); same prijedloge piše samo server.
 - **Web se ne mijenja.** Prijedlozi su za odluku vlasnika.
 - **Postavke:** automatska analiza (uključeno), najviše novih dnevno (5), riječi brenda i popis „Zanemari upite” (upiti s njima ne ulaze u analizu). Gumb „Analiziraj sada” u ploči i u Postavkama, najviše 6 ručnih pokretanja dnevno.
+
+- **Odgovor samo s koracima (od 2.3.0).** Ako se na stranici nema što mijenjati (treba pričekati nove podatke, radnja je u Search Consoleu), Claude vraća korake bez izmjene teksta i to je valjan prijedlog. Do 2.2.1 takav se odgovor vodio kao neuspjeh, pa je prijedlog nakon tri pokušaja ostajao „bez napisanog teksta”. Nakon nadogradnje na 2.3.0 takvi prijedlozi jednom dobivaju još jedan pokušaj.
 
 ### Učinak provedenih izmjena (od 2.2.0)
 - **Što radi:** kad prijedlog u ploči označiš kao „provedeno”, dodatak sam usporedi Search Console za tu stranicu prije i poslije (`OLR_Ucinak`). Ne treba ništa pokretati.
@@ -81,6 +85,30 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   - Udio vidljivosti je procjena udjela klikova među izmjerenim riječima po poziciji (opća krivulja CTR-a), bez volumena pretraga. Po riječi se računa najbolji rezultat domene.
   - Panel je u modulu Konkurencija. Za promjene trebaju barem dva mjerenja.
 
+### Društvene mreže (od 2.3.0)
+- **Što skuplja** (samo čitanje, dvaput dnevno; ništa se ne objavljuje, ne briše i ne mijenja):
+
+  | Mreža | Kako | Što daje |
+  |---|---|---|
+  | Instagram | Meta Graph API, token sistemskog korisnika | pratitelji; po objavi pregledi, doseg, lajkovi, komentari, dijeljenja, spremanja, prosječno gledanje reela |
+  | Facebook | Meta Graph API, isti token | pratitelji stranice; po objavi pregledi (`post_media_view`), doseg (`post_total_media_view_unique`), reakcije, komentari, dijeljenja |
+  | YouTube | Data API v3, API ključ | pretplatnici; po videu pregledi, lajkovi, komentari, trajanje (do 60 s vodi se kao kratki video) |
+  | TikTok | Display API, OAuth (Sandbox je dovoljan za vlastiti račun) | pratitelji; po videu pregledi, lajkovi, komentari, dijeljenja, trajanje |
+
+- **Što prolazi, a što ne.** Svaka objava zadnjih 180 dana uspoređuje se s medijanom vlastite mreže („×” = pregledi objave prema tom medijanu). 1,5× i više je iznad uobičajenog, 0,5× i manje ispod. Za manje od pet objava nema zaključaka.
+- **Obrasci** (vrsta, trajanje, dan u tjednu, doba dana, pitanje na početku opisa) navode se tek kad skupina ima barem tri objave i odstupa barem 30 %. To je naznaka, ne pravilo.
+- **Uzori** (jednom tjedno):
+  - YouTube: za svaku temu iz Postavki najgledaniji videi zadnjih 120 dana, uz omjer pregleda i pretplatnika kanala. Jedna tema troši 100 jedinica dnevne kvote (10.000, besplatno).
+  - Instagram: zadnje objave javnih profesionalnih profila koje navedeš (Business Discovery), prema medijanu tog profila.
+  - TikTok i Facebook ne daju službeni pristup tuđim objavama.
+- **Što raditi.** Claude jednom tjedno (ili gumbom „Izradi preporuke”, najviše četiri puta dnevno) dobije brojke i kratke opise objava i vrati do pet preporuka s koracima i do šest ideja za objave. Odgovor stiže prisilnim pozivom alata; prekinut odgovor traži se jednom ponovno, kraće.
+- **Meta metrike:** traže se u jednom batch pozivu. Objava kojoj Meta odbije širi skup metrika dobiva uži. Ako batch ne prođe, čita se objava po objava.
+- **TikTok povezivanje:** „Spremi i poveži TikTok” vodi na TikTokovu stranicu za odobrenje (dopuštenja `user.info.basic`, `user.info.stats`, `video.list`). Povratak je na `…/wp-json/ol-radar/v1/oauth/tiktok`; tu adresu treba upisati kao Redirect URI u TikTok aplikaciji.
+  - Povratna adresa je javna, ali bez jednokratnog `state` koda izdanog administratoru (vrijedi 15 minuta) ne mijenja ništa.
+  - Pristupni token vrijedi 24 sata i obnavlja se sam; odobrenje vrijedi godinu dana, nakon toga treba ponovno „Poveži TikTok”.
+- **Veza:** pozivi prema mrežama koriste isti rezervni način kao Google (ponavljanje preko IPv4).
+- **Ne radi (zasad):** YouTube zadržavanje publike i izvori prometa (traže YouTube Analytics uz OAuth), preskakanje reela u prvim sekundama (Meta ga ne daje pouzdano za sve objave).
+
 ### Izvori i trošak
 
 | Izvor | Kako | Trošak |
@@ -90,6 +118,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | Audit iznutra | crawl dodatka | 0 |
 | Indeksiranost | Search Console URL Inspection API, isti servisni račun | 0 |
 | Učinak izmjena | Search Console API (dnevni podaci po stranici) | 0 |
+| Društvene mreže | Meta Graph API, YouTube Data API v3, TikTok Display API | 0 (tjedne preporuke: nekoliko centi API kredita) |
 | Claude u ploči | Anthropic API; Ultra plan uključuje mjesečne API kredite | po upotrebi, uz dnevni limit poziva |
 
 - **Mjerenje pozicija** pokreće se samo uz tvoju odluku:
@@ -109,8 +138,13 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 3. **Claude:**
    - Anthropic API ključ iz Claude Console, model i dnevni limit poziva.
    - Za mjesečne kredite Ultra plana poveži Console organizaciju u claude.ai (Postavke → Billing → API credits).
-4. **Provjere:** gumbi „Spremi i provjeri…” uz svaki odjeljak (Google, DataForSEO besplatno, Claude). Najprije spremaju upisano, pa provjeravaju; rezultat se vidi na vrhu stranice.
-5. **Uvoz iz Radara na claude.ai:** u claude.ai Radaru otvori Arhiva → „Izvezi za hosting”, pa ovdje učitaj datoteku. Uvozi arhivu Ahrefsa, nalaze, plan, snimke i postavke. Podatke izvora (gsc, rank, serp) uvoz ne dira.
+4. **Društvene mreže** (od 2.3.0; sve pristupne podatke upisuje vlasnik):
+   - **Meta token** sistemskog korisnika s trajanjem „Never” i dopuštenjima `pages_show_list`, `pages_read_engagement`, `read_insights`, `instagram_basic`, `instagram_manage_insights`. Sistemskom korisniku treba dodijeliti Facebook stranicu i Instagram račun. Instagram mora biti profesionalni račun povezan sa stranicom.
+   - **YouTube:** API ključ (Google Cloud → YouTube Data API v3) i kanal (`@oznaka` ili ID); teme za uzore.
+   - **TikTok:** Client key i Client secret iz TikTok aplikacije (Sandbox), Redirect URI prikazan u Postavkama, zatim „Spremi i poveži TikTok”.
+   - „Spremi i preuzmi podatke s mreža sada” i „Spremi i izradi preporuke sada”.
+5. **Provjere:** gumbi „Spremi i provjeri…” uz svaki odjeljak (Google, DataForSEO besplatno, Claude). Najprije spremaju upisano, pa provjeravaju; rezultat se vidi na vrhu stranice.
+6. **Uvoz iz Radara na claude.ai:** u claude.ai Radaru otvori Arhiva → „Izvezi za hosting”, pa ovdje učitaj datoteku. Uvozi arhivu Ahrefsa, nalaze, plan, snimke i postavke. Podatke izvora (gsc, rank, serp) uvoz ne dira.
 
 ### Ključevi
 - U bazi se spremaju šifrirano (libsodium, ključ izveden iz WordPressovih soli) i nikad se ne vraćaju u preglednik. Stranica Postavke prikazuje samo adresu servisnog računa ili zadnja 4 znaka.
@@ -120,7 +154,11 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   define( 'OLR_DFS_LOGIN', '...' );
   define( 'OLR_DFS_PASSWORD', '...' );
   define( 'OLR_ANTHROPIC_KEY', '...' );
+  define( 'OLR_META_TOKEN', '...' );
+  define( 'OLR_YT_KEY', '...' );
+  define( 'OLR_TT_SECRET', '...' );
   ```
+- **TikTok tokeni** (pristupni i za obnovu) spremaju se šifrirano u zasebnu opciju `olr_tt_tokens`, pa njihova obnova nikad ne dira `olr_secrets`.
 - **Promjena soli:** ako se promijene WordPress soli, ključe iz baze treba ponovno upisati. Zapis koji se ne može dešifrirati ne briše se sam; Postavke ga jasno označe.
 
 ### Ključevi i nadogradnja (pravilo od 2.1.0)
@@ -155,7 +193,8 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `GET\|PUT\|DELETE /doc/{zbirka}/{id}` | jedan dokument; pisanje je dopušteno samo u zbirke ploče: issues, fixes, plan, kp, snap, cfg, trends, export, tjedno |
 | `POST /ai` | Claude (Anthropic API) |
 | `GET /prijedlozi` | samo prijedlozi (ploča ga čita dok se tekst dopisuje u pozadini) |
-| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera); bez troška. `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
+| `GET /oauth/tiktok` | povratak s TikToka nakon odobrenja; javna ruta, radi samo uz jednokratni `state` izdan administratoru |
+| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera), `mreze`, `mreze_uzori`, `mreze_preporuke`; bez troška (osim Claudeovih poziva). `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
 
 ## Most za Claudea (MCP)
 
@@ -173,6 +212,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/radar-gsc` (novo) | upiti iz Search Consolea za 28 ili 7 dana, s filtrom |
 | `ol-radar/radar-pozicije` (novo) | pozicije, povijest, AI pregled po riječi; uz `konkurenti: true` top 10 po riječi i kretanje konkurenata (2.2.0) |
 | `ol-radar/radar-indeks` (2.2.0) | indeksiranost: brojke i stranice s problemom (razlog iz Googlea, kanonska adresa, zadnji posjet); `sve: true` vraća sve stranice |
+| `ol-radar/radar-mreze` (2.3.0) | društvene mreže: račun i pratitelji, analiza (medijan, objave iznad i ispod uobičajenog, obrasci), preporuke; `mreza` za jednu mrežu, `objave: true` za popis objava, `uzori: true` za uzore |
 | `ol-radar/radar-stanje` (2.1.1) | kratko stanje bez podataka: verzija, koji su ključevi postavljeni (da/ne), stanje izvora i ishod zadnjih provjera, mjerenje u tijeku, upozorenje nakon nadogradnje |
 | `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem; uz provedene i izmjereni učinak (2.2.0) |
 
@@ -214,7 +254,8 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
 ## Testirano (lokalno: WordPress 6.9, SQLite, MCP Adapter 0.7.1, PHP 8.3)
 - **Postojeći testovi:** MCP spajanje, prava (anonimno 401, pretplatnik odbijen, čitač dopušten), crawl i audit na 311 stranica.
 - **Nadogradnja (`tests/wordpress/upgrade_test.sh`):** sa svake izdane verzije 2.x na trenutni kod, deaktivacija/aktivacija, brisanje i ponovna instalacija; ključevi, postavke i podaci moraju ostati isti.
-- **Radar na hostingu (`tests/wordpress/radar_test.php`, 105 provjera)** s lažnim Google, DataForSEO i Anthropic odgovorima:
+- **Radar na hostingu (`tests/wordpress/radar_test.php`, 238 provjera)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube i TikTok odgovorima:
+  - društvene mreže: Meta batch i rezervni načini, istekao token, YouTube kvota i rezervna veza, TikTok OAuth (state, obnova tokena, prekid veze), analiza, uzori, preporuke, cron, REST, MCP, bez curenja tokena;
   - veza prema Googleu: rezervni način, rezervna adresa, dijagnostika, cron nakon neuspjeha;
   - provjera ključeva nakon nadogradnje i nečitljiv zapis;
   - dnevna analiza (sva pravila) i prijedlozi: čišćenje odgovora Claudea, rad bez Claudea, naknadna dopuna teksta, stanja, bez ponavljanja, limiti;
@@ -234,7 +275,8 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
   - AI chat s alatom;
   - `export/radar`;
   - modul Prijedlozi: kartice, prihvaćanje, filtri, „Analiziraj sada”;
-  - Postavke ne otkrivaju ključeve; spremanje, Enter i „obriši” ne diraju druge ključeve.
+  - Postavke ne otkrivaju ključeve; spremanje, Enter i „obriši” ne diraju druge ključeve;
+  - modul Društvene mreže (pločice, preporuke, što prolazi, uzori, „Osvježi mreže”, „Nove preporuke”) i odjeljak u Postavkama (preuzimanje, prekid i povezivanje TikToka).
 
 ## Plan
 Cijeli plan s prioritetima, troškovima i izvorima: `docs/Plan-razvoja.md`.

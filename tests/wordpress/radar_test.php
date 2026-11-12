@@ -26,7 +26,7 @@ foreach ( array( 'olr_test_net_fail', 'olr_test_gsc_extra', 'olr_test_ai_bad_jso
 	delete_option( $o );
 }
 update_option( 'olr_test_dfs_run', 1 );
-foreach ( array( 'olr_secrets', 'olr_status', 'olr_rank_pending', 'olr_dfs_cost', 'olr_ai_usage', 'olr_settings' ) as $o ) {
+foreach ( array( 'olr_secrets', 'olr_status', 'olr_rank_pending', 'olr_dfs_cost', 'olr_ai_usage', 'olr_settings', 'olr_tt_tokens', 'olr_mreze_run' ) as $o ) {
 	delete_option( $o );
 }
 delete_transient( 'olr_gsc_token' );
@@ -386,6 +386,19 @@ $rx   = OLR_Prijedlozi::run( 'tekst' );
 $gone = array_values( array_filter( OLR_Prijedlozi::all(), static function ( $p ) { return 'prilika|/kontakt/' === $p['kljuc']; } ) );
 ok( $had && $gone && true === $gone[0]['isteklo'] && ! is_wp_error( $rx ) && 1 === $rx['isteklo'] && 4 === OLR_Prijedlozi::summary()['otvorenih'], 'prijedlozi: prijedlog bez teksta čiji nalaz više ne vrijedi označen je kao istekao' );
 OLR_Settings::update( array( 'zanemari' => '' ) );
+// Odgovor bez izmjene teksta, samo s koracima (npr. treba pričekati), valjan je prijedlog, a ne neuspjeh.
+// Prijedlozi koji su prije nadogradnje ostali bez teksta dobivaju još jedan pokušaj.
+delete_option( 'olr_prijedlozi_ponovi' );
+update_option( 'olr_test_ai_bez_izmjena', 1 );
+$run             = get_option( 'olr_prijedlozi_run' );
+$run['tekst_at'] = time() - HOUR_IN_SECONDS;
+update_option( 'olr_prijedlozi_run', $run );
+$w0 = OLR_Prijedlozi::summary()['ceka_tekst'];
+ok( 0 === $w0 && true === OLR_Prijedlozi::fill_due() && '2.3.0' === get_option( 'olr_prijedlozi_ponovi' ) && OLR_Prijedlozi::summary()['ceka_tekst'] >= 4, 'prijedlozi: nakon nadogradnje prijedlozi bez teksta dobivaju još jedan pokušaj (jednom)' );
+OLR_Prijedlozi::run( 'tekst' );
+$a4 = array_values( array_filter( OLR_Prijedlozi::all(), static function ( $p ) { return ! empty( $p['ai'] ) && empty( $p['isteklo'] ); } ) );
+ok( count( $a4 ) >= 4 && array() === $a4[0]['izmjene'] && array( 'Prvi korak', 'Drugi korak' ) === $a4[0]['koraci'] && 'Objašnjenje iz ulaza.' === $a4[0]['objasnjenje'] && 0 === OLR_Prijedlozi::summary()['ceka_tekst'] && true === OLR_Settings::status()['prijedlozi']['ok'], 'prijedlozi: Claudeov odgovor samo s koracima (bez izmjene teksta) sprema se kao gotov prijedlog' );
+delete_option( 'olr_test_ai_bez_izmjena' );
 $wipe();
 
 // Ručno pokretanje ne drži preglednik: što ne stigne u kratkom okviru, dopisuje se u pozadini.
@@ -644,6 +657,265 @@ update_option( 'olr_test_ai_json', 'odbij' );
 $jr = OLR_AI::call( $jq );
 ok( is_wp_error( $jr ) && 'olr_ai_zahtjev' === $jr->get_error_code() && 400 === $jr->get_error_data()['status'] && false === OLR_Settings::status()['ai_poziv']['ok'], 'ai: zahtjev koji API odbije ima svoju oznaku (ploča tada prelazi na rezervni način)' );
 delete_option( 'olr_test_ai_json' );
+
+// 15) Društvene mreže: Instagram i Facebook (Meta Graph API), YouTube (Data API), TikTok (Display API), analiza i preporuke.
+foreach ( array( 'olr_test_meta', 'olr_test_meta_calls', 'olr_test_meta_batch', 'olr_test_yt_calls', 'olr_test_yt_kvota', 'olr_test_tt_refresh', 'olr_test_tt_refresh_fail', 'olr_test_ai_mreze', 'olr_test_ai_mreze_calls', OLR_Social::TT_OPT, OLR_Social::RUN_OPT ) as $o ) {
+	delete_option( $o );
+}
+delete_transient( OLR_Social::LOCK );
+$secrets_before = get_option( 'olr_secrets' );
+ok( ! array_filter( OLR_Social::connected() ) && 4 === count( OLR_Social::summary()['mreze'] ) && false === OLR_Social::summary()['mreze']['ig']['povezano'], 'mreže: bez pristupnih podataka ništa nije povezano' );
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+ok( ! get_option( 'olr_test_log' ), 'mreže: satni prolaz bez povezanih mreža ne šalje nijedan zahtjev' );
+OLR_Settings::set_secret( 'meta_token', 'meta-test-token' );
+$after = get_option( 'olr_secrets' );
+ok( false === strpos( wp_json_encode( $after ), 'meta-test-token' ) && 'meta-test-token' === OLR_Settings::secret( 'meta_token' ) && 'postavljen (…oken)' === OLR_Settings::describe_secret( 'meta_token' ) && 'baza (šifrirano)' === OLR_Settings::secret_source( 'meta_token' ), 'mreže: Meta token je spremljen šifrirano i ne prikazuje se' );
+ok( $after['gsc_sa'] === $secrets_before['gsc_sa'] && $after['anthropic_key'] === $secrets_before['anthropic_key'] && $after['dfs_password'] === $secrets_before['dfs_password'], 'mreže: spremanje novog ključa ne dira postojeće ključeve' );
+
+// Instagram: stranica s povezanim Instagramom, metrike u jednom batch pozivu, uži skup metrika kad širi ne prolazi.
+$ctx = OLR_Social::meta_context();
+ok( ! is_wp_error( $ctx ) && '111' === $ctx['page_id'] && '17841' === $ctx['ig_id'] && 'page-token-1' === $ctx['page_token'] && 2 === $ctx['stranica'], 'meta: od dviju stranica bira onu s povezanim Instagramom i koristi token stranice' );
+OLR_Settings::update( array( 'meta_page' => 'druga' ) );
+ok( '222' === OLR_Social::meta_context()['page_id'], 'meta: postavka „Facebook stranica” bira stranicu po nazivu' );
+OLR_Settings::update( array( 'meta_page' => '' ) );
+$n  = OLR_Social::collect_ig();
+$ig = OLR_Store::data( 'mreze', 'ig' );
+$by = array();
+foreach ( $ig['objave'] as $p ) {
+	$by[ $p['id'] ] = $p;
+}
+ok( 9 === $n && '@optikaljiljana' === $ig['racun']['ime'] && 2140 === $ig['racun']['pratitelji'], 'instagram: račun i 9 objava' );
+ok( 9000 === $by['r1']['pregledi'] && 4200 === $by['r1']['doseg'] && 120 === $by['r1']['spremanja'] && 310 === $by['r1']['dijeljenja'] && 400 === $by['r1']['lajkovi'] && 35 === $by['r1']['komentari'] && 9.0 === (float) $by['r1']['gledano_s'] && 'reel' === $by['r1']['vrsta'] && 'karusel' === $by['k1']['vrsta'] && 'objava' === $by['f1']['vrsta'], 'instagram: pregledi, doseg, spremanja, dijeljenja i prosječno gledanje reela (iz milisekundi u sekunde)' );
+ok( 1800 === $by['r3']['pregledi'] && null === $by['r3']['gledano_s'] && null === $by['m_stara']['pregledi'] && null === $by['m_stara']['doseg'] && 30 === $by['m_stara']['lajkovi'], 'instagram: kad Meta odbije širi skup metrika, prolazi uži; objava bez metrika ostaje s lajkovima' );
+ok( 3 === (int) get_option( 'olr_test_meta_batch' ) && true === OLR_Settings::status()['mreze_ig']['ok'] && false !== strpos( OLR_Settings::status()['mreze_ig']['msg'], 'za 1 Meta nije dala metrike' ), 'instagram: metrike svih objava u tri batch poziva (širi, uži, najuži skup)' );
+ok( ! preg_grep( '#access_token=|meta-test-token|page-token#', (array) get_option( 'olr_test_log' ) ), 'meta: token nikad nije u adresi zahtjeva' );
+update_option( 'olr_test_meta', 'bez_batcha' );
+OLR_Store::delete( 'mreze', 'ig' );
+ok( 9 === OLR_Social::collect_ig() && 9000 === OLR_Store::data( 'mreze', 'ig' )['objave'][0]['pregledi'], 'instagram: kad batch ne prođe, metrike se čitaju jedna po jedna' );
+update_option( 'olr_test_meta', 'istekao' );
+$e = OLR_Social::collect_ig();
+ok( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'nije valjan ili je istekao' ) && false === OLR_Settings::status()['mreze_ig']['ok'] && 9 === count( OLR_Store::data( 'mreze', 'ig' )['objave'] ), 'instagram: istekao token daje jasnu poruku, a postojeći podaci ostaju' );
+update_option( 'olr_test_meta', 'bez_ig' );
+$e = OLR_Social::collect_ig();
+ok( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'nema povezan profesionalni Instagram' ), 'instagram: stranica bez povezanog Instagrama ima svoju poruku' );
+// Facebook radi i bez Instagrama (bez Instagrama se stranica bira po nazivu iz postavke).
+OLR_Settings::update( array( 'meta_page' => 'Optika Lj' ) );
+$n  = OLR_Social::collect_fb();
+OLR_Settings::update( array( 'meta_page' => '' ) );
+$fb = OLR_Store::data( 'mreze', 'fb' );
+$fy = array();
+foreach ( $fb['objave'] as $p ) {
+	$fy[ $p['id'] ] = $p;
+}
+ok( 6 === $n && 3350 === $fb['racun']['pratitelji'] && 2400 === $fy['111_p1']['pregledi'] && 1500 === $fy['111_p1']['doseg'] && 90 === $fy['111_p1']['lajkovi'] && 12 === $fy['111_p1']['komentari'] && 25 === $fy['111_p1']['dijeljenja'] && 'video' === $fy['111_p1']['vrsta'], 'facebook: stranica, objave, reakcije, komentari, dijeljenja, pregledi i doseg' );
+ok( 480 === $fy['111_p6']['pregledi'] && null === $fy['111_p6']['doseg'] && 'karusel' === $fy['111_p4']['vrsta'] && 'poveznica' === $fy['111_p5']['vrsta'] && null === $fy['111_p2']['dijeljenja'], 'facebook: objava bez metrike dosega dobiva barem preglede' );
+update_option( 'olr_test_meta', 'uza_polja' );
+delete_option( 'olr_test_log' );
+ok( 6 === OLR_Social::collect_fb() && 2400 === OLR_Store::data( 'mreze', 'fb' )['objave'][0]['pregledi'] && 2 === count( preg_grep( '#/111/posts\?#', (array) get_option( 'olr_test_log' ) ) ) && true === OLR_Settings::status()['mreze_fb']['ok'], 'facebook: kad Meta odbije širi popis polja, objave se preuzmu s užim popisom' );
+delete_option( 'olr_test_meta' );
+OLR_Social::collect_fb();
+OLR_Social::collect_ig();
+
+// YouTube: kanal po oznaci, videi, kratki do 60 s; ključ u zaglavlju.
+$e = OLR_Social::collect_yt();
+ok( is_wp_error( $e ) && 'olr_yt_nema' === $e->get_error_code(), 'youtube: bez ključa i kanala jasna poruka' );
+OLR_Settings::set_secret( 'yt_key', 'krivi-kljuc' );
+OLR_Settings::update( array( 'yt_channel' => '@optikaljiljana' ) );
+$e = OLR_Social::collect_yt();
+ok( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'API ključ nije valjan' ), 'youtube: neispravan ključ' );
+OLR_Settings::set_secret( 'yt_key', 'yt-test-key' );
+OLR_Settings::update( array( 'yt_channel' => 'https://www.youtube.com/@nepostojeci' ) );
+$e = OLR_Social::collect_yt();
+ok( is_wp_error( $e ) && 'olr_yt_kanal' === $e->get_error_code(), 'youtube: kanal koji ne postoji' );
+OLR_Settings::update( array( 'yt_channel' => 'https://www.youtube.com/@optikaljiljana' ) );
+delete_option( 'olr_test_log' );
+$n  = OLR_Social::collect_yt();
+$yt = OLR_Store::data( 'mreze', 'yt' );
+$yy = array();
+foreach ( $yt['objave'] as $p ) {
+	$yy[ $p['id'] ] = $p;
+}
+ok( 6 === $n && 310 === $yt['racun']['pratitelji'] && 'UCown' === $yt['racun']['id'] && 5200 === $yy['own1']['pregledi'] && 45 === $yy['own1']['trajanje'] && 'short' === $yy['own1']['vrsta'] && 250 === $yy['own3']['trajanje'] && 'video' === $yy['own3']['vrsta'] && 360 === OLR_Social::iso_seconds( 'PT6M' ) && 3725 === OLR_Social::iso_seconds( 'PT1H2M5S' ), 'youtube: kanal iz adrese s oznakom, 6 videa, trajanje iz ISO oblika, kratki do 60 s' );
+ok( 3 === count( (array) get_option( 'olr_test_log' ) ) && ! preg_grep( '#key=|yt-test-key#', (array) get_option( 'olr_test_log' ) ), 'youtube: tri zahtjeva (kanal, popis, videi), ključ nije u adresi' );
+update_option( 'olr_test_yt_kvota', 1 );
+$e = OLR_Social::collect_yt();
+ok( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'dnevna kvota' ) && 6 === count( OLR_Store::data( 'mreze', 'yt' )['objave'] ), 'youtube: potrošena kvota ima jasnu poruku i ne briše podatke' );
+delete_option( 'olr_test_yt_kvota' );
+delete_option( 'olr_net_ok' );
+update_option( 'olr_test_net_fail', 'auto' );
+ok( 6 === OLR_Social::collect_yt(), 'youtube: kad zadani način veze ne odgovara, prolazi IPv4 + HTTP/1.1' );
+delete_option( 'olr_test_net_fail' );
+delete_option( 'olr_net_ok' );
+
+// TikTok: OAuth (state vezan uz administratora, jednokratan), tokeni šifrirano, obnova pristupa.
+$e = OLR_Social::tt_authorize_url();
+ok( is_wp_error( $e ) && 'olr_tt_nema' === $e->get_error_code(), 'tiktok: bez Client keya i secreta nema povezivanja' );
+OLR_Settings::update( array( 'tt_client_key' => 'tt-key' ) );
+OLR_Settings::set_secret( 'tt_secret', 'tt-secret' );
+$au = OLR_Social::tt_authorize_url();
+parse_str( (string) wp_parse_url( $au, PHP_URL_QUERY ), $aq );
+ok( 0 === strpos( $au, 'https://www.tiktok.com/v2/auth/authorize/?' ) && 'tt-key' === $aq['client_key'] && 'code' === $aq['response_type'] && 'user.info.basic,user.info.stats,video.list' === $aq['scope'] && rest_url( 'ol-radar/v1/oauth/tiktok' ) === $aq['redirect_uri'] && 32 === strlen( $aq['state'] ) && false === strpos( $au, 'tt-secret' ), 'tiktok: adresa za odobrenje (dopuštenja samo za čitanje, povratna adresa dodatka, bez secreta)' );
+ok( false === strpos( OLR_Social::tt_redirect_uri(), '?' ), 'tiktok: povratna adresa nema upit (TikTok ga ne prihvaća)' );
+wp_set_current_user( 0 ); // povratak s TikToka dolazi bez WordPressova noncea
+$cb = new WP_REST_Request( 'GET', '/ol-radar/v1/oauth/tiktok' );
+$cb->set_query_params( array( 'code' => 'kod-123', 'state' => 'izmisljenstate0000000000000000000' ) );
+$cr = rest_do_request( $cb );
+ok( 302 === $cr->get_status() && false !== strpos( $cr->get_headers()['Location'], 'olr_tt=greska' ) && null === OLR_Social::tt_tokens(), 'tiktok: povratak s nepoznatim stateom ne povezuje ništa' );
+$cb->set_query_params( array( 'code' => 'kod-123', 'state' => $aq['state'] ) );
+$cr = rest_do_request( $cb );
+$tt = OLR_Social::tt_tokens();
+$tn = get_transient( 'olr_settings_notice_' . $admin[0]->ID );
+ok( 302 === $cr->get_status() && admin_url( 'admin.php?page=ol-radar-postavke' ) === $cr->get_headers()['Location'] && $tt && 'tt-access-1' === $tt['access'] && 'tt-refresh-1' === $tt['refresh'] && $tt['refresh_exp'] > time() + 300 * DAY_IN_SECONDS, 'tiktok: povratak s ispravnim stateom zamijeni kod za tokene i vrati u Postavke' );
+ok( false === strpos( (string) get_option( OLR_Social::TT_OPT ), 'tt-access' ) && false === strpos( (string) get_option( OLR_Social::TT_OPT ), 'tt-refresh' ) && get_option( 'olr_secrets' ) === $after + array( 'yt_key' => get_option( 'olr_secrets' )['yt_key'], 'tt_secret' => get_option( 'olr_secrets' )['tt_secret'] ), 'tiktok: tokeni su šifrirani u zasebnoj opciji; spremljeni ključevi nisu dirani' );
+$tl = get_option( 'olr_test_tt_token_last' );
+ok( 'authorization_code' === $tl['grant_type'] && rest_url( 'ol-radar/v1/oauth/tiktok' ) === $tl['redirect_uri'] && $tn && true === $tn['ok'] && false !== strpos( $tn['msg'], 'preuzeto 6 videa' ), 'tiktok: nakon povezivanja odmah preuzme videe i javi u Postavkama (' . ( $tn ? $tn['msg'] : '' ) . ')' );
+$cr = rest_do_request( $cb );
+ok( false !== strpos( $cr->get_headers()['Location'], 'olr_tt=greska' ) && 'tt-access-1' === OLR_Social::tt_tokens()['access'], 'tiktok: state vrijedi samo jednom' );
+wp_set_current_user( $admin[0]->ID );
+$tk = OLR_Store::data( 'mreze', 'tt' );
+ok( 6 === count( $tk['objave'] ) && 540 === $tk['racun']['pratitelji'] && 37 === $tk['racun']['objava'] && 31000 === $tk['objave'][0]['pregledi'] && 240 === $tk['objave'][0]['dijeljenja'] && 21 === $tk['objave'][0]['trajanje'] && 't6' === $tk['objave'][5]['id'], 'tiktok: račun i videi s obje stranice popisa (pregledi, lajkovi, komentari, dijeljenja, trajanje)' );
+$tt['exp'] = time() + 600; // pristupni token pred istekom: mora se obnoviti
+update_option( OLR_Social::TT_OPT, OLR_Settings::encrypt( wp_json_encode( $tt ) ), false );
+ok( 6 === OLR_Social::collect_tt() && 1 === (int) get_option( 'olr_test_tt_refresh' ) && 'Bearer tt-access-2' === get_option( 'olr_test_tt_auth_last' ) && 'tt-access-2' === OLR_Social::tt_tokens()['access'] && 'tt-refresh-1' === OLR_Social::tt_tokens()['refresh'], 'tiktok: pristupni token pred istekom obnavlja se sam' );
+OLR_Social::collect_tt();
+ok( 1 === (int) get_option( 'olr_test_tt_refresh' ), 'tiktok: svjež token se ne obnavlja ponovno' );
+$tt2        = OLR_Social::tt_tokens();
+$tt2['exp'] = time() - 10;
+update_option( OLR_Social::TT_OPT, OLR_Settings::encrypt( wp_json_encode( $tt2 ) ), false );
+update_option( 'olr_test_tt_refresh_fail', 1 );
+$e = OLR_Social::collect_tt();
+ok( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'Poveži TikTok' ) && false === OLR_Settings::status()['mreze_tt']['ok'] && 6 === count( OLR_Store::data( 'mreze', 'tt' )['objave'] ), 'tiktok: kad obnova ne uspije, poruka upućuje na ponovno povezivanje, a podaci ostaju' );
+delete_option( 'olr_test_tt_refresh_fail' );
+ok( 6 === OLR_Social::collect_tt(), 'tiktok: nakon toga obnova opet radi' );
+$st = new WP_REST_Request( 'GET', '/ol-radar/v1/oauth/tiktok' );
+$st->set_query_params( array( 'error' => 'access_denied', 'error_description' => 'User denied', 'state' => 'x' ) );
+ok( 302 === rest_do_request( $st )->get_status() && 'tt-access-2' === OLR_Social::tt_tokens()['access'] && true === OLR_Settings::status()['mreze_tt']['ok'], 'tiktok: javni poziv povratne adrese bez valjanog statea ne mijenja ni vezu ni stanje izvora' );
+$au2 = OLR_Social::tt_authorize_url();
+parse_str( (string) wp_parse_url( $au2, PHP_URL_QUERY ), $aq2 );
+$st->set_query_params( array( 'error' => 'access_denied', 'error_description' => 'User denied', 'state' => $aq2['state'] ) );
+$sr = rest_do_request( $st );
+$tn = get_transient( 'olr_settings_notice_' . $admin[0]->ID );
+ok( admin_url( 'admin.php?page=ol-radar-postavke' ) === $sr->get_headers()['Location'] && $tn && false === $tn['ok'] && false !== strpos( $tn['msg'], 'nije odobrio' ) && 'tt-access-2' === OLR_Social::tt_tokens()['access'] && true === OLR_Settings::status()['mreze_tt']['ok'], 'tiktok: odbijeno odobrenje javlja poruku u Postavkama, a postojeća veza ostaje' );
+
+// Analiza: objava prema medijanu vlastite mreže, obrasci tek uz dovoljno objava.
+$an = OLR_Social::analyze();
+ok( 8 === $an['ig']['objava'] && 1050 == $an['ig']['medijan'] && 'pregledi' === $an['ig']['mjera'] && 'r1' === $an['ig']['top'][0]['id'] && 8.6 === (float) $an['ig']['top'][0]['omjer'] && 9.6 === (float) $an['ig']['top'][0]['angazman'], 'analiza: Instagram medijan 1.050 pregleda, najbolji reel 8,6× (stara objava bez metrika ne ulazi)' );
+ok( 'r4' === $an['ig']['slabo'][0]['id'] && 0.3 === (float) $an['ig']['slabo'][0]['omjer'] && 3 === count( $an['ig']['slabo'] ) && 3 === count( $an['ig']['top'] ), 'analiza: ispod uobičajenog, najslabija prva' );
+$ob = wp_list_pluck( $an['ig']['obrasci'], 'omjer', 'opis' );
+ok( isset( $ob['vrsta: reel'] ) && 2.0 === (float) $ob['vrsta: reel'] && ! isset( $ob['vrsta: karusel'] ) && ! isset( $ob['opis počinje pitanjem'] ), 'analiza: obrazac samo uz barem tri objave i jasno odstupanje (reelovi 2,0×; dva karusela nisu obrazac)' );
+ok( 3850 == $an['tt']['medijan'] && 't1' === $an['tt']['top'][0]['id'] && 8.1 === (float) $an['tt']['top'][0]['omjer'] && 't5' === $an['tt']['slabo'][0]['id'] && 750 == $an['yt']['medijan'] && 'own1' === $an['yt']['top'][0]['id'] && 465 == $an['fb']['medijan'] && '111_p1' === $an['fb']['top'][0]['id'], 'analiza: TikTok, YouTube i Facebook imaju svoj medijan i svoje najbolje objave' );
+$few = OLR_Social::analyze_net( 'ig', array( 'objave' => array_slice( $ig['objave'], 0, 3 ) ) );
+ok( 3 === $few['objava'] && null === $few['medijan'] && false !== strpos( $few['napomena'], 'barem pet' ) && ! $few['top'], 'analiza: s manje od pet objava nema zaključaka, samo napomena' );
+ok( 2 === OLR_Social::median( array( 1, 2, 9 ) ) && 2.5 === OLR_Social::median( array( 4, 1, 2, 3 ) ) && null === OLR_Social::median( array() ), 'analiza: medijan' );
+
+// Uzori: YouTube po temama (omjer prema pretplatnicima), Instagram profili koje vlasnik navede.
+OLR_Settings::update( array( 'yt_teme' => 'progresivne naočale, progressive lenses', 'ig_uzori' => '@uzor_optika, https://www.instagram.com/privatni_profil/' ) );
+delete_option( 'olr_test_yt_calls' );
+$uz = OLR_Social::collect_models();
+$ub = wp_list_pluck( $uz['yt'], 'omjer', 'id' );
+ok( array( 'ext1', 'ext3', 'ext2' ) === wp_list_pluck( $uz['yt'], 'id' ) && 4.0 === (float) $ub['ext1'] && 13.0 === (float) $ub['ext2'] && 0.8 === (float) $ub['ext3'] && 'progressive lenses' === $uz['yt'][0]['tema'] && 120000 === $uz['yt'][0]['pretplatnika'], 'uzori: YouTube videi po temama, poredani po pregledima, s omjerom prema pretplatnicima; vlastiti video ne ulazi' );
+ok( 2 === count( array_keys( (array) get_option( 'olr_test_yt_calls' ), 'search' ) ), 'uzori: jedna YouTube pretraga po temi (100 jedinica kvote svaka)' );
+ok( 5 === count( $uz['ig'] ) && '@uzor_optika' === $uz['ig'][0]['profil'] && 9.0 === (float) $uz['ig'][0]['omjer'] && 30000 === $uz['ig'][0]['pregledi'] && 12000 === $uz['ig'][0]['pratitelja'] && 1 === count( $uz['napomene'] ) && false !== strpos( $uz['napomene'][0], '@privatni_profil' ), 'uzori: Instagram objave navedenog profila prema medijanu tog profila; profil koji ne daje podatke je u napomeni' );
+
+// Preporuke: Claude dobiva samo brojke i opise, odgovor se čisti i ograničava.
+$ai = OLR_Social::ai_input();
+ok( 9000 === $ai['nase_mreze']['ig']['najbolje'][0]['pregledi'] && ! isset( $ai['nase_mreze']['ig']['najbolje'][0]['url'] ) && 3 === count( $ai['uzori_youtube'] ) && false === strpos( wp_json_encode( $ai ), 'token' ), 'preporuke: ulaz za Claudea su brojke i opisi objava, bez tokena' );
+$pr = OLR_Social::recommend( 'rucno' );
+$rq = get_option( 'olr_test_ai_last' );
+ok( ! is_wp_error( $pr ) && 2 === count( $pr['preporuke'] ) && 3 === count( $pr['preporuke'][0]['koraci'] ) && 'ig' === $pr['preporuke'][0]['mreza'] && 'sve' === $pr['preporuke'][1]['mreza'] && 'Preporuka s nepoznatom mrežom bez HTML-a' === $pr['preporuke'][1]['naslov'] && 2 === count( $pr['ideje'] ) && false !== strpos( $pr['sazetak'], '9000' ), 'preporuke: Claudeov odgovor je očišćen (najviše 3 koraka, nepoznata mreža → sve, bez HTML-a, stavka bez naslova ispada)' );
+ok( 'spremi_preporuke' === $rq['tool_choice']['name'] && 4000 === $rq['max_tokens'] && false === strpos( wp_json_encode( $rq ), 'meta-test-token' ) && false === strpos( wp_json_encode( $rq ), 'tt-access' ) && true === OLR_Settings::status()['mreze_preporuke']['ok'], 'preporuke: prisilni poziv alata; u zahtjevu nema tokena' );
+update_option( 'olr_test_ai_mreze', 'prekid' );
+delete_option( 'olr_test_ai_mreze_calls' );
+$pr = OLR_Social::recommend( 'rucno' );
+ok( ! is_wp_error( $pr ) && 2 === (int) get_option( 'olr_test_ai_mreze_calls' ) && 0 === strpos( $pr['sazetak'], 'Kraće:' ), 'preporuke: odgovor prekinut zbog duljine traži se ponovno, kraće' );
+update_option( 'olr_test_ai_mreze', 'prekid2' );
+$e = OLR_Social::recommend( 'rucno' );
+ok( is_wp_error( $e ) && 'olr_mreze_oblik' === $e->get_error_code() && false === OLR_Settings::status()['mreze_preporuke']['ok'] && 0 === strpos( OLR_Store::data( 'mreze', 'preporuke' )['sazetak'], 'Kraće:' ), 'preporuke: dvaput prekinut odgovor je greška, a zadnje dobre preporuke ostaju' );
+delete_option( 'olr_test_ai_mreze' );
+OLR_Social::recommend( 'rucno' );
+$e = OLR_Social::recommend( 'rucno' );
+ok( is_wp_error( $e ) && 'olr_mreze_limit' === $e->get_error_code(), 'preporuke: ručno najviše ' . OLR_Social::MANUAL_MAX . ' puta dnevno' );
+
+// Satni prolaz: podaci dvaput dnevno, uzori i preporuke tjedno.
+$run = OLR_Social::last_run();
+ok( empty( $run['at'] ) && ! empty( $run['preporuke_at'] ), 'cron: zapis zadnjeg pokretanja' );
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+$run = OLR_Social::last_run();
+$lg  = (array) get_option( 'olr_test_log' );
+ok( ! empty( $run['at'] ) && ! empty( $run['uzori_at'] ) && preg_grep( '#graph\.facebook\.com#', $lg ) && preg_grep( '#youtube/v3/search#', $lg ) && preg_grep( '#tiktokapis\.com/v2/video/list#', $lg ) && ! preg_grep( '#anthropic#', $lg ), 'cron: prvi prolaz preuzme sve mreže i uzore' );
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+ok( ! get_option( 'olr_test_log' ), 'cron: svježi podaci i svježe preporuke: sljedeći prolaz ne radi ništa' );
+$run['preporuke_at']      = time() - 8 * DAY_IN_SECONDS;
+$run['preporuke_pokusaj'] = time() - 8 * DAY_IN_SECONDS;
+update_option( OLR_Social::RUN_OPT, $run, false );
+update_option( 'olr_test_ai_mreze', 'prekid2' );
+OLR_Social::tick();
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+ok( ! get_option( 'olr_test_log' ), 'cron: nakon neuspjelih tjednih preporuka novi pokušaj je tek sutradan' );
+delete_option( 'olr_test_ai_mreze' );
+$run                      = OLR_Social::last_run();
+$run['preporuke_pokusaj'] = time() - 21 * HOUR_IN_SECONDS;
+$run['at']                = time() - 13 * HOUR_IN_SECONDS;
+update_option( OLR_Social::RUN_OPT, $run, false );
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+$lg = (array) get_option( 'olr_test_log' );
+ok( preg_grep( '#graph\.facebook\.com#', $lg ) && ! preg_grep( '#youtube/v3/search#', $lg ) && ! preg_grep( '#anthropic#', $lg ), 'cron: nakon 12 sati opet podaci, uzori tek nakon tjedan dana' );
+OLR_Social::tick();
+ok( time() - (int) OLR_Social::last_run()['preporuke_at'] < 60 && true === OLR_Settings::status()['mreze_preporuke']['ok'], 'cron: tjedne preporuke nastaju u sljedećem prolazu' );
+OLR_Settings::update( array( 'mreze_auto' => false ) );
+$run       = OLR_Social::last_run();
+$run['at'] = time() - 13 * HOUR_IN_SECONDS;
+update_option( OLR_Social::RUN_OPT, $run, false );
+delete_option( 'olr_test_log' );
+OLR_Social::tick();
+ok( ! get_option( 'olr_test_log' ), 'cron: isključeno automatsko osvježavanje ne šalje zahtjeve' );
+OLR_Settings::update( array( 'mreze_auto' => true ) );
+
+// REST i MCP: podaci u ploči, osvježavanje, ništa tajno ne izlazi.
+$dd = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/podaci' ) )->get_data();
+$dj = wp_json_encode( $dd );
+ok( 9 === count( $dd['mreze']['mreze']['ig']['objave'] ) && true === $dd['mreze']['mreze']['tt']['povezano'] && 1050 == $dd['mreze']['mreze']['ig']['analiza']['medijan'] && 3 === count( $dd['mreze']['uzori']['yt'] ) && 2 === count( $dd['mreze']['preporuke']['preporuke'] ) && true === $dd['stanje']['kljucevi']['meta'] && true === $dd['stanje']['kljucevi']['youtube'] && true === $dd['stanje']['kljucevi']['tiktok'], 'rest: društvene mreže u podacima nadzorne ploče' );
+$leak = false;
+foreach ( array( 'meta-test-token', 'page-token', 'yt-test-key', 'tt-access', 'tt-refresh', 'tt-secret' ) as $x ) {
+	$leak = $leak || false !== strpos( $dj, $x ) || false !== strpos( wp_json_encode( OLR_Settings::status() ), $x );
+}
+ok( ! $leak, 'rest: tokeni i ključevi mreža ne izlaze ni u podacima ni u stanju izvora' );
+$mo = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$mo->set_param( 'dio', 'mreze' );
+$mr = rest_do_request( $mo );
+$md = $mr->get_data();
+ok( 200 === $mr->get_status() && 9 === $md['rezultat']['ishod']['ig'] && 6 === $md['rezultat']['ishod']['tt'] && isset( $md['rezultat']['mreze']['mreze']['yt']['analiza'] ), 'rest: „Osvježi mreže” iz ploče' );
+$mo->set_param( 'dio', 'mreze_uzori' );
+ok( 200 === rest_do_request( $mo )->get_status(), 'rest: osvježavanje uzora iz ploče' );
+$mo->set_param( 'dio', 'mreze_preporuke' );
+$mr = rest_do_request( $mo );
+ok( 502 === $mr->get_status() && 'olr_mreze_limit' === $mr->get_data()['code'], 'rest: dnevni limit ručnih preporuka vrijedi i iz ploče' );
+update_option( OLR_Social::RUN_OPT, array_diff_key( OLR_Social::last_run(), array( 'rucno' => 1 ) ), false );
+if ( $reader ) {
+	wp_set_current_user( $reader[0]->ID );
+	$mm = wp_get_ability( 'ol-radar/radar-mreze' )->execute( array() );
+	$m1 = wp_get_ability( 'ol-radar/radar-mreze' )->execute( array( 'mreza' => 'ig', 'objave' => true, 'uzori' => true ) );
+	$ms = wp_get_ability( 'ol-radar/radar-stanje' )->execute( array() );
+	ok( 4 === count( $mm['mreze'] ) && ! $mm['mreze']['ig']['objave'] && 8.6 === (float) $mm['mreze']['ig']['analiza']['top'][0]['omjer'] && 3 === $mm['uzori']['youtube_videa'] && 2 === count( $mm['preporuke']['preporuke'] ) && strlen( wp_json_encode( $mm ) ) < 30000, 'mcp: radar-mreze (zadano bez popisa objava i uzora)' );
+	ok( array( 'ig' ) === array_keys( $m1['mreze'] ) && 9 === count( $m1['mreze']['ig']['objave'] ) && 3 === count( $m1['uzori']['yt'] ), 'mcp: radar-mreze za jednu mrežu, s objavama i uzorima' );
+	ok( true === $ms['mreze']['ig']['povezano'] && 2140 === $ms['mreze']['ig']['pratitelji'] && true === $ms['stanje']['kljucevi']['tiktok'] && false === strpos( wp_json_encode( array( $mm, $m1, $ms ) ), 'tt-access' ) && false === strpos( wp_json_encode( array( $mm, $m1, $ms ) ), 'meta-test-token' ), 'mcp: radar-stanje pokazuje povezane mreže; tokeni ne izlaze' );
+	wp_set_current_user( $admin[0]->ID );
+}
+// Prekid TikTok veze briše tokene i podatke te mreže; ostalo ostaje. Za test ploče veza se vraća.
+OLR_Social::tt_disconnect();
+ok( null === OLR_Social::tt_tokens() && null === OLR_Store::data( 'mreze', 'tt' ) && false === OLR_Social::connected()['tt'] && 9 === count( OLR_Store::data( 'mreze', 'ig' )['objave'] ) && 'tt-secret' === OLR_Settings::secret( 'tt_secret' ), 'tiktok: prekid veze briše tokene i podatke TikToka, ostalo ostaje' );
+$au = OLR_Social::tt_authorize_url();
+parse_str( (string) wp_parse_url( $au, PHP_URL_QUERY ), $aq );
+ok( true === OLR_Social::tt_callback( 'kod-123', $aq['state'] ) && 6 === OLR_Social::collect_tt(), 'tiktok: ponovno povezivanje' );
+OLR_Social::analyze();
+$names = OLR_Settings::readable_names();
+sort( $names );
+ok( array( 'anthropic_key', 'dfs_login', 'dfs_password', 'gsc_sa', 'meta_token', 'tt_secret', 'yt_key' ) === $names && get_option( 'olr_keys_seen' ) == OLR_Settings::readable_names(), 'ključevi: novi ključevi mreža ulaze u provjeru nakon nadogradnje' );
 
 // Vrati osnovne Google podatke (ostali testovi računaju s njima); prijedlozi ostaju za test ploče.
 delete_option( 'olr_test_gsc_extra' );

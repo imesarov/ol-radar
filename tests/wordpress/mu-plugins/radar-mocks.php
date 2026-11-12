@@ -1,6 +1,6 @@
 <?php
 /**
- * Samo za lokalni test: lažni Google, DataForSEO i Anthropic odgovori (uključeni opcijom olr_test_mocks).
+ * Samo za lokalni test: lažni Google, DataForSEO, Anthropic, Meta, YouTube i TikTok odgovori (uključeni opcijom olr_test_mocks).
  * Google token mock provjerava potpis JWT-a javnim ključem iz opcije olr_test_pub.
  */
 
@@ -298,6 +298,268 @@ add_filter(
 			return $json( 404, array( 'status_code' => 40400 ) );
 		}
 
+		// ---------- Društvene mreže ----------
+		// Meta Graph API (Facebook stranica i Instagram). Opcija olr_test_meta: istekao = token ne vrijedi,
+		// bez_ig = stranica nema Instagram, bez_batcha = batch poziv ne prolazi (čita se pojedinačno),
+		// uza_polja = Meta odbija širi popis polja objava.
+		if ( 0 === strpos( $url, 'https://graph.facebook.com/v26.0/' ) ) {
+			$mode  = (string) get_option( 'olr_test_meta' );
+			$path  = rawurldecode( substr( $url, strlen( 'https://graph.facebook.com/v26.0/' ) ) );
+			$auth  = isset( $args['headers']['Authorization'] ) ? $args['headers']['Authorization'] : '';
+			$body  = isset( $args['body'] ) && is_array( $args['body'] ) ? $args['body'] : array();
+			$token = '' !== $auth ? preg_replace( '/^Bearer /', '', $auth ) : ( isset( $body['access_token'] ) ? $body['access_token'] : '' );
+			update_option( 'olr_test_meta_calls', (int) get_option( 'olr_test_meta_calls', 0 ) + 1, false );
+			if ( false !== strpos( $url, 'access_token=' ) ) {
+				return $json( 400, array( 'error' => array( 'code' => 1, 'message' => 'TEST: token ne smije biti u adresi' ) ) );
+			}
+			if ( 'istekao' === $mode || ! in_array( $token, array( 'meta-test-token', 'page-token-1' ), true ) ) {
+				return $json( 400, array( 'error' => array( 'code' => 190, 'type' => 'OAuthException', 'message' => 'Error validating access token: Session has expired.' ) ) );
+			}
+			$day = static function ( $n ) {
+				return gmdate( 'Y-m-d\TH:i:s+0000', time() - $n * DAY_IN_SECONDS );
+			};
+			// Metrike jedne objave. Reel r3 ne podržava prosječno vrijeme gledanja (širi skup pada, uži prolazi);
+			// stara objava m_stara nema metrika uopće.
+			$insights = static function ( $rel ) {
+				list( $id, $q ) = array_pad( explode( '/insights?metric=', $rel, 2 ), 2, '' );
+				$metrics       = explode( ',', $q );
+				$ig            = array(
+					'r1' => array( 'reach' => 4200, 'views' => 9000, 'saved' => 120, 'shares' => 310, 'total_interactions' => 700, 'ig_reels_avg_watch_time' => 9000 ),
+					'r2' => array( 'reach' => 900, 'views' => 2400, 'saved' => 10, 'shares' => 12, 'total_interactions' => 80, 'ig_reels_avg_watch_time' => 4000 ),
+					'r3' => array( 'reach' => 700, 'views' => 1800, 'saved' => 8, 'shares' => 5, 'total_interactions' => 60 ),
+					'r4' => array( 'reach' => 150, 'views' => 300, 'saved' => 1, 'shares' => 0, 'total_interactions' => 9, 'ig_reels_avg_watch_time' => 2000 ),
+					'k1' => array( 'reach' => 800, 'views' => 1100, 'saved' => 40, 'shares' => 9, 'total_interactions' => 95 ),
+					'k2' => array( 'reach' => 650, 'views' => 1000, 'saved' => 35, 'shares' => 4, 'total_interactions' => 70 ),
+					'f1' => array( 'reach' => 300, 'views' => 420, 'saved' => 2, 'shares' => 1, 'total_interactions' => 30 ),
+					'f2' => array( 'reach' => 280, 'views' => 400, 'saved' => 1, 'shares' => 0, 'total_interactions' => 22 ),
+				);
+				$fb            = array(
+					'111_p1' => array( 'post_media_view' => 2400, 'post_total_media_view_unique' => 1500 ),
+					'111_p2' => array( 'post_media_view' => 500, 'post_total_media_view_unique' => 380 ),
+					'111_p3' => array( 'post_media_view' => 450, 'post_total_media_view_unique' => 300 ),
+					'111_p4' => array( 'post_media_view' => 420, 'post_total_media_view_unique' => 290 ),
+					'111_p5' => array( 'post_media_view' => 90, 'post_total_media_view_unique' => 70 ),
+					'111_p6' => array( 'post_media_view' => 480 ),
+				);
+				$all           = isset( $ig[ $id ] ) ? $ig[ $id ] : ( isset( $fb[ $id ] ) ? $fb[ $id ] : null );
+				if ( null === $all ) {
+					return array( 400, array( 'error' => array( 'code' => 100, 'message' => '(#100) Media posted before business account conversion' ) ) );
+				}
+				$data = array();
+				foreach ( $metrics as $m ) {
+					if ( ! isset( $all[ $m ] ) ) {
+						return array( 400, array( 'error' => array( 'code' => 100, 'message' => '(#100) metric[' . $m . '] is not supported for this media' ) ) );
+					}
+					$data[] = isset( $ig[ $id ] ) ? array( 'name' => $m, 'period' => 'lifetime', 'values' => array( array( 'value' => $all[ $m ] ) ) ) : array( 'name' => $m, 'period' => 'lifetime', 'total_value' => array( 'value' => $all[ $m ] ) );
+				}
+				return array( 200, array( 'data' => $data ) );
+			};
+			if ( '' === $path && isset( $body['batch'] ) ) {
+				update_option( 'olr_test_meta_batch', (int) get_option( 'olr_test_meta_batch', 0 ) + 1, false );
+				if ( 'bez_batcha' === $mode ) {
+					return $json( 400, array( 'error' => array( 'code' => 2, 'message' => 'Service temporarily unavailable' ) ) );
+				}
+				$out = array();
+				foreach ( json_decode( $body['batch'], true ) as $b ) {
+					$r     = $insights( $b['relative_url'] );
+					$out[] = array( 'code' => $r[0], 'body' => wp_json_encode( $r[1] ) );
+				}
+				return $json( 200, $out );
+			}
+			if ( false !== strpos( $path, '/insights?metric=' ) ) {
+				$r = $insights( $path );
+				return $json( $r[0], $r[1] );
+			}
+			if ( 0 === strpos( $path, 'me/accounts' ) ) {
+				if ( 'page-token-1' === $token ) {
+					return $json( 400, array( 'error' => array( 'code' => 100, 'message' => '(#100) Tried accessing nonexisting field (accounts)' ) ) );
+				}
+				$page = array( 'id' => '111', 'name' => 'Optika Ljiljana', 'access_token' => 'page-token-1' );
+				if ( 'bez_ig' !== $mode ) {
+					$page['instagram_business_account'] = array( 'id' => '17841', 'username' => 'optikaljiljana' );
+				}
+				return $json( 200, array( 'data' => array( array( 'id' => '222', 'name' => 'Druga stranica', 'access_token' => 'page-token-2' ), $page ) ) );
+			}
+			if ( 0 === strpos( $path, 'me?fields=' ) ) {
+				return $json( 200, array( 'id' => '111', 'name' => 'Optika Ljiljana', 'instagram_business_account' => array( 'id' => '17841', 'username' => 'optikaljiljana' ) ) );
+			}
+			if ( 0 === strpos( $path, '17841?fields=business_discovery.username(' ) ) {
+				preg_match( '/username\(([^)]+)\)/', $path, $m );
+				if ( 'uzor_optika' !== $m[1] ) {
+					return $json( 400, array( 'error' => array( 'code' => 110, 'message' => 'Invalid user id' ) ) );
+				}
+				$md = array();
+				foreach ( array( array( 'u1', 900, 40, 30000, 'REELS', 5 ), array( 'u2', 100, 5, 2000, 'REELS', 9 ), array( 'u3', 90, 4, null, 'FEED', 15 ), array( 'u4', 110, 6, 2500, 'REELS', 20 ), array( 'u5', 95, 5, null, 'FEED', 30 ) ) as $x ) {
+					$md[] = array( 'id' => $x[0], 'caption' => 'Uzor objava ' . $x[0], 'like_count' => $x[1], 'comments_count' => $x[2], 'view_count' => $x[3], 'media_type' => 'REELS' === $x[4] ? 'VIDEO' : 'IMAGE', 'media_product_type' => $x[4], 'permalink' => 'https://www.instagram.com/p/' . $x[0] . '/', 'timestamp' => $day( $x[5] ) );
+				}
+				return $json( 200, array( 'business_discovery' => array( 'username' => 'uzor_optika', 'followers_count' => 12000, 'media_count' => 300, 'media' => array( 'data' => $md ) ), 'id' => '17841' ) );
+			}
+			if ( 0 === strpos( $path, '17841?fields=' ) ) {
+				return $json( 200, array( 'username' => 'optikaljiljana', 'name' => 'Optika Ljiljana', 'followers_count' => 2140, 'follows_count' => 300, 'media_count' => 412, 'id' => '17841' ) );
+			}
+			if ( 0 === strpos( $path, '17841/media?' ) ) {
+				$md = array();
+				foreach (
+					array(
+						array( 'r1', 'REELS', 'VIDEO', 'Zašto vam se vrti u novim progresivnim naočalama? Tri razloga.', 400, 35, 6 ),
+						array( 'r2', 'REELS', 'VIDEO', 'Novi okviri su stigli.', 60, 4, 13 ),
+						array( 'r3', 'REELS', 'VIDEO', 'Kako čistimo leće u radionici.', 50, 3, 20 ),
+						array( 'r4', 'REELS', 'VIDEO', 'Radno vrijeme za blagdane.', 8, 0, 27 ),
+						array( 'k1', 'FEED', 'CAROUSEL_ALBUM', 'Pet znakova da dijete slabije vidi.', 70, 6, 34 ),
+						array( 'k2', 'FEED', 'CAROUSEL_ALBUM', 'Koliko traje provjera vida?', 55, 5, 41 ),
+						array( 'f1', 'FEED', 'IMAGE', 'Sretan vikend.', 25, 1, 48 ),
+						array( 'f2', 'FEED', 'IMAGE', 'Nova kolekcija.', 20, 1, 55 ),
+						array( 'm_stara', 'FEED', 'IMAGE', 'Stara objava bez metrika.', 30, 2, 400 ),
+					) as $x
+				) {
+					$md[] = array( 'id' => $x[0], 'caption' => $x[3], 'media_type' => $x[2], 'media_product_type' => $x[1], 'permalink' => 'https://www.instagram.com/p/' . $x[0] . '/', 'timestamp' => $day( $x[6] ), 'like_count' => $x[4], 'comments_count' => $x[5] );
+				}
+				return $json( 200, array( 'data' => $md ) );
+			}
+			if ( 0 === strpos( $path, '111?fields=' ) ) {
+				return $json( 200, array( 'name' => 'Optika Ljiljana', 'followers_count' => 3350, 'fan_count' => 3300, 'link' => 'https://www.facebook.com/optikaljiljana', 'id' => '111' ) );
+			}
+			if ( 0 === strpos( $path, '111/posts?' ) ) {
+				// uza_polja: Meta odbija širi popis polja (reakcije, privici), prolazi tek uži.
+				if ( 'uza_polja' === $mode && false !== strpos( $path, 'reactions' ) ) {
+					return $json( 400, array( 'error' => array( 'code' => 100, 'message' => '(#100) Tried accessing nonexisting field (reactions)' ) ) );
+				}
+				$ps = array();
+				foreach ( array( array( 'p1', 'video', 'Kako biramo progresivne leće?', 90, 12, 25, 4 ), array( 'p2', 'photo', 'Novi okviri.', 14, 1, 0, 9 ), array( 'p3', 'photo', 'Radionica.', 12, 0, 1, 16 ), array( 'p4', 'album', 'Kolekcija jesen.', 11, 1, 0, 23 ), array( 'p5', 'share', 'Članak o kratkovidnosti.', 3, 0, 0, 30 ), array( 'p6', 'photo', 'Sretan vikend.', 13, 2, 0, 37 ) ) as $x ) {
+					$row = array( 'id' => '111_' . $x[0], 'message' => $x[2], 'created_time' => $day( $x[6] ), 'permalink_url' => 'https://www.facebook.com/optikaljiljana/posts/' . $x[0], 'reactions' => array( 'data' => array(), 'summary' => array( 'total_count' => $x[3] ) ), 'comments' => array( 'data' => array(), 'summary' => array( 'total_count' => $x[4] ) ), 'attachments' => array( 'data' => array( array( 'media_type' => $x[1] ) ) ) );
+					if ( $x[5] ) {
+						$row['shares'] = array( 'count' => $x[5] );
+					}
+					$ps[] = $row;
+				}
+				return $json( 200, array( 'data' => $ps ) );
+			}
+			return $json( 400, array( 'error' => array( 'code' => 100, 'message' => 'TEST: nepoznat Graph poziv ' . $path ) ) );
+		}
+
+		// YouTube Data API v3. Opcija olr_test_yt_kvota = potrošena dnevna kvota.
+		if ( 0 === strpos( $url, 'https://www.googleapis.com/youtube/v3/' ) ) {
+			$path = substr( $url, strlen( 'https://www.googleapis.com/youtube/v3/' ) );
+			parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $q );
+			update_option( 'olr_test_yt_calls', array_merge( (array) get_option( 'olr_test_yt_calls', array() ), array( strtok( $path, '?' ) ) ), false );
+			if ( false !== strpos( $url, 'key=' ) ) {
+				return $json( 400, array( 'error' => array( 'code' => 400, 'message' => 'TEST: ključ ne smije biti u adresi' ) ) );
+			}
+			if ( 'yt-test-key' !== ( isset( $args['headers']['X-goog-api-key'] ) ? $args['headers']['X-goog-api-key'] : '' ) ) {
+				return $json( 400, array( 'error' => array( 'code' => 400, 'message' => 'API key not valid. Please pass a valid API key.' ) ) );
+			}
+			if ( get_option( 'olr_test_yt_kvota' ) ) {
+				return $json( 403, array( 'error' => array( 'code' => 403, 'message' => 'The request cannot be completed because you have exceeded your quota.' ) ) );
+			}
+			$iso = static function ( $n ) {
+				return gmdate( 'Y-m-d\TH:i:s\Z', time() - $n * DAY_IN_SECONDS );
+			};
+			// id => [ naslov, kanal, trajanje, pregledi, lajkovi, komentari, prije dana ]
+			$vids = array(
+				'own1' => array( 'Progresivne naočale: kako se naviknuti', 'UCown', 'PT45S', 5200, 140, 12, 5 ),
+				'own2' => array( 'Kako čistiti naočale', 'UCown', 'PT30S', 800, 20, 1, 12 ),
+				'own3' => array( 'Predstavljamo radionicu', 'UCown', 'PT4M10S', 300, 9, 0, 19 ),
+				'own4' => array( 'Stellest leće za djecu', 'UCown', 'PT58S', 900, 30, 3, 26 ),
+				'own5' => array( 'Pregled vida korak po korak', 'UCown', 'PT6M', 700, 25, 2, 33 ),
+				'own6' => array( 'Blagdansko radno vrijeme', 'UCown', 'PT20S', 120, 2, 0, 40 ),
+				'ext1' => array( 'Progressive lenses explained in 60 seconds', 'UCa', 'PT59S', 480000, 9000, 300, 30 ),
+				'ext2' => array( 'Zašto progresivne naočale ne valjaju (i kad valjaju)', 'UCb', 'PT8M', 52000, 1500, 210, 50 ),
+				'ext3' => array( 'Optometrist reacts', 'UCa', 'PT12M', 90000, 2000, 150, 70 ),
+			);
+			if ( 0 === strpos( $path, 'channels?' ) ) {
+				if ( isset( $q['forHandle'] ) || ( isset( $q['id'] ) && 'UCown' === $q['id'] ) ) {
+					if ( isset( $q['forHandle'] ) && '@optikaljiljana' !== $q['forHandle'] ) {
+						return $json( 200, array( 'items' => array() ) );
+					}
+					return $json( 200, array( 'items' => array( array( 'id' => 'UCown', 'snippet' => array( 'title' => 'Optika Ljiljana' ), 'statistics' => array( 'subscriberCount' => '310', 'videoCount' => '48', 'viewCount' => '61000' ), 'contentDetails' => array( 'relatedPlaylists' => array( 'uploads' => 'UUown' ) ) ) ) ) );
+				}
+				$items = array();
+				foreach ( explode( ',', isset( $q['id'] ) ? $q['id'] : '' ) as $id ) {
+					$subs = array( 'UCa' => '120000', 'UCb' => '4000' );
+					if ( isset( $subs[ $id ] ) ) {
+						$items[] = array( 'id' => $id, 'statistics' => array( 'subscriberCount' => $subs[ $id ] ) );
+					}
+				}
+				return $json( 200, array( 'items' => $items ) );
+			}
+			if ( 0 === strpos( $path, 'playlistItems?' ) ) {
+				$items = array();
+				foreach ( array( 'own1', 'own2', 'own3', 'own4', 'own5', 'own6' ) as $id ) {
+					$items[] = array( 'contentDetails' => array( 'videoId' => $id ) );
+				}
+				return $json( 'UUown' === $q['playlistId'] ? 200 : 404, array( 'items' => $items ) );
+			}
+			if ( 0 === strpos( $path, 'videos?' ) ) {
+				$items = array();
+				foreach ( explode( ',', $q['id'] ) as $id ) {
+					if ( isset( $vids[ $id ] ) ) {
+						$v       = $vids[ $id ];
+						$items[] = array( 'id' => $id, 'snippet' => array( 'title' => $v[0], 'channelId' => $v[1], 'channelTitle' => 'UCown' === $v[1] ? 'Optika Ljiljana' : 'Kanal ' . $v[1], 'publishedAt' => $iso( $v[6] ) ), 'contentDetails' => array( 'duration' => $v[2] ), 'statistics' => array( 'viewCount' => (string) $v[3], 'likeCount' => (string) $v[4], 'commentCount' => (string) $v[5] ) );
+					}
+				}
+				return $json( 200, array( 'items' => $items ) );
+			}
+			if ( 0 === strpos( $path, 'search?' ) ) {
+				$by    = array(
+					'progresivne naočale' => array( 'ext2', 'own1' ),
+					'progressive lenses'  => array( 'ext1', 'ext3' ),
+				);
+				$items = array();
+				foreach ( isset( $by[ $q['q'] ] ) ? $by[ $q['q'] ] : array() as $id ) {
+					$items[] = array( 'id' => array( 'kind' => 'youtube#video', 'videoId' => $id ), 'snippet' => array( 'title' => $vids[ $id ][0] ) );
+				}
+				return $json( 'viewCount' === $q['order'] && 'video' === $q['type'] && ! empty( $q['publishedAfter'] ) ? 200 : 400, array( 'items' => $items ) );
+			}
+			return $json( 404, array( 'error' => array( 'code' => 404, 'message' => 'TEST: nepoznat YouTube poziv' ) ) );
+		}
+
+		// TikTok: OAuth tokeni i Display API.
+		if ( 0 === strpos( $url, 'https://open.tiktokapis.com/v2/' ) ) {
+			$path = strtok( substr( $url, strlen( 'https://open.tiktokapis.com/v2/' ) ), '?' );
+			if ( 'oauth/token/' === $path ) {
+				$b = isset( $args['body'] ) && is_array( $args['body'] ) ? $args['body'] : array();
+				update_option( 'olr_test_tt_token_last', array_diff_key( $b, array( 'client_secret' => 1 ) ), false );
+				if ( 'tt-key' !== ( isset( $b['client_key'] ) ? $b['client_key'] : '' ) || 'tt-secret' !== ( isset( $b['client_secret'] ) ? $b['client_secret'] : '' ) ) {
+					return $json( 400, array( 'error' => 'invalid_client', 'error_description' => 'Client key or secret is incorrect.', 'log_id' => 'x' ) );
+				}
+				if ( 'authorization_code' === $b['grant_type'] && 'kod-123' === $b['code'] && ! empty( $b['redirect_uri'] ) ) {
+					return $json( 200, array( 'access_token' => 'tt-access-1', 'expires_in' => 86400, 'open_id' => 'oid-1', 'refresh_token' => 'tt-refresh-1', 'refresh_expires_in' => 31536000, 'scope' => 'user.info.basic,user.info.stats,video.list', 'token_type' => 'Bearer' ) );
+				}
+				if ( 'refresh_token' === $b['grant_type'] && 'tt-refresh-1' === $b['refresh_token'] && ! get_option( 'olr_test_tt_refresh_fail' ) ) {
+					update_option( 'olr_test_tt_refresh', (int) get_option( 'olr_test_tt_refresh', 0 ) + 1, false );
+					return $json( 200, array( 'access_token' => 'tt-access-2', 'expires_in' => 86400, 'open_id' => 'oid-1', 'refresh_token' => 'tt-refresh-1', 'refresh_expires_in' => 31536000, 'scope' => 'user.info.basic,user.info.stats,video.list', 'token_type' => 'Bearer' ) );
+				}
+				return $json( 200, array( 'error' => 'invalid_grant', 'error_description' => 'Authorization code is expired.', 'log_id' => 'x' ) );
+			}
+			$auth = isset( $args['headers']['Authorization'] ) ? $args['headers']['Authorization'] : '';
+			if ( ! in_array( $auth, array( 'Bearer tt-access-1', 'Bearer tt-access-2' ), true ) ) {
+				return $json( 401, array( 'data' => new stdClass(), 'error' => array( 'code' => 'access_token_invalid', 'message' => 'The access token is invalid or not found in the request.', 'log_id' => 'x' ) ) );
+			}
+			update_option( 'olr_test_tt_auth_last', $auth, false );
+			$okk = array( 'code' => 'ok', 'message' => '', 'log_id' => 'x' );
+			if ( 'user/info/' === $path ) {
+				return $json( 200, array( 'data' => array( 'user' => array( 'open_id' => 'oid-1', 'display_name' => 'Optika Ljiljana', 'follower_count' => 540, 'likes_count' => 8100, 'video_count' => 37 ) ), 'error' => $okk ) );
+			}
+			if ( 'video/list/' === $path ) {
+				$b    = json_decode( $args['body'], true );
+				$all  = array(
+					array( 't1', 'Zašto se progresivne naočale „ljuljaju”?', 21, 31000, 1900, 80, 240, 3 ),
+					array( 't2', 'Kako prepoznati da dijete slabije vidi', 34, 4100, 300, 20, 40, 8 ),
+					array( 't3', 'Novi okviri', 12, 3800, 150, 4, 6, 15 ),
+					array( 't4', 'Dan u radionici', 48, 3500, 120, 6, 5, 22 ),
+					array( 't5', 'Radno vrijeme', 9, 600, 10, 0, 0, 29 ),
+					array( 't6', 'Leće za računalo', 75, 3900, 210, 12, 30, 36 ),
+				);
+				$from = isset( $b['cursor'] ) ? 4 : 0;
+				$vs   = array();
+				foreach ( array_slice( $all, $from, 4 ) as $x ) {
+					$vs[] = array( 'id' => $x[0], 'title' => $x[1], 'video_description' => $x[1] . ' #optika', 'duration' => $x[2], 'share_url' => 'https://www.tiktok.com/@optikaljiljana/video/' . $x[0], 'create_time' => time() - $x[7] * DAY_IN_SECONDS, 'view_count' => $x[3], 'like_count' => $x[4], 'comment_count' => $x[5], 'share_count' => $x[6] );
+				}
+				return $json( 200, array( 'data' => array( 'videos' => $vs, 'cursor' => 1700000000000, 'has_more' => 0 === $from ), 'error' => $okk ) );
+			}
+			return $json( 404, array( 'data' => new stdClass(), 'error' => array( 'code' => 'not_found', 'message' => 'TEST: nepoznat TikTok poziv', 'log_id' => 'x' ) ) );
+		}
+
 		// Anthropic Messages API.
 		if ( 'https://api.anthropic.com/v1/messages' === $url ) {
 			if ( 'sk-ant-test-1234' !== $args['headers']['x-api-key'] || '2023-06-01' !== $args['headers']['anthropic-version'] ) {
@@ -332,11 +594,40 @@ add_filter(
 					$ch[] = array( 'polje' => 'tehnicki', 'gdje' => isset( $n['stranica']['put'] ) ? $n['stranica']['put'] : '', 'novo' => 'Konkretna izmjena <b>bez</b> HTML-a.' );
 					$ch[] = array( 'polje' => 'nepoznato_polje', 'novo' => 'ne smije proći' );
 				}
+				// Odgovor bez izmjena teksta, samo s koracima (npr. „pričekaj nove podatke”).
+				if ( get_option( 'olr_test_ai_bez_izmjena' ) ) {
+					$ch = array();
+				}
 				$out = array( 'naslov' => ( $tool ? 'AI: ' : 'AI (JSON): ' ) . $n['opis_vrste'], 'zasto' => 'Objašnjenje iz ulaza.', 'izmjene' => $ch, 'koraci' => array( 'Prvi korak', 'Drugi korak' ) );
 				$c   = $tool
 					? array( array( 'type' => 'tool_use', 'id' => 'toolu_p', 'name' => 'spremi_prijedlog', 'input' => $out ) )
 					: array( array( 'type' => 'text', 'text' => "Evo:\n```json\n" . wp_json_encode( $out ) . "\n```" ) );
 				return $json( 200, array( 'id' => 'msg_p', 'model' => $req['model'], 'stop_reason' => $tool ? 'tool_use' : 'end_turn', 'usage' => $use, 'content' => $c ) );
+			}
+			// Društvene mreže: preporuke prisilnim pozivom alata. Opcija olr_test_ai_mreze: prekid = prvi odgovor
+			// prekinut zbog duljine (drugi, kraći, prolazi); prekid2 = oba prekinuta.
+			if ( isset( $req['system'] ) && false !== strpos( $req['system'], '[zadatak: društvene mreže]' ) ) {
+				$mode  = (string) get_option( 'olr_test_ai_mreze' );
+				$short = false !== strpos( $req['system'], 'Skrati:' );
+				update_option( 'olr_test_ai_mreze_calls', (int) get_option( 'olr_test_ai_mreze_calls', 0 ) + 1, false );
+				if ( 'prekid2' === $mode || ( 'prekid' === $mode && ! $short ) ) {
+					return $json( 200, array( 'id' => 'msg_m', 'model' => $req['model'], 'stop_reason' => 'max_tokens', 'usage' => array( 'input_tokens' => 2500, 'output_tokens' => 4000 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_m', 'name' => 'spremi_preporuke', 'input' => array() ) ) ) );
+				}
+				$in  = json_decode( $last['content'], true );
+				$top = isset( $in['nase_mreze']['ig']['najbolje'][0]['pregledi'] ) ? $in['nase_mreze']['ig']['najbolje'][0]['pregledi'] : 0;
+				$out = array(
+					'sazetak'   => ( $short ? 'Kraće: ' : '' ) . 'Najbolji reel ima ' . $top . ' pregleda, što je višestruko iznad medijana.',
+					'preporuke' => array(
+						array( 'mreza' => 'ig', 'naslov' => 'Više reelova koji odgovaraju na jedno pitanje', 'zasto' => 'Reel s pitanjem u opisu ima ' . $top . ' pregleda.', 'koraci' => array( 'Prvi korak', 'Drugi korak', 'Treći korak', 'Četvrti korak', 'Peti korak' ) ),
+						array( 'mreza' => 'linkedin', 'naslov' => 'Preporuka s nepoznatom mrežom <b>bez</b> HTML-a', 'zasto' => 'Zato.', 'koraci' => array( 'Korak' ) ),
+						array( 'mreza' => 'yt', 'zasto' => 'Bez naslova: ne smije proći.', 'koraci' => array() ),
+					),
+					'ideje'     => array(
+						array( 'mreza' => 'tt', 'format' => 'video do 30 s', 'naslov' => 'Zašto se u novim naočalama vrti', 'kuka' => 'Vrti vam se u novim naočalama?', 'zasto' => 'Najgledaniji TikTok je na istu temu.' ),
+						array( 'mreza' => 'sve', 'format' => 'karusel', 'naslov' => 'Pet znakova da dijete slabije vidi', 'kuka' => 'Dijete se približava ekranu?' ),
+					),
+				);
+				return $json( 200, array( 'id' => 'msg_m', 'model' => $req['model'], 'stop_reason' => 'tool_use', 'usage' => array( 'input_tokens' => 2500, 'output_tokens' => 600 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_m', 'name' => 'spremi_preporuke', 'input' => $out ) ) ) );
 			}
 			// JSON odgovor ploče (popravak nalaza, brief): prisilni poziv alata „odgovor”.
 			// Opcija olr_test_ai_json: odbij = API odbija poziv alata (400), prekid = odgovor prekinut zbog duljine.

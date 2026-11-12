@@ -2,16 +2,25 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.3.0
 License: GPL-2.0-or-later
 
-OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
+OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
 
 == Description ==
 
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.3.0 =
+* Društvene mreže na hostingu: Instagram i Facebook (Meta Graph API), YouTube (Data API v3) i TikTok (Display API). Dodatak skuplja vlastite objave i njihove brojke dvaput dnevno. Samo čitanje: ništa se ne objavljuje, ne briše i ne mijenja.
+* Što prolazi, a što ne: svaka objava uspoređuje se s medijanom vlastite mreže u zadnjih 180 dana; uz to obrasci po vrsti, trajanju, danu i dobu dana (tek uz barem tri objave i odstupanje od 30 %).
+* Uzori: najgledaniji YouTube videi po zadanim temama i objave javnih Instagram profila koje navedeš. TikTok i Facebook ne daju službeni pristup tuđem sadržaju.
+* Što raditi: Claude jednom tjedno (ili na gumb) iz tih brojki piše preporuke i ideje za objave.
+* Postavke: novi odjeljak „Društvene mreže” (Meta token, YouTube API ključ i kanal, TikTok Client key i secret, „Poveži TikTok”). Novi ključevi spremaju se šifrirano kao i postojeći; postojeći se ne diraju.
+* Nova MCP sposobnost ol-radar/radar-mreze; radar-stanje pokazuje koje su mreže povezane.
+* Prijedlozi: Claudeov odgovor koji sadrži samo korake (bez izmjene teksta) više se ne vodi kao neuspjeh. Otvoreni prijedlozi koji su ostali bez teksta nakon nadogradnje dobivaju još jedan pokušaj.
 
 = 2.2.1 =
 * Popravak: gumbi „Predloži popravak” / „Novi prijedlog” (modul Popravci i AI) i „Brief” (Planer) javljali su „Claude je odgovorio u krivom obliku”. Odgovor sada stiže kao poziv alata, pa je uvijek u dogovorenom obliku; predug odgovor ide ponovno, sažetije.

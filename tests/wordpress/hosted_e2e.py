@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Headless test nadzorne ploče na hostingu (wp-admin → OL Radar) u lokalnom WordPressu.
 
-Pretpostavlja da je radar_test.php već napunio bazu (GSC, pozicije, SERP) i da su lažni
-Google/DataForSEO/Anthropic odgovori uključeni (opcija olr_test_mocks).
+Pretpostavlja da je radar_test.php već napunio bazu (GSC, pozicije, SERP, društvene mreže) i da su lažni
+Google/DataForSEO/Anthropic/Meta/YouTube/TikTok odgovori uključeni (opcija olr_test_mocks).
 """
 import asyncio, os, sys
 from playwright.async_api import async_playwright
@@ -234,6 +234,52 @@ async def main():
         print(("OK  " if okk else "FAIL") + " konkurencija: kretanje konkurenata (udio, promjena, tko nas je pretekao):", {k: km[k] for k in ("rows", "li", "sp", "meta")}); bad += 0 if okk else 1
         await pg.screenshot(path=f"{OUT}/hosted_kretanje.png")
 
+        # društvene mreže: pločice po mreži, preporuke, što prolazi, uzori; podaci dolaze sa servera
+        await fr.evaluate("location.hash='#drustvene-mreze'")
+        await pg.wait_for_timeout(500)
+        so = await fr.evaluate("""(()=>({vid:[...document.querySelectorAll('#v-drustvene-mreze .soc-v')].every(e=>e.hidden), host:[...document.querySelectorAll('#v-drustvene-mreze .soc-h')].every(e=>!e.hidden),
+            tiles:[...document.querySelectorAll('#sh-tiles .tile')].map(t=>t.querySelector('.k').textContent+':'+t.querySelector('.v').textContent).join(' '),
+            recs:document.querySelectorAll('#sh-rec-body .rec').length, ideje:document.querySelectorAll('#sh-rec-body tbody tr').length, rtxt:document.querySelector('#sh-rec-body').textContent, rmeta:document.querySelector('#sh-rec-meta').textContent,
+            seg:[...document.querySelectorAll('#sh-seg button')].map(b=>b.textContent).join(','), meta:document.querySelector('#sh-net-meta').textContent, tbl:document.querySelectorAll('#sh-net-body > .tw').length,
+            txt:document.querySelector('#sh-net-body').textContent, all:document.querySelectorAll('#sh-net-body details tbody tr').length, links:document.querySelectorAll('#sh-net-body a[href*="instagram.com"]').length,
+            uz:document.querySelector('#sh-uz-body').textContent, uzr:document.querySelectorAll('#sh-uz-body tbody tr').length,
+            src:['ig','fb','yt','tt'].map(k=>S.src[k].state).join(','), lab:document.querySelector('#srcs').textContent, ig:kpis().igFollowers, yt:S.yt.chan&&S.yt.chan.subscriberCount, igp:igPosts().length, w:document.documentElement.scrollWidth-document.documentElement.clientWidth}))()""")
+        oks1 = so["vid"] and so["host"] and "Instagram:2.140" in so["tiles"] and "Facebook:3.350" in so["tiles"] and "YouTube:310" in so["tiles"] and "TikTok:540" in so["tiles"] \
+            and so["src"] == "ok,ok,ok,ok" and "Facebook" in so["lab"] and "TikTok" in so["lab"] and so["ig"] == 2140 and so["yt"] == 310 and so["igp"] == 9 and so["w"] <= 0
+        print(("OK  " if oks1 else "FAIL") + " društvene mreže: četiri mreže sa servera, stanje u izvorima, bez vodoravnog pomaka:", so["tiles"], so["src"], so["w"]); bad += 0 if oks1 else 1
+        oks2 = so["recs"] == 2 and so["ideje"] == 2 and "Više reelova koji odgovaraju na jedno pitanje" in so["rtxt"] and "Prvi korak" in so["rtxt"] and "Vrti vam se u novim naočalama?" in so["rtxt"] and "napisano" in so["rmeta"]
+        print(("OK  " if oks2 else "FAIL") + " društvene mreže: Claudeove preporuke i ideje za objave:", {k: so[k] for k in ("recs", "ideje")}); bad += 0 if oks2 else 1
+        oks3 = so["seg"] == "Instagram,Facebook,YouTube,TikTok" and "medijan 1.050 pregleda" in so["meta"] and so["tbl"] == 3 and "8,6×" in so["txt"] and "vrsta: reel" in so["txt"] and "Zašto vam se vrti" in so["txt"] and so["all"] == 9 and so["links"] >= 9
+        print(("OK  " if oks3 else "FAIL") + " društvene mreže: što prolazi, a što ne (× medijana, obrasci, sve objave):", so["meta"][:70]); bad += 0 if oks3 else 1
+        oks4 = "Progressive lenses explained in 60 seconds" in so["uz"] and "@uzor_optika" in so["uz"] and so["uzr"] == 8 and "13,0×" in so["uz"] and "privatni_profil" in so["uz"]
+        print(("OK  " if oks4 else "FAIL") + " društvene mreže: uzori s YouTubea i Instagrama:", so["uzr"]); bad += 0 if oks4 else 1
+        await pg.screenshot(path=f"{OUT}/hosted_mreze.png", full_page=True)
+        await fr.click('[data-soc-net="tt"]')
+        tk = await fr.evaluate("({meta:document.querySelector('#sh-net-meta').textContent, txt:document.querySelector('#sh-net-body').textContent, on:document.querySelector('[data-soc-net=\"tt\"]').getAttribute('aria-pressed')})")
+        oks5 = "medijan 3.850 pregleda" in tk["meta"] and "8,1×" in tk["txt"] and "ljuljaju" in tk["txt"] and tk["on"] == "true"
+        print(("OK  " if oks5 else "FAIL") + " društvene mreže: prebacivanje mreže (TikTok):", tk["meta"][:60]); bad += 0 if oks5 else 1
+        at0 = await fr.evaluate("S.mreze.zadnje.at")
+        await pg.wait_for_timeout(1100)
+        await fr.click('[data-refresh="social"]')
+        await fr.wait_for_function("!S.soc.busy", timeout=60000)
+        rf = await fr.evaluate("({err:S.soc.err, at:S.mreze.zadnje.at, btn:document.querySelector('[data-refresh=\"social\"]').textContent, uz:(S.mreze.uzori.yt||[]).length, tiles:document.querySelectorAll('#sh-tiles .tile').length})")
+        oks6 = rf["err"] is None and rf["at"] > at0 and rf["btn"] == "Osvježi mreže" and rf["uz"] == 3 and rf["tiles"] == 4
+        print(("OK  " if oks6 else "FAIL") + " društvene mreže: „Osvježi mreže” preuzima podatke i uzore na serveru:", rf); bad += 0 if oks6 else 1
+        await fr.click("#btn-sh-rec")
+        await fr.wait_for_function("!S.soc.recBusy", timeout=60000)
+        rc = await fr.evaluate("({err:S.soc.recErr, n:document.querySelectorAll('#sh-rec-body .rec').length, btn:document.querySelector('#btn-sh-rec').textContent, nacin:S.mreze.preporuke.nacin, meta:document.querySelector('#sh-rec-meta').textContent})")
+        oks7 = rc["err"] is None and rc["n"] == 2 and rc["btn"] == "Nove preporuke" and rc["nacin"] == "rucno" and "upravo" in rc["meta"]
+        print(("OK  " if oks7 else "FAIL") + " društvene mreže: „Nove preporuke” piše Claude na serveru:", rc); bad += 0 if oks7 else 1
+        await fr.evaluate("location.hash='#pregled'")
+        await pg.wait_for_timeout(500)
+        ov = await fr.evaluate("[...document.querySelectorAll('#kpis .tile')].map(t=>t.textContent).find(t=>t.includes('Pratitelji')) || ''")
+        await fr.evaluate("maybeExport(true)")
+        await pg.wait_for_timeout(1500)
+        exs = await fr.evaluate("OLR_HOSTED.api('doc/export/radar').then(d=>({m:d.data.drustvene_mreze?d.data.drustvene_mreze.mreze.ig.medijan:null, p:d.data.drustvene_mreze&&d.data.drustvene_mreze.preporuke?d.data.drustvene_mreze.preporuke.naslovi.length:0, ig:(d.data.instagram||[]).length, yt:(d.data.youtube||[]).length}))")
+        tool = await fr.evaluate("(()=>{const t=chatTools().find(x=>x.name==='drustvene_mreze'); const r=t?t.execute():null; return r?{top:r.mreze.ig.najbolje[0].omjer, uz:r.uzori_youtube.length}:null})()")
+        oks8 = "6.340" in ov and "Instagram 2.140" in ov and exs["m"] == 1050 and exs["p"] == 2 and exs["ig"] == 9 and exs["yt"] == 6 and tool and tool["top"] == 8.6 and tool["uz"] == 3
+        print(("OK  " if oks8 else "FAIL") + " društvene mreže: pločica u Pregledu, izvoz za Claudea i alat AI analitičara:", ov[:60], exs, tool); bad += 0 if oks8 else 1
+
         # pozicije: bez mjerenja je to napomena s objašnjenjem troška, ne greška ni vječno „učitavam”
         await fr.evaluate("location.hash='#pozicije'")
         await pg.wait_for_timeout(400)
@@ -326,8 +372,54 @@ async def main():
         print(("OK  " if okg else "FAIL") + " upozorenje na nespremljene promjene"); bad += 0 if okg else 1
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
         html = await pg.content()
-        leak = "sk-ant-test-1234" in html or "PRIVATE KEY" in html or "tajna-api" in html
+        leak = "sk-ant-test-1234" in html or "PRIVATE KEY" in html or "tajna-api" in html or any(x in html for x in ("meta-test-token", "page-token", "yt-test-key", "tt-secret", "tt-access", "tt-refresh"))
         print(("FAIL" if leak else "OK  ") + " postavke ne otkrivaju ključeve"); bad += 1 if leak else 0
+
+        # postavke: društvene mreže. Polja i gumbi su u glavnom obrascu; TikTok se povezuje odlaskom na TikTok i povratkom na adresu dodatka.
+        sm = await pg.evaluate("""(()=>{const f=document.querySelector('input[name=action][value=olr_save]').form; const inForm=s=>[...document.querySelectorAll(s)].every(e=>e.form===f);
+            return {polja:['#meta_token','#meta_page','#ig_uzori','#yt_key','#yt_channel','#yt_teme','#tt_client_key','#tt_secret','input[name=mreze_auto]'].every(s=>document.querySelector(s)&&inForm(s)),
+              gumbi:['collect_mreze','mreze_preporuke','tt_connect','tt_disconnect'].every(v=>{const b=document.querySelector('button[name=olr_then][value='+v+']'); return b&&b.form===f}), forme:document.querySelectorAll('form form').length,
+              uri:[...document.querySelectorAll('code')].map(c=>c.textContent).find(t=>t.includes('/oauth/tiktok'))||'', tt:document.body.innerText.includes('● povezan'), auto:document.querySelector('input[name=mreze_auto]').checked,
+              tip:document.querySelector('#meta_token').type+','+document.querySelector('#yt_key').type+','+document.querySelector('#tt_secret').type, vr:document.querySelector('#meta_token').value+document.querySelector('#yt_key').value+document.querySelector('#tt_secret').value,
+              kanal:document.querySelector('#yt_channel').value, stanje:[...document.querySelectorAll('table.widefat tr')].map(r=>r.innerText.replace(/\\s+/g,' ')).filter(t=>/^(Instagram|Facebook|YouTube|TikTok|Uzori|Preporuke)/.test(t)).length}})()""")
+        oksm = sm["polja"] and sm["gumbi"] and sm["forme"] == 0 and sm["uri"].endswith("/wp-json/ol-radar/v1/oauth/tiktok") and sm["tt"] and sm["auto"] and sm["tip"] == "password,password,password" and sm["vr"] == "" and "optikaljiljana" in sm["kanal"] and sm["stanje"] == 6
+        print(("OK  " if oksm else "FAIL") + " postavke: društvene mreže u glavnom obrascu, ključevi se ne ispisuju, povratna adresa za TikTok:", sm["uri"], sm["stanje"]); bad += 0 if oksm else 1
+        prije = await kljucevi()
+        await pg.fill("#meta_token", "meta-test-token")
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=collect_mreze]")
+        msg = await pg.inner_text(".notice")
+        okcm = "Meta token spremljen" in msg and "Podaci s mreža preuzeti" in msg and "Instagram: 9 objava" in msg and "TikTok: 6 objava" in msg and await kljucevi() == prije and "meta_token" in prije and "yt_key" in prije and "tt_secret" in prije
+        print(("OK  " if okcm else "FAIL") + " postavke: „Spremi i preuzmi podatke s mreža sada” (ostali ključevi netaknuti): " + msg[:150]); bad += 0 if okcm else 1
+        # prekid TikTok veze traži potvrdu
+        pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=tt_disconnect]")
+        msg = await pg.inner_text(".notice")
+        okdc = "TikTok veza je prekinuta" in msg and "nije povezan" in await pg.inner_text("body") and await kljucevi() == prije
+        print(("OK  " if okdc else "FAIL") + " postavke: prekid TikTok veze (ključevi ostaju): " + msg[:80]); bad += 0 if okdc else 1
+        # „Spremi i poveži TikTok” preusmjerava na TikTokovu stranicu za odobrenje (test nema internet, pa se čita samo adresa preusmjeravanja); povratak s kodom povezuje
+        async with pg.expect_response(lambda r: "admin-post.php" in r.url) as ri:
+            await pg.click("button[name=olr_then][value=tt_connect]")
+        rsp = await ri.value
+        loc = rsp.headers.get("location", "")
+        await pg.wait_for_timeout(600)
+        from urllib.parse import urlparse, parse_qs
+        q = parse_qs(urlparse(loc).query)
+        okau = rsp.status == 302 and loc.startswith("https://www.tiktok.com/v2/auth/authorize/") and q.get("client_key") == ["tt-key"] and q.get("scope") == ["user.info.basic,user.info.stats,video.list"] and q.get("redirect_uri") == [BASE + "/wp-json/ol-radar/v1/oauth/tiktok"] and "tt-secret" not in loc
+        print(("OK  " if okau else "FAIL") + " postavke: „Spremi i poveži TikTok” šalje na TikTok s dopuštenjima samo za čitanje"); bad += 0 if okau else 1
+        await pg.goto(BASE + "/wp-json/ol-radar/v1/oauth/tiktok?code=kod-123&state=" + (q.get("state") or ["x"])[0])
+        msg = await pg.inner_text(".notice")
+        okcb = "ol-radar-postavke" in pg.url and "TikTok je povezan: preuzeto 6 videa" in msg and "● povezan" in await pg.inner_text("body") and await kljucevi() == prije
+        print(("OK  " if okcb else "FAIL") + " postavke: povratak s TikToka povezuje račun i vraća u Postavke: " + msg[:80]); bad += 0 if okcb else 1
+        await pg.goto(BASE + "/wp-json/ol-radar/v1/oauth/tiktok?code=kod-123&state=nepoznato")
+        msg = await pg.inner_text(".notice")
+        okcb2 = "nije dovršeno" in msg and "● povezan" in await pg.inner_text("body")
+        print(("OK  " if okcb2 else "FAIL") + " postavke: povratak s nepoznatim stateom ne mijenja vezu: " + msg[:70]); bad += 0 if okcb2 else 1
+        await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
+        html = await pg.content()
+        leak = any(x in html for x in ("meta-test-token", "page-token", "yt-test-key", "tt-secret", "tt-access", "tt-refresh"))
+        print(("FAIL" if leak else "OK  ") + " postavke ne otkrivaju tokene društvenih mreža"); bad += 1 if leak else 0
         await pg.screenshot(path=f"{OUT}/hosted_postavke.png", full_page=True)
 
         print("greške u pregledniku:", errs or "nema"); bad += len(errs)

@@ -2,13 +2,14 @@
 
 Stanje 12. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
 
-## Već radi (dodatak 2.2.0)
+## Već radi (dodatak 2.3.0)
 - Google Search Console na serveru (servisni račun), pozicije (DataForSEO), crawl i audit weba, model konkurencije, Claude u ploči.
 - **Dnevni prijedlozi izmjena:** server sam analizira i priprema gotove prijedloge (modul Prijedlozi, MCP `ol-radar/radar-prijedlozi`).
 - **Mjerenje učinka provedenih izmjena** (2.2.0): za svaki prijedlog označen „provedeno” Radar sam usporedi Search Console prije i poslije (7, 14 i 28 dana), uz trend cijelog weba.
 - **Indeksiranost stranica** (2.2.0): tjedna provjera preko URL Inspection API-ja; panel u Auditu, MCP `ol-radar/radar-indeks`.
 - **AI Overview u našim mjerenjima** (2.2.0): za koje se ciljane riječi pojavljuje i citira li nas. Pregledi koji se učitavaju naknadno stižu samo uz doplatu od 0,0006 $ po riječi, pa je ta opcija zadano isključena.
 - **Kretanje konkurenata** (2.2.0): tko raste, tko pada, tko je ušao u top 10 i tko nas je pretekao, iz prvih 20 rezultata svakog mjerenja. Ima smisla tek uz redovito mjerenje (tjedno, oko 0,07 $ po mjerenju).
+- **Društvene mreže na hostingu** (2.3.0): Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Vlastite objave s brojkama, što prolazi prema medijanu vlastite mreže, uzori (YouTube po temama, navedeni Instagram profili) i tjedne Claudeove preporuke. Radi kad Ivan upiše pristupne podatke u Postavke.
 
 ## Preporučeni redoslijed (što je još na popisu)
 
@@ -22,7 +23,9 @@ Stanje 12. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 | 6 | **Tjedni e-mail sažetak** | Novi prijedlozi i veće promjene stižu u sandučić bez otvaranja ploče. | 0 | odobriti slanje i adresu |
 
 ## Ostalo, kad dođe na red
-- **Instagram i YouTube na hostingu** (Meta Graph API, YouTube Data API). Do tada su u Radaru na claude.ai (vidIQ).
+- **YouTube zadržavanje publike i izvori prometa** (YouTube Analytics API). Traži OAuth prijavu vlasnika kanala (kao TikTok), ne radi s API ključem. Dalo bi prosječno gledanje i krivulju zadržavanja po videu.
+- **Praćenje pratitelja kroz vrijeme** (dnevna snimka po mreži) i **najbolje vrijeme objave** kad se skupi dovoljno objava.
+- **TikTok u produkcijskom načinu:** Sandbox je dovoljan za vlastiti račun; produkcija traži TikTokov pregled aplikacije i potvrdu vlasništva nad adresama.
 - **Poveznice (backlinks):** DataForSEO je 1. 7. 2026. ukinuo mjesečni minimum od 100 $ za Backlinks API, pa je moguć mjesečni snimak domena koje linkaju na nas i na 3–5 konkurenata. Cijenu po upitu treba provjeriti prije uključivanja. Povijest do 30. 11. čuva arhiva Ahrefsa.
 - **Spominjanja u AI chatovima (LLM Mentions):** dostupno bez mjesečnog minimuma, ali baza za ChatGPT pri pokretanju pokriva samo SAD. Za hrvatsko tržište zasad mala korist; pratimo.
 - **Google AI Mode:** poseban DataForSEO endpoint (0,0024–0,004 $ po upitu). Ima smisla tek kad AI Mode zaživi u Hrvatskoj.
@@ -35,6 +38,10 @@ Stanje 12. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - Automatske izmjene weba bez odobrenja.
 
 ## Izvori (provjereno 12. 11. 2026.)
+- Meta, token sistemskog korisnika i podržana dopuštenja: https://developers.facebook.com/docs/business-management-apis/system-users/install-apps-and-generate-tokens
+- Meta, zamjene za ukinute metrike objava (`post_media_view`, `post_total_media_view_unique`): https://developers.facebook.com/docs/graph-api/changelog/version25.0
+- TikTok, registracija aplikacije i Sandbox (potvrda adresa u Sandboxu samo za Content Posting API): https://developers.tiktok.com/docs/en/getting-started-create-an-app
+- TikTok Login Kit za web (adresa za odobrenje, Redirect URI): https://developers.tiktok.com/doc/login-kit-web
 - Search Console API, ograničenja (URL Inspection 2.000 dnevno i 600 u minuti po svojstvu): https://developers.google.com/webmaster-tools/limits
 - Search Console API, pregled metoda: https://developers.google.com/webmaster-tools/v1/api_reference_index
 - PageSpeed Insights API, kvote: https://unlighthouse.dev/learn-lighthouse/pagespeed-insights-api/rate-limits

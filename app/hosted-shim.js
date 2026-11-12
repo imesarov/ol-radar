@@ -138,7 +138,7 @@
     if (first.val !== undefined) return first.val; // prekinut, ali čitljiv: bolje nepotpun odgovor nego nikakav
     throw { code: "invalid_json", cut: first.cut || second.cut, message: first.cut || second.cut ? "Odgovor je prekinut zbog duljine" : "Odgovor nije u očekivanom obliku" };
   };
-  sample.limits = async () => ({ tools: { maxCount: 16 } });
+  sample.limits = async () => ({ tools: { maxCount: 20 } }); // server prihvaća do 20 alata po zahtjevu
 
   window.claude = {
     use: async name => name === "db" ? db : name === "sample" ? (H.ai ? sample : null) : null

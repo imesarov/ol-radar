@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       OL Radar – most za Claudea
- * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba samo čita, ne mijenja ga.
- * Version:           2.2.1
+ * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, društvene mreže, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba i mreže samo čita, ne mijenja ih.
+ * Version:           2.3.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.2.1' );
+define( 'OLR_VERSION', '2.3.0' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -36,6 +36,7 @@ require_once OLR_DIR . 'includes/class-olr-analiza.php';
 require_once OLR_DIR . 'includes/class-olr-prijedlozi.php';
 require_once OLR_DIR . 'includes/class-olr-ucinak.php';
 require_once OLR_DIR . 'includes/class-olr-indeks.php';
+require_once OLR_DIR . 'includes/class-olr-social.php';
 require_once OLR_DIR . 'includes/class-olr-rest.php';
 require_once OLR_DIR . 'includes/class-olr-radar-admin.php';
 
@@ -119,8 +120,8 @@ add_action(
 /**
  * Radar na hostingu, svaki sat: Google podaci ako su stariji od 12 sati (nakon neuspjeha novi pokušaj
  * tek za 3 sata), rezultati mjerenja u tijeku, tjedno mjerenje pozicija ako je uključeno u postavkama,
- * dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci, učinak provedenih izmjena
- * i mala serija provjera indeksiranosti.
+ * dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci, učinak provedenih izmjena,
+ * mala serija provjera indeksiranosti i društvene mreže (podaci dvaput dnevno, preporuke tjedno).
  */
 add_action(
 	OLR_RADAR_CRON,
@@ -151,6 +152,10 @@ add_action(
 		if ( time() - $t0 < 60 ) {
 			// Indeksiranost: mala serija stranica po satu (svaka stranica jednom tjedno).
 			OLR_Indeks::tick();
+		}
+		if ( time() - $t0 < 30 ) {
+			// Društvene mreže idu zadnje i samo ako je prolaz dosad bio kratak; inače u sljedećem satu.
+			OLR_Social::tick();
 		}
 	}
 );

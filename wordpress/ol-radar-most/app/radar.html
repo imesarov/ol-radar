@@ -162,6 +162,12 @@ td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+.recs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.rec{background:var(--bg);border:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.rec h4{font-family:var(--serif);font-size:17px;line-height:1.3;margin:0}
+.rec p{font-size:13.5px;color:var(--lead);margin:0}
+.rec ol{margin:0;padding-left:18px;font-size:13.5px;color:var(--text);display:flex;flex-direction:column;gap:4px}
+.sub{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
 .fixbox{display:flex;flex-direction:column;gap:12px}
 .fixbox ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .ready{background:var(--bg);border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -482,19 +488,25 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         <div class="t">
           <div class="eb">Instagram · YouTube · Facebook · TikTok</div>
           <h1>Profili i <em>sadržaj</em></h1>
-          <p>Za svaku objavu: doseg, zadržavanje, preskakanje u prvim sekundama, dijeljenja i spremanja. Nalazi idu u Popravke, gdje Claude predlaže nove uvode, opise i naslove u tonu Optike Ljiljana.</p>
+          <p id="soc-lead">Za svaku objavu: doseg, zadržavanje, preskakanje u prvim sekundama, dijeljenja i spremanja. Nalazi idu u Popravke, gdje Claude predlaže nove uvode, opise i naslove u tonu Optike Ljiljana.</p>
         </div>
         <button class="btn btn-g" type="button" data-refresh="social">Osvježi mreže</button>
       </div>
-      <div class="tiles" id="soc-tiles"></div>
-      <div class="split">
+      <!-- na claude.ai: vidIQ -->
+      <div class="tiles soc-v" id="soc-tiles"></div>
+      <div class="split soc-v">
         <div class="panel"><header><h3>Instagram profil</h3><p>@optikaljiljana</p></header><div id="ig-profile"><p class="loading">Učitavam…</p></div></div>
         <div class="panel"><header><h3>Format i ritam</h3><p>zadnjih 25 objava</p></header><div id="ig-format"></div></div>
       </div>
-      <div class="panel"><header><h3>Reelovi: što zadržava, a što ne</h3><p>preskakanje = udio gledatelja koji odu u prvim sekundama</p></header><div id="ig-reels"></div></div>
-      <div class="panel"><header><h3>Sve objave</h3><p>doseg, interakcije po dosegu, spremanja i dijeljenja</p></header><div id="ig-media"></div></div>
-      <div class="panel"><header><h3>YouTube</h3><p>@optikaljiljana</p></header><div id="yt"><p class="loading">Učitavam…</p></div></div>
-      <div class="panel"><header><h3>Facebook i TikTok</h3><p>povezivanje</p></header><div id="fbtt"></div></div>
+      <div class="panel soc-v"><header><h3>Reelovi: što zadržava, a što ne</h3><p>preskakanje = udio gledatelja koji odu u prvim sekundama</p></header><div id="ig-reels"></div></div>
+      <div class="panel soc-v"><header><h3>Sve objave</h3><p>doseg, interakcije po dosegu, spremanja i dijeljenja</p></header><div id="ig-media"></div></div>
+      <div class="panel soc-v"><header><h3>YouTube</h3><p>@optikaljiljana</p></header><div id="yt"><p class="loading">Učitavam…</p></div></div>
+      <div class="panel soc-v"><header><h3>Facebook i TikTok</h3><p>povezivanje</p></header><div id="fbtt"></div></div>
+      <!-- na hostingu: Meta Graph API, YouTube Data API, TikTok Display API -->
+      <div class="tiles soc-h" id="sh-tiles" hidden></div>
+      <div class="panel soc-h" id="sh-rec" hidden><header><h3>Što raditi da nas <em>gledaju</em></h3><button class="btn btn-s" type="button" id="btn-sh-rec">Izradi preporuke</button></header><p class="small muted" id="sh-rec-meta" style="margin:0"></p><div id="sh-rec-body" style="display:flex;flex-direction:column;gap:14px"></div></div>
+      <div class="panel soc-h" id="sh-net" hidden><header><h3>Što prolazi, a što <em>ne</em></h3><span class="seg" role="group" aria-label="Mreža" id="sh-seg"></span></header><p class="small muted" id="sh-net-meta" style="margin:0"></p><div id="sh-net-body" style="display:flex;flex-direction:column;gap:14px"></div></div>
+      <div class="panel soc-h" id="sh-uz" hidden><header><h3>Uzori: što se gleda <em>kod drugih</em></h3><p id="sh-uz-meta"></p></header><div id="sh-uz-body" style="display:flex;flex-direction:column;gap:14px"></div></div>
     </section>
 
     <!-- 08 POPRAVCI -->
@@ -584,6 +596,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
             <tr><td>Učinak provedenih izmjena</td><td>Za prijedlog označen „provedeno” uspoređuje Search Console za tu stranicu jednak broj dana prije i poslije (7, 14, 28), samo konačne podatke, i uz to trend klikova cijelog weba. Ocjena gleda CTR (naslov i opis), poziciju (upiti blizu vrha) ili klikove u odnosu na web. Ispod 30 prikazivanja piše „premalo podataka”</td><td>nakon svakih novih Google podataka</td><td>0</td></tr>
             <tr><td>Indeksiranost</td><td>Googleov URL Inspection API za svaku stranicu koja treba biti u indeksu: je li u indeksu, razlog ako nije, kanonska adresa koju je Google odabrao, zadnji posjet Googlebota</td><td>svaka stranica jednom tjedno, problematične svaka 2 dana</td><td>0 (do 600 provjera dnevno, Google dopušta 2.000)</td></tr>
             <tr><td>Pozicije i AI pregled</td><td>DataForSEO: stvarni Google rezultat za ciljane riječi (mobitel, Zagreb). Iz istog rezultata bilježi se i Googleov AI pregled: pojavljuje li se i citira li nas</td><td>na gumb ili tjedno, ako je uključeno</td><td>oko 0,07 $ po mjerenju; naknadno učitani AI pregledi po izboru +0,0006 $ po riječi</td></tr>
+            <tr><td>Društvene mreže</td><td>Vlastite objave i njihove brojke: Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Svaka objava uspoređuje se s medijanom vlastite mreže u zadnjih 180 dana (× medijana); obrazac se navodi tek uz barem tri objave i odstupanje od 30 %. Uzori su najgledaniji YouTube videi po zadanim temama i objave navedenih Instagram profila; TikTok i Facebook ne daju tuđi sadržaj. Što raditi piše Claude iz tih brojki. Samo čitanje, ništa se ne objavljuje</td><td>podaci dvaput dnevno, uzori i preporuke tjedno</td><td>0 za podatke; nekoliko centi API kredita tjedno za preporuke</td></tr>
             <tr><td>Kretanje konkurenata</td><td>Iz prvih 20 rezultata svakog mjerenja: po domeni broj riječi u top 3 i top 10 i udio vidljivosti (pozicija × opća krivulja CTR-a, bez volumena), te tko je ušao, ispao ili nas pretekao</td><td>nakon svakog mjerenja</td><td>0</td></tr>
           </tbody>
         </table></div>
@@ -777,7 +790,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
     if (first.val !== undefined) return first.val; // prekinut, ali čitljiv: bolje nepotpun odgovor nego nikakav
     throw { code: "invalid_json", cut: first.cut || second.cut, message: first.cut || second.cut ? "Odgovor je prekinut zbog duljine" : "Odgovor nije u očekivanom obliku" };
   };
-  sample.limits = async () => ({ tools: { maxCount: 16 } });
+  sample.limits = async () => ({ tools: { maxCount: 20 } }); // server prihvaća do 20 alata po zahtjevu
 
   window.claude = {
     use: async name => name === "db" ? db : name === "sample" ? (H.ai ? sample : null) : null
@@ -842,6 +855,7 @@ let MCP = null, DB = null, SAMPLE = null;
 const S = {
   prop: { items: [], meta: null, auto: true, claude: false, filter: "otvoreni", busy: false, loaded: false, uc: null },
   indeks: null, ixBusy: false,
+  mreze: null, soc: { net: null, busy: false, recBusy: false, err: null, recErr: null },
   units: { limit: null, used: null, reset: null, session: 0 },
   src: {},
   acc: { ig: IG_FALLBACK, yt: YT_FALLBACK, list: null },
@@ -1363,12 +1377,64 @@ async function loadHosted() {
     setSrc("wp", "ok", S.wp.list.length + " stranica" + (c?.zadnji_potpuni ? " · crawl " + ago(Date.parse(c.zadnji_potpuni)) : ""), S.wp.at);
     syncOnpage();
   }
-  /* društvene mreže: u sljedećoj fazi preko Meta API-ja */
-  if (P.ig && P.ig.media) { S.ig = P.ig; setSrc("ig", "ok", "snimka " + ago(P.ig.at || Date.now()), P.ig.at); }
-  else { setSrc("ig", "off", "Instagram na hostingu dolazi u sljedećoj fazi (Meta API)"); setSrc("yt", "off", "YouTube na hostingu dolazi u sljedećoj fazi"); }
+  /* društvene mreže: Meta Graph API, YouTube Data API, TikTok Display API (skuplja server) */
+  setMreze(P.mreze || null);
   if (P.prijedlozi) setProp(P.prijedlozi);
   S.done = { gsc: true, wp: true, rank: true, social: true };
   rerender(); maybeSnapshot(); maybeExport();
+}
+
+/* ---------- društvene mreže na hostingu ---------- */
+const NET = { ig: "Instagram", fb: "Facebook", yt: "YouTube", tt: "TikTok" };
+function setMreze(D) {
+  S.mreze = D;
+  const M = (D && D.mreze) || {};
+  Object.keys(NET).forEach(n => {
+    const m = M[n];
+    if (!m || !m.povezano) return setSrc(n, "off", NET[n] + " nije povezan (Postavke → Društvene mreže)");
+    if (m.stanje && !m.stanje.ok) return setSrc(n, "err", m.stanje.msg, m.at);
+    if (!m.at) return setSrc(n, "wait", "povezano · čeka prvo preuzimanje");
+    setSrc(n, "ok", (m.racun && m.racun.pratitelji != null ? fmt(m.racun.pratitelji) + (n === "yt" ? " pretplatnika · " : " pratitelja · ") : "") + ago(m.at), m.at);
+  });
+  /* isti oblik koji koriste Pregled, Tjedni pregled, nalazi i izvoz (na claude.ai ga puni vidIQ) */
+  const ig = M.ig;
+  if (ig && ig.racun) {
+    const val = (name, value) => value == null ? null : { name, values: [{ value }] };
+    S.ig.at = ig.at;
+    S.ig.acct = { account: { followers_count: ig.racun.pratitelji, media_count: ig.racun.objava, name: ig.racun.ime }, data: [] };
+    S.ig.reels = { reels: [] };
+    S.ig.media = { data: (ig.objave || []).map(p => ({
+      id: p.id, media_product_type: p.vrsta === "reel" ? "REELS" : "FEED", media_type: p.vrsta === "karusel" ? "CAROUSEL_ALBUM" : (p.vrsta === "reel" || p.vrsta === "video") ? "VIDEO" : "IMAGE", caption: p.opis || "", timestamp: p.t, permalink: p.url,
+      insights: { data: [val("reach", p.doseg), val("views", p.pregledi), val("likes", p.lajkovi), val("comments", p.komentari), val("shares", p.dijeljenja), val("saved", p.spremanja), val("total_interactions", p.doseg == null ? null : (p.lajkovi || 0) + (p.komentari || 0) + (p.dijeljenja || 0) + (p.spremanja || 0))].filter(Boolean) }
+    })) };
+  }
+  const yt = M.yt;
+  if (yt && yt.racun) {
+    const v = p => ({ videoId: p.id, title: p.opis || "", viewCount: p.pregledi, publishedAt: p.t });
+    S.yt.chan = { title: yt.racun.ime, handle: "", subscriberCount: yt.racun.pratitelji, viewCount: yt.racun.pregleda, videoCount: yt.racun.objava };
+    S.yt.shorts = (yt.objave || []).filter(p => p.vrsta === "short").map(v);
+    S.yt.longs = (yt.objave || []).filter(p => p.vrsta !== "short").map(v);
+  }
+}
+async function socRefresh() {
+  if (S.soc.busy) return; S.soc.busy = true; S.soc.err = null; renderSocial();
+  try {
+    // dva kraća zahtjeva: prvo vlastite objave, zatim uzori
+    for (const dio of ["mreze", "mreze_uzori"]) {
+      const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio } });
+      if (res && res.rezultat && res.rezultat.mreze) setMreze(res.rezultat.mreze);
+      renderSocial();
+    }
+  } catch (e) { S.soc.err = e.message || "Server ne odgovara."; }
+  S.soc.busy = false; rerender();
+}
+async function socRecommend() {
+  if (S.soc.recBusy) return; S.soc.recBusy = true; S.soc.recErr = null; renderSocial();
+  try {
+    const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "mreze_preporuke" } });
+    if (res && res.rezultat && res.rezultat.mreze) setMreze(res.rezultat.mreze);
+  } catch (e) { S.soc.recErr = e.message || "Server ne odgovara."; }
+  S.soc.recBusy = false; renderSocial();
 }
 
 /* ---------- mjerenje pozicija na hostingu: pokreće se samo uz potvrdu troška ---------- */
@@ -1661,7 +1727,7 @@ async function maybeSnapshot() {
   if (!DB || snapDone) return;
   const k = kpis();
   const gscReady = k.gscClicks != null || S.src.gsc?.state === "err";
-  if (!gscReady || (k.dr == null && !ahOff()) || k.igFollowers == null) return;
+  if (!gscReady || (k.dr == null && !ahOff()) || (k.igFollowers == null && !HOSTED)) return;
   snapDone = true;
   try {
     const ref = DB.doc("snap/" + today());
@@ -1700,6 +1766,11 @@ async function maybeExport(force) {
       ...(HOSTED ? {
         indeksiranost: S.indeks && S.indeks.provjereno ? { provjereno: S.indeks.provjereno, ukupno: S.indeks.ukupno, u_indeksu: S.indeks.u_indeksu, nije: S.indeks.nije, druga_kanonska: S.indeks.kanonski, problemi: (S.indeks.stranice || []).filter(p => p.problem).slice(0, 30).map(p => ({ url: p.put, problem: p.problem, razlog: p.razlog })) } : null,
         kretanje_konkurenata: S.rank.komp ? { mjerenja: S.rank.komp.mjerenja.slice(0, 2), domene: S.rank.komp.domene.slice(0, 12).map(d => ({ d: d.domena, mi: d.nasa, top3: d.top3, top10: d.top10, udio: d.udio, promjena: d.promjena })), promjene: (S.rank.komp.promjene || []).filter(c => c.pretekli.length).slice(0, 10).map(c => ({ k: c.rijec, mi: c.nas, prije: c.nas_prije, pretekli: c.pretekli.map(x => x.domena) })) } : null,
+        drustvene_mreze: S.mreze ? {
+          mreze: Object.fromEntries(Object.entries(S.mreze.mreze || {}).filter(([, m]) => m.povezano).map(([n, m]) => [n, { pratitelji: m.racun ? m.racun.pratitelji : null, objava_u_analizi: m.analiza ? m.analiza.objava : 0, medijan: m.analiza ? m.analiza.medijan : null, mjera: m.analiza ? m.analiza.mjera : null, najbolje: ((m.analiza && m.analiza.top) || []).slice(0, 3).map(p => ({ d: (p.t || "").slice(0, 10), vrsta: p.vrsta, opis: (p.opis || "").slice(0, 120), pregledi: p.pregledi, omjer: p.omjer })), obrasci: (m.analiza && m.analiza.obrasci) || [], greska: m.stanje && !m.stanje.ok ? m.stanje.msg : null }])),
+          preporuke: S.mreze.preporuke ? { at: S.mreze.preporuke.at, sazetak: S.mreze.preporuke.sazetak, naslovi: (S.mreze.preporuke.preporuke || []).map(x => x.naslov) } : null,
+          napomena: "Detalji: ol-radar/radar-mreze."
+        } : null,
         ucinak_izmjena: S.prop.uc ? { ...S.prop.uc, izmjene: S.prop.items.filter(p => p.stanje === "provedeno" && p.mjerenje).slice(0, 20).map(p => ({ url: p.put, vrsta: p.vrsta, provedeno: p.mjerenje.provedeno, stanje: p.mjerenje.stanje, ocjena: p.mjerenje.ocjena, sazetak: p.mjerenje.sazetak })) } : null
       } : {}),
       audit_web: wpGroups().map(g => ({ kod: g.kod, ozbiljnost: g.sev, opis: g.opis, stranice: g.urls.slice(0, 20).map(path) })),
@@ -1990,7 +2061,7 @@ function renderOverview() {
     tile("Google klikovi · 28 d", fmt(fb(k.gscClicks, "gscClicks")), t ? deltaHtml(t.cur.clicks, t.prev?.clicks) : "", t ? "GSC do " + hrDate(t.lastDate) : (last ? "zadnja snimka " + hrDate(last.date) : "učitavam")),
     tile("Prikazivanja · 28 d", fmt(fb(k.gscImpr, "gscImpr")), t ? deltaHtml(t.cur.impr, t.prev?.impr) : "", "Google Search Console"),
     tile("Prosječna pozicija", dec(fb(k.gscPos, "gscPos")), t ? deltaHtml(t.cur.pos, t.prev?.pos, true) : "", "niže je bolje"),
-    tile("Instagram doseg · 30 d", fmt(fb(k.igReach, "igReach")), k.igViews != null ? fmt(k.igViews) + " pregleda" : "", k.igFollowers != null ? fmt(k.igFollowers) + " pratitelja" : "vidIQ"),
+    HOSTED ? socTile() : tile("Instagram doseg · 30 d", fmt(fb(k.igReach, "igReach")), k.igViews != null ? fmt(k.igViews) + " pregleda" : "", k.igFollowers != null ? fmt(k.igFollowers) + " pratitelja" : "vidIQ"),
     tile("Domain Rating", dec(fb(k.dr, "dr"), 0), k.refd != null ? fmt(k.refd) + " domena upućuje" : "", ahOff() ? (S.ah.fromArch ? "Ahrefs arhiva " + hrDate(S.ah.fromArch) : "Ahrefs ugašen") : "Ahrefs; vidi Audit → poveznice"),
     tile("Ahrefs vidi", k.ahTraffic != null ? fmt(k.ahTraffic) : "–", ratio ? "stvarno je " + dec(ratio, 1) + "× više (GSC)" : "posjeta/mj prema Ahrefsu", "kalibracija za konkurente")
   ].join("");
@@ -2657,7 +2728,88 @@ function renderAudit() {
 }
 
 /* ---------- 07 društvene mreže ---------- */
+/* pregled: jedna pločica za sve povezane mreže */
+function socTile() {
+  const M = (S.mreze && S.mreze.mreze) || {};
+  const on = Object.keys(NET).filter(n => M[n] && M[n].povezano && M[n].racun);
+  if (!on.length) return tile("Društvene mreže", "–", "još nisu povezane", "Postavke → Društvene mreže");
+  const total = sum(on.map(n => M[n].racun.pratitelji || 0));
+  return tile("Pratitelji · mreže", fmt(total), esc(on.map(n => NET[n] + " " + fmt(M[n].racun.pratitelji)).join(" · ")), "zbroj povezanih mreža");
+}
+const SOC_VRSTA = { reel: "Reel", karusel: "Karusel", objava: "Objava", video: "Video", short: "Short", poveznica: "Poveznica" };
+const socX = v => v == null ? "–" : `<span class="${v >= 1.5 ? "up" : v <= 0.5 ? "down" : ""}">${dec(v, 1)}×</span>`;
+const socPost = (p, n = 72) => { const t = (p.opis || "bez opisa").slice(0, n) + ((p.opis || "").length > n ? "…" : ""); return `<span style="display:inline-block;min-width:min(22ch,26vw)">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t)}</span>`; };
+const socDay = t => t ? `<span style="white-space:nowrap">${esc(hrDate(String(t).slice(0, 10)))}</span>` : "–";
+const socDur = s => !s ? "–" : s < 60 ? s + " s" : Math.floor(s / 60) + " min" + (s % 60 ? " " + (s % 60) + " s" : "");
+function renderSocialHosted() {
+  const D = S.mreze, btn = $('[data-refresh="social"]');
+  $("#soc-lead").textContent = "Vlastite objave s Instagrama, Facebooka, YouTubea i TikToka, s brojkama izravno od mreža. Svaka objava uspoređuje se s medijanom vlastite mreže, pa se vidi što prolazi, a što ne. Iz toga Claude piše što raditi.";
+  btn.disabled = S.soc.busy; btn.textContent = S.soc.busy ? "Preuzimam…" : "Osvježi mreže";
+  if (!D) { $("#sh-tiles").innerHTML = ""; $("#sh-rec-body").innerHTML = '<p class="loading">Učitavam…</p>'; $("#sh-net-body").innerHTML = ""; $("#sh-uz-body").innerHTML = ""; return; }
+  const M = D.mreze || {}, nets = Object.keys(NET), on = nets.filter(n => M[n] && M[n].povezano);
+  const pre = `<a href="${esc(OLR_HOSTED.postavke)}" target="_top">Postavke → Društvene mreže</a>`;
+  $("#sh-tiles").innerHTML = nets.map(n => {
+    const m = M[n] || {}, a = m.analiza;
+    if (!m.povezano) return tile(NET[n], "–", "nije povezano", "Postavke → Društvene mreže");
+    const bad = m.stanje && !m.stanje.ok;
+    const d = a && a.medijan != null ? "medijan " + fmt(a.medijan) + (a.mjera === "doseg" ? " dosega" : " pregleda") + " · " + fmt(a.objava) + " objava" : (m.at ? (a && a.napomena ? a.napomena : "") : "čeka prvo preuzimanje");
+    return tile(NET[n], fmt(m.racun && m.racun.pratitelji), bad ? `<span class="down">${esc(m.stanje.msg)}</span>` : esc(d), (n === "yt" ? "pretplatnika" : "pratitelja") + (m.racun && m.racun.ime ? " · " + m.racun.ime : "") + (m.at ? " · " + ago(m.at) : ""));
+  }).join("");
+
+  /* što raditi (Claude) */
+  const R = D.preporuke, rb = $("#btn-sh-rec");
+  rb.hidden = !D.claude || !on.length; rb.disabled = S.soc.recBusy; rb.textContent = S.soc.recBusy ? "Claude piše…" : R ? "Nove preporuke" : "Izradi preporuke";
+  $("#sh-rec-meta").textContent = R ? "napisano " + ago(R.at) + (R.model ? " · " + R.model : "") + " · iz brojki u nastavku" + (D.auto ? " · nove stižu jednom tjedno" : " · automatika je isključena u Postavkama") : "";
+  const netPill = n => pill(n === "sve" ? "info" : "gold", n === "sve" ? "sve mreže" : (NET[n] || n));
+  $("#sh-rec-body").innerHTML = (S.soc.recErr ? `<p class="err">${esc(S.soc.recErr)}</p>` : "")
+    + (!on.length ? `<p class="note">Nijedna mreža još nije povezana. Pristupne podatke upisuješ sam u ${pre}: Meta token za Instagram i Facebook, YouTube API ključ i kanal, TikTok Client key i secret. Radar s mreža samo čita.</p>`
+      : R ? `<p class="lead" style="max-width:80ch">${esc(R.sazetak || "")}</p>`
+        + `<div class="recs">${(R.preporuke || []).map(x => `<article class="rec"><div>${netPill(x.mreza)}</div><h4>${esc(x.naslov)}</h4><p>${esc(x.zasto || "")}</p>${(x.koraci || []).length ? `<ol>${x.koraci.map(k => `<li>${esc(k)}</li>`).join("")}</ol>` : ""}</article>`).join("")}</div>`
+        + ((R.ideje || []).length ? `<h4 class="sub">Ideje za objave</h4>` + tableHtml(["Mreža", "Format", "Ideja", "Kuka (prva rečenica ili prve 3 sekunde)", "Zašto"], R.ideje.map(x => [netPill(x.mreza), esc(x.format || ""), `<span style="color:var(--text)">${esc(x.naslov)}</span>`, `<span class="u" style="white-space:normal;max-width:44ch;color:var(--lead)">${esc(x.kuka || "")}</span>`, `<span class="u" style="white-space:normal;max-width:40ch;color:var(--muted)">${esc(x.zasto || "")}</span>`])) : "")
+        + '<p class="small muted">Preporuke su za tvoju odluku. Brojke u njima su iz podataka mreža; Radar ništa ne objavljuje.</p>'
+        : `<p class="note">${D.claude ? "Preporuka još nema. Stižu same jednom tjedno, a gumbom „Izradi preporuke” odmah." : "Za preporuke treba Anthropic API ključ (" + pre + ")."}</p>`);
+
+  /* što prolazi, a što ne */
+  const withData = on.filter(n => M[n].at);
+  if (!S.soc.net || !withData.includes(S.soc.net)) S.soc.net = withData[0] || null;
+  $("#sh-seg").innerHTML = withData.map(n => `<button type="button" data-soc-net="${n}" aria-pressed="${n === S.soc.net}">${NET[n]}</button>`).join("");
+  $$("[data-soc-net]").forEach(b => b.onclick = () => { S.soc.net = b.dataset.socNet; renderSocialHosted(); });
+  const errs = (S.soc.err ? `<p class="err">${esc(S.soc.err)}</p>` : "") + on.filter(n => M[n].stanje && !M[n].stanje.ok).map(n => `<p class="err">${NET[n]}: ${esc(M[n].stanje.msg)}</p>`).join("");
+  const off = nets.filter(n => !on.includes(n));
+  const offNote = off.length && on.length ? `<p class="small muted">Nije povezano: ${off.map(n => NET[n]).join(", ")}. ${pre}</p>` : "";
+  const n = S.soc.net, m = n ? M[n] : null, a = m && m.analiza;
+  if (!m) {
+    $("#sh-net-meta").textContent = "";
+    $("#sh-net-body").innerHTML = errs + (on.length ? '<p class="note">Mreže su povezane, ali podaci još nisu preuzeti. Klikni „Osvježi mreže”.</p>' : `<p class="note">Kad povežeš prvu mrežu (${pre}), ovdje su objave poredane prema tome koliko odskaču od uobičajenog.</p>`) + offNote;
+  } else {
+    const unit = a && a.mjera === "doseg" ? "Doseg" : "Pregledi", val = p => p.pregledi != null ? p.pregledi : p.doseg;
+    $("#sh-net-meta").textContent = a && a.medijan != null ? fmt(a.objava) + " objava u zadnjih 180 dana · medijan " + fmt(a.medijan) + (a.mjera === "doseg" ? " dosega" : " pregleda") + " · × = koliko je puta objava iznad ili ispod tog medijana · angažman = reakcije na 100 pregleda" + (n === "ig" ? " · gledano = prosječno gledanje reela" : "") : "";
+    const rowOf = p => [socDay(p.t), esc(SOC_VRSTA[p.vrsta] || p.vrsta), socPost(p), r(fmt(val(p))), r(socX(p.omjer)), r(p.angazman == null ? "–" : dec(p.angazman, 1) + "%"), r(fmt(p.dijeljenja)), r(fmt(p.spremanja)), r(p.gledano_s ? dec(p.gledano_s, 0) + " s" : socDur(p.trajanje))];
+    const heads = ["Datum", "Vrsta", "Objava", unit, "×", "Angaž.", "Dijelj.", "Sprem.", n === "ig" ? "Gledano" : "Trajanje"];
+    const all = (m.objave || []).map(p => ({ ...p, omjer: a && a.medijan > 0 && val(p) != null ? Math.round(val(p) / a.medijan * 10) / 10 : null }));
+    $("#sh-net-body").innerHTML = errs
+      + (a && a.napomena ? `<p class="note">${esc(a.napomena)}</p>` : "")
+      + (a && a.medijan != null ? `<h4 class="sub">Iznad uobičajenog (1,5× i više)</h4>` + (a.top.length ? tableHtml(heads, a.top.map(rowOf)) : '<p class="muted small">Nijedna objava ne odskače 1,5× iznad medijana.</p>')
+        + `<h4 class="sub">Ispod uobičajenog (0,5× i manje)</h4>` + (a.slabo.length ? tableHtml(heads, a.slabo.map(rowOf)) : '<p class="muted small">Nijedna objava nije ispod polovice medijana.</p>')
+        + `<h4 class="sub">Obrasci</h4>` + (a.obrasci.length ? tableHtml(["Obrazac", "Objava", "Medijan skupine", "× medijana mreže"], a.obrasci.map(o => [esc(o.opis), r(fmt(o.objava)), r(fmt(o.medijan)), r(socX(o.omjer))])) + '<p class="small muted">Naznaka, ne pravilo: skupine su male. Obrazac se navodi tek uz barem tri objave i odstupanje od 30 %.</p>' : '<p class="muted small">Zasad nijedna skupina objava (vrsta, trajanje, dan, doba dana, pitanje u opisu) ne odstupa dovoljno jasno.</p>') : "")
+      + (all.length ? `<details><summary>Sve objave (${fmt(all.length)})</summary>${tableHtml(["Datum", "Vrsta", "Objava", "Pregledi", "Doseg", "Lajkovi", "Kom.", "Dijelj.", "Sprem.", "×"], all.map(p => [socDay(p.t), esc(SOC_VRSTA[p.vrsta] || p.vrsta), socPost(p, 60), r(fmt(p.pregledi)), r(fmt(p.doseg)), r(fmt(p.lajkovi)), r(fmt(p.komentari)), r(fmt(p.dijeljenja)), r(fmt(p.spremanja)), r(socX(p.omjer))]))}</details>` : "")
+      + offNote;
+  }
+
+  /* uzori */
+  const U = D.uzori, uy = (U && U.yt) || [], ui = (U && U.ig) || [];
+  $("#sh-uz-meta").textContent = U && U.at ? "osvježeno " + ago(U.at) + " · jednom tjedno" : "";
+  $("#sh-uz-body").innerHTML =
+    (uy.length ? `<h4 class="sub">YouTube: najgledaniji videi zadnjih 120 dana po tvojim temama</h4>` + tableHtml(["Video", "Kanal", "Tema", "Trajanje", "Pregledi", "Pretpl.", "× pretpl."], uy.slice(0, 20).map(v => [socPost(v, 64), esc(v.kanal || ""), `<span class="u">${esc(v.tema || "")}</span>`, r(socDur(v.trajanje)), r(fmt(v.pregledi)), r(fmt(v.pretplatnika)), r(socX(v.omjer))])) : "")
+    + (ui.length ? `<h4 class="sub">Instagram: objave profila koje pratiš kao uzor</h4>` + tableHtml(["Profil", "Objava", "Vrsta", "Lajkovi", "Kom.", "Pregledi", "× profila"], ui.slice(0, 20).map(v => [esc(v.profil), socPost(v, 64), esc(SOC_VRSTA[v.vrsta] || v.vrsta), r(fmt(v.lajkovi)), r(fmt(v.komentari)), r(fmt(v.pregledi)), r(socX(v.omjer))])) : "")
+    + (!uy.length && !ui.length ? `<p class="note">Uzora još nema. YouTube ih daje po temama (uz YouTube API ključ), a Instagram za javne profesionalne profile koje navedeš (uz Meta token). Teme i profile upisuješ u ${pre}; osvježavaju se jednom tjedno ili gumbom „Osvježi mreže”.</p>` : "")
+    + ((U && U.napomene) || []).map(x => `<p class="small muted">${esc(x)}</p>`).join("")
+    + '<p class="small muted">Uzor je za temu i format, ne za prepisivanje. „× pretpl.” su pregledi videa prema broju pretplatnika kanala: video koji je otišao daleko iznad vlastite publike. „× profila” je objava prema medijanu lajkova i komentara tog profila. TikTok i Facebook ne daju službeni pristup tuđim objavama, pa uzora s tih mreža nema.</p>';
+}
 function renderSocial() {
+  $$("#v-drustvene-mreze .soc-v").forEach(e => { e.hidden = HOSTED; });
+  $$("#v-drustvene-mreze .soc-h").forEach(e => { e.hidden = !HOSTED; });
+  if (HOSTED) return renderSocialHosted();
   const k = kpis(); const posts = igPosts();
   const reelsW = posts.filter(p => p.type === "Reel" && p.watched != null);
   $("#soc-tiles").innerHTML = [
@@ -2842,6 +2994,7 @@ function chatTools() {
     ...(HOSTED ? [{ name: "prijedlozi", description: "Gotovi prijedlozi izmjena iz dnevne analize na serveru: vrsta, stranica, dokazi s brojkama, predložene izmjene (sadašnji i novi tekst) i stanje (novo, prihvaceno, provedeno, odbijeno).", execute: () => ({ zadnja_analiza: S.prop.meta, prijedlozi: S.prop.items.filter(p => !p.isteklo).slice(0, 20).map(p => ({ id: p.id, vrsta: p.vrsta, stranica: p.put, naslov: p.naslov, zasto: p.zasto, dokazi: p.dokazi, izmjene: p.izmjene, koraci: p.koraci, stanje: p.stanje, procjena_klikova_28d: p.ucinak, ...(p.mjerenje ? { izmjereni_ucinak: { stanje: p.mjerenje.stanje, ocjena: p.mjerenje.ocjena, sazetak: p.mjerenje.sazetak, provedeno: p.mjerenje.provedeno } } : {}) })), ucinak_provedenih: S.prop.uc }) },
       { name: "indeksiranost", description: "Indeksiranost stranica u Googleu (URL Inspection API, provjera jednom tjedno): koliko je stranica u indeksu, koje nisu i koji razlog navodi Google, gdje je Google odabrao drugu kanonsku adresu, zadnji posjet Googlebota.", execute: () => { const X = S.indeks; if (!X || !X.provjereno) throw new Error("Indeksiranost još nije provjerena (modul Audit weba → Provjeri sada)."); return { provjereno: X.provjereno, ukupno: X.ukupno, u_indeksu: X.u_indeksu, nije: X.nije, druga_kanonska: X.kanonski, zadnja_provjera: X.zadnja ? new Date(X.zadnja).toISOString() : null, problemi: (X.stranice || []).filter(p => p.problem).slice(0, 40).map(p => ({ stranica: p.put, problem: p.problem, razlog: p.razlog, zadnji_posjet: p.zadnji_posjet, prikazivanja_28d: p.prikazivanja_28 })) }; } },
       { name: "kretanje_konkurenata", description: "Kretanje konkurenata iz naših mjerenja pozicija (top 20 po ciljanoj riječi): po domeni broj riječi u top 3 i top 10, udio vidljivosti sada i u prethodnom mjerenju, te po riječi tko je ušao u top 10, tko je ispao i tko nas je pretekao.", execute: () => { const K = S.rank.komp; if (!K) throw new Error("Još nema mjerenja pozicija."); return { mjerenja: K.mjerenja, rijeci: K.rijeci, domene: K.domene.slice(0, 20).map(d => ({ domena: d.domena, mi: d.nasa, top3: d.top3, top10: d.top10, udio: d.udio, prije: d.prije, promjena: d.promjena, rijeci: d.rijeci })), promjene: (K.promjene || []).slice(0, 15), napomena: K.napomena }; } }] : []),
+    ...(HOSTED ? [{ name: "drustvene_mreze", description: "Društvene mreže (Instagram, Facebook, YouTube, TikTok) s hostinga: pratitelji, medijan pregleda, objave iznad i ispod uobičajenog (× medijana vlastite mreže), obrasci, uzori (najgledaniji tuđi YouTube videi po temama i objave navedenih Instagram profila) i zadnje preporuke.", execute: () => { const D = S.mreze; if (!D) throw new Error("Podaci društvenih mreža još nisu učitani."); const slim = p => ({ d: (p.t || "").slice(0, 10), vrsta: p.vrsta, opis: (p.opis || "").slice(0, 140), pregledi: p.pregledi, doseg: p.doseg, omjer: p.omjer, angazman: p.angazman, dijeljenja: p.dijeljenja, spremanja: p.spremanja }); return { mreze: Object.fromEntries(Object.entries(D.mreze || {}).map(([n, m]) => [n, m.povezano ? { racun: m.racun, medijan: m.analiza ? m.analiza.medijan : null, mjera: m.analiza ? m.analiza.mjera : null, objava: m.analiza ? m.analiza.objava : 0, najbolje: ((m.analiza && m.analiza.top) || []).map(slim), najslabije: ((m.analiza && m.analiza.slabo) || []).map(slim), obrasci: (m.analiza && m.analiza.obrasci) || [], napomena: (m.analiza && m.analiza.napomena) || null, greska: m.stanje && !m.stanje.ok ? m.stanje.msg : null } : "nije povezano"])), uzori_youtube: ((D.uzori && D.uzori.yt) || []).slice(0, 10).map(v => ({ naslov: v.opis, kanal: v.kanal, tema: v.tema, trajanje_s: v.trajanje, pregledi: v.pregledi, pretplatnika: v.pretplatnika, omjer: v.omjer })), uzori_instagram: ((D.uzori && D.uzori.ig) || []).slice(0, 10).map(v => ({ profil: v.profil, opis: v.opis, vrsta: v.vrsta, lajkovi: v.lajkovi, pregledi: v.pregledi, omjer: v.omjer })), preporuke: D.preporuke || null }; } }] : []),
     { name: "tjedno", description: "Tjedni sažetak: Google 7 dana prema prethodnih 7, upiti koji rastu i padaju, novi upiti, promjene pozicija, stranice promijenjene ovaj tjedan i Instagram objave tjedna.", execute: () => { const w = weekExport(); if (!w) throw new Error("Google podaci još nisu učitani"); return w; } },
     { name: "onpage", description: "Naslov, H1, meta opis, canonical, robots, broj riječi i Rank Math fokus za stranice weba (WordPress most; rezerva Search Console), s Google klikovima i prikazivanjima za 28 dana.", execute: () => (S.onpage || []).map(p => ({ url: path(p.page), naslov: p.title, meta: p.meta, h1: p.h1, canonical: p.canonical, robots: p.robots, c: p.clicks, i: p.impressions, rijeci: p.words ?? null, fokus: p.focus || null })) },
     { name: "planer", description: "Vraća teme iz planera sadržaja poredane po prilici (potražnja, vaš udio, radnja: nova stranica, dorada, spoji, zaštiti) i stavke koje su već u planu.", execute: () => ({ teme: planClusters().slice(0, 25).map(c => ({ tema: c.head, potraznja: c.demand, udio: +c.share.toFixed(2), najbolja_poz: c.best == null ? null : +c.best.toFixed(1), radnja: c.action, vrhunac: c.peak == null ? null : MONTHS[c.peak], stranice: c.pages.map(path), rijeci: c.kws.slice(0, 8).map(x => x.k) })), plan: S.plan.items.map(x => ({ tema: x.title, radnja: x.action, mjesec: x.month, stanje: x.status })) }) },
@@ -3277,7 +3430,7 @@ function bindStatic() {
     $("#rf-no").onclick = closeModal;
     $("#rf-ok").onclick = () => { closeModal(); loadAhrefsCore(true); loadGsc(true); loadAudit(true); loadSocial(true); loadRank(true); };
   };
-  $$("[data-refresh]").forEach(b => b.onclick = () => { const k = b.dataset.refresh; if (HOSTED) { hostedRefresh(k === "gsc" ? ["gsc"] : k === "rank" ? ["rank"] : k === "audit" ? ["crawl"] : []); return; } if (k === "gsc") loadGsc(true); if (k === "audit") loadAudit(true); if (k === "social") loadSocial(true); if (k === "rank") loadRank(true); });
+  $$("[data-refresh]").forEach(b => b.onclick = () => { const k = b.dataset.refresh; if (HOSTED) { if (k === "social") { socRefresh(); return; } hostedRefresh(k === "gsc" ? ["gsc"] : k === "rank" ? ["rank"] : k === "audit" ? ["crawl"] : []); return; } if (k === "gsc") loadGsc(true); if (k === "audit") loadAudit(true); if (k === "social") loadSocial(true); if (k === "rank") loadRank(true); });
   $("#kw-form").addEventListener("submit", runKw);
   $("#q-filter").addEventListener("input", renderQueries);
   $$("[data-qf]").forEach(b => b.onclick = () => { S.qf = b.dataset.qf; $$("[data-qf]").forEach(x => x.setAttribute("aria-pressed", x === b)); renderQueries(); });
@@ -3335,6 +3488,8 @@ async function boot() {
   $$(".nav a").filter(a => !a.hidden).forEach((a, i) => { a.querySelector("span").textContent = String(i + 1).padStart(2, "0"); });
   if (HOSTED) {
     SRC_LABEL.rank = "Pozicije (DataForSEO)"; SRC_LABEL.gsc = "Google Search Console (API)";
+    delete SRC_LABEL.ai; SRC_LABEL.fb = "Facebook"; SRC_LABEL.tt = "TikTok"; SRC_LABEL.ai = "Claude";
+    $("#btn-sh-rec").onclick = socRecommend;
     const eb = $("#v-pozicije .eb"); if (eb) eb.textContent = "DataForSEO · mobitel · Zagreb";
     const pl = $("#pregled-lead"); if (pl) pl.textContent = "Stvarni Google podaci iz Search Consolea (Google API, svakih 12 sati), pozicije za ciljane riječi iz DataForSEO-a, web iznutra iz ovog WordPressa i arhiva Ahrefsa. Sve se skuplja na hostingu, a ploča samo čita spremljeno.";
     $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a></div>';

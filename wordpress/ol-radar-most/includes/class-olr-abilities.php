@@ -296,6 +296,25 @@ class OLR_Abilities {
 			)
 		);
 		wp_register_ability(
+			'ol-radar/radar-mreze',
+			array(
+				'label'               => 'Radar: društvene mreže',
+				'description'         => 'Društvene mreže s hostinga (Instagram i Facebook preko Meta Graph API-ja, YouTube Data API, TikTok Display API; osvježava se dvaput dnevno): račun i pratitelji po mreži, vlastite objave s brojkama (pregledi, doseg, lajkovi, komentari, dijeljenja, spremanja, gledanost), analiza što prolazi (objave prema medijanu vlastite mreže, obrasci po vrsti, trajanju i danu), uzori (najgledaniji YouTube videi po zadanim temama i objave navedenih Instagram profila) i Claudeove preporuke što raditi. Zadano vraća sve povezane mreže bez popisa objava; mreza ograničava na jednu, objave: true dodaje popis objava. Samo čitanje; ništa se ne objavljuje.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'mreza'  => array( 'type' => 'string', 'enum' => array( 'ig', 'fb', 'yt', 'tt' ), 'description' => 'Samo jedna mreža: ig (Instagram), fb (Facebook), yt (YouTube), tt (TikTok).' ),
+						'objave' => array( 'type' => 'boolean', 'description' => 'Uključi popis objava s brojkama (do 40 po mreži).' ),
+						'uzori'  => array( 'type' => 'boolean', 'description' => 'Uključi uzore: najgledanije tuđe YouTube videe po temama i objave navedenih Instagram profila.' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_social' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
 			'ol-radar/radar-prijedlozi',
 			array(
 				'label'               => 'Radar: prijedlozi izmjena',
@@ -313,6 +332,24 @@ class OLR_Abilities {
 				'meta'                => self::meta(),
 			)
 		);
+	}
+
+	public static function radar_social( $input = array() ) {
+		$s   = OLR_Social::summary( ! empty( $input['objave'] ) ? 40 : 0 );
+		$one = isset( $input['mreza'] ) && isset( OLR_Social::NETS[ $input['mreza'] ] ) ? $input['mreza'] : '';
+		if ( '' !== $one ) {
+			$s['mreze'] = array( $one => $s['mreze'][ $one ] );
+		}
+		if ( empty( $input['uzori'] ) ) {
+			$u          = is_array( $s['uzori'] ) ? $s['uzori'] : array();
+			$s['uzori'] = array(
+				'youtube_videa'    => isset( $u['yt'] ) ? count( $u['yt'] ) : 0,
+				'instagram_objava' => isset( $u['ig'] ) ? count( $u['ig'] ) : 0,
+				'napomena'         => 'Popis uzora: pozovi s uzori: true.',
+			);
+		}
+		$s['napomena'] = 'omjer = pregledi (ili doseg) objave prema medijanu vlastite mreže u zadnjih 180 dana; 1,5 i više je iznad uobičajenog, 0,5 i manje ispod. Obrazac s malo objava je naznaka, ne pravilo. Tuđi sadržaj je dostupan samo s YouTubea i javnih profesionalnih Instagram profila.';
+		return $s;
 	}
 
 	public static function radar_index( $input = array() ) {
@@ -380,6 +417,18 @@ class OLR_Abilities {
 				'ucinak'     => $p['ucinak'],
 			),
 			'indeks'     => OLR_Indeks::summary( 0 ),
+			// Društvene mreže: samo je li povezano i kad je zadnji put osvježeno; podaci su u ol-radar/radar-mreze.
+			'mreze'      => array_map(
+				static function ( $m ) {
+					return array(
+						'povezano'   => $m['povezano'],
+						'stanje'     => $m['stanje'],
+						'pratitelji' => isset( $m['racun']['pratitelji'] ) ? $m['racun']['pratitelji'] : null,
+						'objava_u_analizi' => isset( $m['analiza']['objava'] ) ? $m['analiza']['objava'] : 0,
+					);
+				},
+				OLR_Social::summary( 0 )['mreze']
+			),
 		);
 	}
 

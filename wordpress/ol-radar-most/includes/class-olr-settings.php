@@ -6,7 +6,10 @@
  * ključ izveden iz WordPressovih soli) i nikad se ne vraćaju u preglednik. Ako je u wp-config.php
  * definirana konstanta, ona ima prednost:
  *   OLR_GSC_SA_FILE (putanja do JSON datoteke, najbolje izvan public_html) ili OLR_GSC_SA_JSON,
- *   OLR_DFS_LOGIN, OLR_DFS_PASSWORD, OLR_ANTHROPIC_KEY.
+ *   OLR_DFS_LOGIN, OLR_DFS_PASSWORD, OLR_ANTHROPIC_KEY, OLR_META_TOKEN, OLR_YT_KEY, OLR_TT_SECRET.
+ *
+ * Popis NAMES se smije samo dopunjavati. Postojeća imena, način šifriranja i imena opcija ne mijenjaju se
+ * bez migracije i testa nadogradnje, jer bi spremljeni ključevi postali nečitljivi.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,7 +23,7 @@ class OLR_Settings {
 	const SEEN    = 'olr_keys_seen';
 	const WARNING = 'olr_upgrade_warning';
 	const VERSION = 'olr_version';
-	const NAMES   = array( 'gsc_sa', 'dfs_login', 'dfs_password', 'anthropic_key' );
+	const NAMES   = array( 'gsc_sa', 'dfs_login', 'dfs_password', 'anthropic_key', 'meta_token', 'yt_key', 'tt_secret' );
 
 	/** Ciljane riječi trackera (isti popis kao u OpenSEO-u, 11. 11. 2026.). */
 	public static function default_keywords() {
@@ -57,6 +60,13 @@ class OLR_Settings {
 			'indeks_auto'     => true,
 			// AI pregledi koji se učitavaju naknadno: DataForSEO ih naplaćuje dodatno, pa je isključeno.
 			'rank_aio_async'  => false,
+			// Društvene mreže: podaci dvaput dnevno, uzori i preporuke jednom tjedno.
+			'mreze_auto'      => true,
+			'meta_page'       => '',
+			'yt_channel'      => '',
+			'yt_teme'         => 'progresivne naočale, dioptrijske naočale, pregled vida, optičar, progressive lenses, optometrist',
+			'ig_uzori'        => '',
+			'tt_client_key'   => '',
 		);
 	}
 
@@ -103,6 +113,9 @@ class OLR_Settings {
 			'dfs_login'     => 'OLR_DFS_LOGIN',
 			'dfs_password'  => 'OLR_DFS_PASSWORD',
 			'anthropic_key' => 'OLR_ANTHROPIC_KEY',
+			'meta_token'    => 'OLR_META_TOKEN',
+			'yt_key'        => 'OLR_YT_KEY',
+			'tt_secret'     => 'OLR_TT_SECRET',
 		);
 		if ( 'gsc_sa' === $name ) {
 			if ( defined( 'OLR_GSC_SA_FILE' ) && is_readable( OLR_GSC_SA_FILE ) ) {
@@ -127,8 +140,11 @@ class OLR_Settings {
 			'dfs_login'     => array( 'OLR_DFS_LOGIN' ),
 			'dfs_password'  => array( 'OLR_DFS_PASSWORD' ),
 			'anthropic_key' => array( 'OLR_ANTHROPIC_KEY' ),
+			'meta_token'    => array( 'OLR_META_TOKEN' ),
+			'yt_key'        => array( 'OLR_YT_KEY' ),
+			'tt_secret'     => array( 'OLR_TT_SECRET' ),
 		);
-		foreach ( $map[ $name ] as $c ) {
+		foreach ( isset( $map[ $name ] ) ? $map[ $name ] : array() as $c ) {
 			if ( defined( $c ) ) {
 				return 'wp-config.php';
 			}
@@ -234,6 +250,9 @@ class OLR_Settings {
 			'dfs_login'     => 'DataForSEO login',
 			'dfs_password'  => 'DataForSEO lozinka',
 			'anthropic_key' => 'Anthropic API ključ',
+			'meta_token'    => 'Meta token (Instagram i Facebook)',
+			'yt_key'        => 'YouTube API ključ',
+			'tt_secret'     => 'TikTok Client secret',
 		);
 		return isset( $l[ $name ] ) ? $l[ $name ] : $name;
 	}

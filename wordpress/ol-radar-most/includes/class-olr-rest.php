@@ -88,6 +88,17 @@ class OLR_REST {
 				'permission_callback' => array( __CLASS__, 'can' ),
 			)
 		);
+		// Povratak s TikTokove stranice za odobrenje. Preglednik dolazi bez WordPressova noncea, pa pristup
+		// štiti jednokratni „state” koji je netom prije izdan administratoru u Postavkama (vrijedi 15 minuta).
+		register_rest_route(
+			self::NS,
+			'/oauth/tiktok',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'oauth_tiktok' ),
+				'permission_callback' => '__return_true',
+			)
+		);
 		register_rest_route(
 			self::NS,
 			'/osvjezi',
@@ -144,6 +155,8 @@ class OLR_REST {
 				'ig'     => OLR_Store::data( 'ig', 'zadnje' ),
 				'prijedlozi' => OLR_Prijedlozi::summary( 'svi', 300 ),
 				'indeks' => OLR_Indeks::summary( 400 ),
+				// Društvene mreže: računi, objave s brojkama, analiza, uzori i Claudeove preporuke.
+				'mreze'  => OLR_Social::summary( 40 ),
 				'stanje' => self::state_array(),
 			)
 		);
@@ -157,6 +170,14 @@ class OLR_REST {
 				'gsc'       => (bool) OLR_Settings::secret( 'gsc_sa' ),
 				'dataforseo' => OLR_DFS::has_credentials(),
 				'anthropic' => OLR_AI::available(),
+				'meta'      => (bool) OLR_Settings::secret( 'meta_token' ),
+				'youtube'   => (bool) OLR_Settings::secret( 'yt_key' ),
+				'tiktok'    => (bool) OLR_Social::tt_tokens(),
+			),
+			'mreze'    => array(
+				'auto'     => (bool) OLR_Settings::get( 'mreze_auto' ),
+				'povezano' => OLR_Social::connected(),
+				'zadnje'   => array_diff_key( OLR_Social::last_run(), array( 'rucno' => 1 ) ),
 			),
 			'ai'       => array(
 				'model'   => OLR_Settings::get( 'ai_model' ),
@@ -242,6 +263,54 @@ class OLR_REST {
 	}
 
 	/**
+	 * Povratak s TikToka nakon odobrenja: kod se zamijeni za tokene (spremaju se šifrirano), preuzmu se
+	 * prvi podaci i preglednik se vrati u Postavke. Tokeni se nikad ne ispisuju.
+	 */
+	public static function oauth_tiktok( WP_REST_Request $r ) {
+		$state = preg_replace( '/[^A-Za-z0-9]/', '', (string) $r->get_param( 'state' ) );
+		$uid   = '' !== $state ? (int) get_transient( 'olr_tt_state_' . $state ) : 0;
+		$back  = admin_url( 'admin.php?page=ol-radar-postavke' );
+		if ( ! $uid ) {
+			// Adresa je javna: bez valjanog statea ne mijenja se ništa (ni veza, ni stanje izvora, ni poruke).
+			$resp = new WP_REST_Response( null, 302 );
+			$resp->header( 'Location', $back . '&olr_tt=greska' );
+			$resp->header( 'Cache-Control', 'no-store' );
+			return $resp;
+		}
+		$err = (string) $r->get_param( 'error' );
+		if ( '' !== $err ) {
+			delete_transient( 'olr_tt_state_' . $state );
+			$d   = (string) $r->get_param( 'error_description' );
+			$res = new WP_Error( 'olr_tt_odbijeno', 'TikTok nije odobrio povezivanje: ' . sanitize_text_field( '' !== $d ? $d : $err ) );
+		} else {
+			$res = OLR_Social::tt_callback( (string) $r->get_param( 'code' ), $state );
+		}
+		if ( is_wp_error( $res ) ) {
+			$msg = $res->get_error_message();
+			if ( ! OLR_Social::tt_tokens() ) {
+				// Postojeća veza koja radi ostaje „u redu”; greška se bilježi samo ako veze nema.
+				OLR_Settings::set_status( 'mreze_tt', false, $msg );
+			}
+		} else {
+			$n = OLR_Social::collect_tt();
+			OLR_Social::analyze();
+			$msg = is_wp_error( $n ) ? 'TikTok je povezan, ali podaci još nisu preuzeti: ' . $n->get_error_message() : 'TikTok je povezan: preuzeto ' . (int) $n . ' videa.';
+		}
+		set_transient(
+			'olr_settings_notice_' . $uid,
+			array(
+				'ok'  => ! is_wp_error( $res ),
+				'msg' => $msg,
+			),
+			300
+		);
+		$resp = new WP_REST_Response( null, 302 );
+		$resp->header( 'Location', $back );
+		$resp->header( 'Cache-Control', 'no-store' );
+		return $resp;
+	}
+
+	/**
 	 * Osvježavanje: gsc (Search Console), rank (pokupi gotove rezultate mjerenja), crawl (serija stranica)
 	 * prijedlozi (analiza + tekst izmjena od Claudea, najviše nekoliko puta dnevno) i mjerenje
 	 * (novo plaćeno mjerenje pozicija; samo uz potvrda=da, koju ploča šalje nakon korisnikove potvrde troška).
@@ -277,8 +346,26 @@ class OLR_REST {
 			if ( ! is_wp_error( $res ) ) {
 				$res = OLR_Prijedlozi::summary( 'svi', 300 );
 			}
+		} elseif ( 'mreze' === $dio ) {
+			// Podaci svih povezanih mreža (bez uzora, koji idu zasebnim pozivom da zahtjev ostane kratak).
+			$res = OLR_Social::collect_all( false );
+			if ( ! is_wp_error( $res ) ) {
+				$res = array(
+					'ishod' => $res,
+					'mreze' => OLR_Social::summary( 40 ),
+				);
+			}
+		} elseif ( 'mreze_uzori' === $dio ) {
+			OLR_Social::collect_models();
+			OLR_Social::analyze();
+			$res = array( 'mreze' => OLR_Social::summary( 40 ) );
+		} elseif ( 'mreze_preporuke' === $dio ) {
+			$res = OLR_Social::recommend( 'rucno' );
+			if ( ! is_wp_error( $res ) ) {
+				$res = array( 'mreze' => OLR_Social::summary( 40 ) );
+			}
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks, mreze, mreze_uzori, mreze_preporuke).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

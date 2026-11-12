@@ -143,13 +143,29 @@ class OLR_Radar_Admin {
 			}
 			$vals['gsc_site'] = $site;
 		}
-		foreach ( array( 'dfs_login', 'dfs_password', 'anthropic_key' ) as $k ) {
+		$saved = array(
+			'dfs_login'     => 'DataForSEO login spremljen.',
+			'dfs_password'  => 'DataForSEO lozinka spremljena.',
+			'anthropic_key' => 'Anthropic ključ spremljen.',
+			'meta_token'    => 'Meta token spremljen.',
+			'yt_key'        => 'YouTube API ključ spremljen.',
+			'tt_secret'     => 'TikTok Client secret spremljen.',
+		);
+		foreach ( $saved as $k => $msg ) {
+			// Ključ se mijenja samo kad je polje ispunjeno; prazno polje znači „ostavi kako jest”.
 			$v = trim( (string) self::post( $k ) );
 			if ( '' !== $v ) {
 				OLR_Settings::set_secret( $k, $v );
-				$msgs[] = array( 'dfs_login' => 'DataForSEO login spremljen.', 'dfs_password' => 'DataForSEO lozinka spremljena.', 'anthropic_key' => 'Anthropic ključ spremljen.' )[ $k ];
+				$msgs[] = $msg;
 			}
 		}
+		// Društvene mreže: obična polja (nisu tajne).
+		$vals['meta_page']     = sanitize_text_field( (string) self::post( 'meta_page' ) );
+		$vals['yt_channel']    = sanitize_text_field( (string) self::post( 'yt_channel' ) );
+		$vals['yt_teme']       = sanitize_text_field( (string) self::post( 'yt_teme' ) );
+		$vals['ig_uzori']      = sanitize_text_field( (string) self::post( 'ig_uzori' ) );
+		$vals['tt_client_key'] = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) self::post( 'tt_client_key' ) );
+		$vals['mreze_auto']    = '1' === self::post( 'mreze_auto' );
 		$kws = self::post( 'rank_keywords' );
 		if ( null !== $kws ) {
 			$list = array();
@@ -208,7 +224,7 @@ class OLR_Radar_Admin {
 	}
 
 	private static function forget( $k ) {
-		if ( in_array( $k, array( 'gsc_sa', 'dfs_login', 'dfs_password', 'anthropic_key' ), true ) ) {
+		if ( in_array( $k, OLR_Settings::NAMES, true ) ) {
 			OLR_Settings::set_secret( $k, null );
 			if ( 'gsc_sa' === $k ) {
 				delete_transient( OLR_GSC::TOKEN_TR );
@@ -257,6 +273,40 @@ class OLR_Radar_Admin {
 				if ( ! is_wp_error( $r ) ) {
 					$r = sprintf( 'Analiza gotova: %d nalaza, %d novih prijedloga.%s Otvori nadzornu ploču → Prijedlozi.', $r['kandidata'], $r['novih'], ! $r['ai_ok'] && $r['ai_poruka'] ? ' Tekst nije napisan za sve: ' . $r['ai_poruka'] : ( $r['tekstova'] ? ' Tekst napisan za ' . $r['tekstova'] . '.' : '' ) );
 				}
+				break;
+			case 'collect_mreze':
+				$r = OLR_Social::collect_all( true );
+				if ( ! is_wp_error( $r ) ) {
+					if ( ! $r ) {
+						$r = new WP_Error( 'olr_mreze_nema', 'Nijedna mreža još nije povezana. Upiši Meta token, YouTube ključ i kanal ili poveži TikTok.' );
+					} else {
+						$parts = array();
+						$bad   = 0;
+						foreach ( $r as $net => $x ) {
+							$bad    += is_int( $x ) ? 0 : 1;
+							$parts[] = OLR_Social::NETS[ $net ] . ': ' . ( is_int( $x ) ? $x . ' objava' : $x );
+						}
+						$r = $bad === count( $parts ) ? new WP_Error( 'olr_mreze_greska', implode( ' · ', $parts ) ) : 'Podaci s mreža preuzeti. ' . implode( ' · ', $parts );
+					}
+				}
+				break;
+			case 'mreze_preporuke':
+				$r = OLR_Social::recommend( 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$r = sprintf( 'Claude je napisao %d preporuka i %d ideja. Otvori nadzornu ploču → Društvene mreže.', count( $r['preporuke'] ), count( $r['ideje'] ) );
+				}
+				break;
+			case 'tt_connect':
+				$r = OLR_Social::tt_authorize_url();
+				if ( ! is_wp_error( $r ) ) {
+					// Odlazak na TikTokovu stranicu za odobrenje; povratak je na REST adresu dodatka.
+					wp_redirect( $r ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- vanjska adresa je stalna (TikTok).
+					exit;
+				}
+				break;
+			case 'tt_disconnect':
+				OLR_Social::tt_disconnect();
+				$r = 'TikTok veza je prekinuta, spremljeni podaci s TikToka su obrisani.';
 				break;
 			default:
 				return null;
@@ -397,6 +447,10 @@ class OLR_Radar_Admin {
 			<?php if ( $notice ) : ?>
 				<div class="notice <?php echo $notice['ok'] ? 'notice-success' : 'notice-error'; ?>"><p><?php echo esc_html( $notice['msg'] ); ?></p></div>
 			<?php endif; ?>
+			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- samo prikaz poruke ?>
+			<?php if ( isset( $_GET['olr_tt'] ) && ! $notice ) : ?>
+				<div class="notice notice-error"><p>Povezivanje s TikTokom nije dovršeno (isteklo je ili nije pokrenuto iz Postavki). Klikni „Spremi i poveži TikTok” ponovno.</p></div>
+			<?php endif; ?>
 			<?php
 			$warn = OLR_Settings::upgrade_warning();
 			if ( $warn ) :
@@ -405,7 +459,7 @@ class OLR_Radar_Admin {
 					<?php echo esc_html( implode( ', ', array_map( array( 'OLR_Settings', 'label' ), (array) $warn['nedostaju'] ) ) ); ?>.
 					Upiši ga ponovno i javi Claudeu ovu poruku, jer nadogradnja ne smije dirati ključeve.</p></div>
 			<?php endif; ?>
-			<p>Ključevi se spremaju šifrirano i nikad se ne prikazuju u pregledniku. Nadogradnja dodatka ih ne dira, a ostaju i ako se dodatak obriše pa ponovno instalira; pojedini ključ briše se samo gumbom „obriši”. Sigurnije je definirati ih u <code>wp-config.php</code> (konstante <code>OLR_GSC_SA_FILE</code>, <code>OLR_DFS_LOGIN</code>, <code>OLR_DFS_PASSWORD</code>, <code>OLR_ANTHROPIC_KEY</code>); tada imaju prednost.</p>
+			<p>Ključevi se spremaju šifrirano i nikad se ne prikazuju u pregledniku. Nadogradnja dodatka ih ne dira, a ostaju i ako se dodatak obriše pa ponovno instalira; pojedini ključ briše se samo gumbom „obriši”. Sigurnije je definirati ih u <code>wp-config.php</code> (konstante <code>OLR_GSC_SA_FILE</code>, <code>OLR_DFS_LOGIN</code>, <code>OLR_DFS_PASSWORD</code>, <code>OLR_ANTHROPIC_KEY</code>, <code>OLR_META_TOKEN</code>, <code>OLR_YT_KEY</code>, <code>OLR_TT_SECRET</code>); tada imaju prednost.</p>
 
 			<h2>Stanje izvora</h2>
 			<table class="widefat striped" style="max-width:900px">
@@ -421,6 +475,12 @@ class OLR_Radar_Admin {
 					'provjera_dfs' => 'Zadnja provjera DataForSEO prijave',
 					'provjera_ai'  => 'Zadnja provjera Claude ključa',
 					'ai_poziv'     => 'Zadnji poziv Claudea',
+					'mreze_ig'     => 'Instagram',
+					'mreze_fb'     => 'Facebook',
+					'mreze_yt'     => 'YouTube',
+					'mreze_tt'     => 'TikTok',
+					'mreze_uzori'  => 'Uzori (tuđi gledani sadržaj)',
+					'mreze_preporuke' => 'Preporuke za društvene mreže',
 				);
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;
@@ -537,6 +597,53 @@ class OLR_Radar_Admin {
 						<p class="description" style="margin-top:6px">Radi samo od sebe: kad prijedlog u ploči označiš kao „provedeno”, Radar usporedi Search Console za tu stranicu prije i poslije (7, 14 i 28 dana) i uz to pokaže trend cijelog weba. Ako je izmjena provedena ranije nego što si je označio, u ploči upiši stvarni dan.</p>
 					</td></tr>
 				</table>
+
+				<h2>Društvene mreže</h2>
+				<p class="description" style="max-width:900px">Radar s mreža samo čita: vlastite objave i njihove brojke. Ništa ne objavljuje, ne briše i ne mijenja. Iz brojki računa što prolazi, a Claude jednom tjedno piše što raditi. Tuđi gledani sadržaj službeno se može čitati samo s YouTubea (po temama) i s javnih profesionalnih Instagram profila koje navedeš; TikTok i Facebook daju samo vlastite objave.</p>
+				<table class="form-table" role="presentation">
+					<?php self::secret_row( 'meta_token', 'Meta token (Instagram i Facebook)', 'Meta poslovne postavke (business.facebook.com/settings) → Users → System users → Generate token: odaberi svoju aplikaciju, trajanje (Expiration) „Never” i dopuštenja <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>read_insights</code>, <code>instagram_basic</code>, <code>instagram_manage_insights</code>. Prije toga sistemskom korisniku dodijeli Facebook stranicu i Instagram račun (Add assets). Instagram mora biti profesionalni račun povezan sa stranicom.' ); ?>
+					<tr><th scope="row"><label for="meta_page">Facebook stranica</label></th><td>
+						<input type="text" id="meta_page" name="meta_page" class="regular-text" value="<?php echo esc_attr( $s['meta_page'] ); ?>" placeholder="prazno = stranica s povezanim Instagramom">
+						<p class="description">Ispuni samo ako token vidi više stranica: dio naziva ili ID stranice.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="ig_uzori">Instagram uzori</label></th><td>
+						<input type="text" id="ig_uzori" name="ig_uzori" class="large-text" value="<?php echo esc_attr( $s['ig_uzori'] ); ?>" placeholder="npr. korisnicko_ime1, korisnicko_ime2">
+						<p class="description">Do 10 korisničkih imena javnih profesionalnih profila (optike, brendovi) čije objave želiš pratiti kao uzor. Odvojena zarezom.</p>
+					</td></tr>
+					<?php self::secret_row( 'yt_key', 'YouTube API ključ', 'Google Cloud → APIs &amp; Services → Library → YouTube Data API v3 → Enable, zatim Credentials → Create credentials → API key. Ključ ograniči na YouTube Data API v3.' ); ?>
+					<tr><th scope="row"><label for="yt_channel">YouTube kanal</label></th><td>
+						<input type="text" id="yt_channel" name="yt_channel" class="regular-text" value="<?php echo esc_attr( $s['yt_channel'] ); ?>" placeholder="@oznaka ili ID kanala (UC…)">
+					</td></tr>
+					<tr><th scope="row"><label for="yt_teme">Teme za uzore na YouTubeu</label></th><td>
+						<input type="text" id="yt_teme" name="yt_teme" class="large-text" value="<?php echo esc_attr( $s['yt_teme'] ); ?>">
+						<p class="description">Do 8 tema, odvojenih zarezom. Jednom tjedno Radar za svaku temu nađe najgledanije videe zadnjih 120 dana. Svaka tema troši 100 jedinica YouTube kvote (dnevno ih je 10.000, besplatno).</p>
+					</td></tr>
+					<tr><th scope="row"><label for="tt_client_key">TikTok Client key</label></th><td>
+						<input type="text" id="tt_client_key" name="tt_client_key" class="regular-text code" autocomplete="off" value="<?php echo esc_attr( $s['tt_client_key'] ); ?>">
+						<p class="description">TikTok for Developers → tvoja aplikacija → Sandbox → Login Kit i Display API (dopuštenja <code>user.info.basic</code>, <code>user.info.stats</code>, <code>video.list</code>). U Sandboxu dodaj svoj TikTok račun kao ciljanog korisnika. Kao Redirect URI upiši točno:<br><code><?php echo esc_html( OLR_Social::tt_redirect_uri() ); ?></code><?php echo false !== strpos( OLR_Social::tt_redirect_uri(), '?' ) ? '<br><strong>TikTok ne prihvaća adresu s upitnikom. Uključi lijepe poveznice (Postavke → Stalne veze).</strong>' : ''; ?></p>
+					</td></tr>
+					<?php self::secret_row( 'tt_secret', 'TikTok Client secret', 'Iz iste TikTok aplikacije (Sandbox → Credentials).' ); ?>
+					<tr><th scope="row">TikTok veza</th><td>
+						<?php
+						$tt = OLR_Social::tt_tokens();
+						if ( $tt ) {
+							echo '<span style="color:#008a20">●</span> povezan';
+							if ( ! empty( $tt['refresh_exp'] ) ) {
+								echo ' <span style="color:#646970">· odobrenje vrijedi do ' . esc_html( wp_date( 'j. n. Y.', (int) $tt['refresh_exp'] ) ) . ', nakon toga ponovno „Poveži TikTok”</span>';
+							}
+							echo ' <button type="submit" class="button-link button-link-delete" name="olr_then" value="tt_disconnect" data-olr-potvrda="Prekinuti vezu s TikTokom i obrisati spremljene podatke s TikToka?">prekini vezu</button>';
+						} else {
+							echo '<span style="color:#646970">nije povezan</span>';
+						}
+						?>
+						<p style="margin-top:8px"><button type="submit" class="button" name="olr_then" value="tt_connect">Spremi i poveži TikTok</button></p>
+						<p class="description">Otvara TikTokovu stranicu na kojoj se prijaviš i odobriš čitanje. Radar dobiva samo pravo čitanja tvojih videa i brojki.</p>
+					</td></tr>
+					<tr><th scope="row">Automatsko osvježavanje</th><td>
+						<label><input type="checkbox" name="mreze_auto" value="1" <?php checked( ! empty( $s['mreze_auto'] ) ); ?>> Podatke s mreža preuzimaj dvaput dnevno, a uzore i Claudeove preporuke jednom tjedno</label>
+					</td></tr>
+				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="collect_mreze">Spremi i preuzmi podatke s mreža sada</button> <button type="submit" class="button" name="olr_then" value="mreze_preporuke">Spremi i izradi preporuke sada</button></p>
 				<?php submit_button( 'Spremi postavke' ); ?>
 			</form>
 			<script>
@@ -548,6 +655,10 @@ class OLR_Radar_Admin {
 				form.addEventListener( 'submit', function ( e ) {
 					var b = e.submitter;
 					if ( b && b.getAttribute( 'data-olr-brisi' ) && ! window.confirm( 'Obrisati ovaj ključ iz baze?' ) ) {
+						e.preventDefault();
+						return;
+					}
+					if ( b && b.getAttribute( 'data-olr-potvrda' ) && ! window.confirm( b.getAttribute( 'data-olr-potvrda' ) ) ) {
 						e.preventDefault();
 						return;
 					}
