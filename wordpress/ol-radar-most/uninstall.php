@@ -25,7 +25,7 @@ wp_clear_scheduled_hook( 'olr_prijedlozi_event' );
 wp_clear_scheduled_hook( 'olr_prijedlozi_tekst' );
 wp_clear_scheduled_hook( 'olr_ucinak_event' );
 if ( defined( 'OLR_DELETE_DATA' ) && OLR_DELETE_DATA ) {
-	foreach ( array( 'olr_settings', 'olr_secrets', 'olr_keys_seen', 'olr_upgrade_warning', 'olr_version', 'olr_dfs_cost', 'olr_ai_usage', 'olr_prijedlozi_run', 'olr_prijedlozi_ponovi', 'olr_ucinak_run', 'olr_tt_tokens', 'olr_mreze_run' ) as $olr_opt ) {
+	foreach ( array( 'olr_settings', 'olr_secrets', 'olr_keys_seen', 'olr_upgrade_warning', 'olr_version', 'olr_dfs_cost', 'olr_ai_usage', 'olr_prijedlozi_run', 'olr_prijedlozi_ponovi', 'olr_ucinak_run', 'olr_tt_tokens', 'olr_mreze_run', 'olr_suradnje_run', 'olr_suradnje_seed' ) as $olr_opt ) {
 		delete_option( $olr_opt );
 	}
 	$olr_docs = $wpdb->prefix . 'ol_radar_docs';

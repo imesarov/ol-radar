@@ -134,7 +134,7 @@ async def main():
             zadnji:[...document.querySelectorAll('.nav a')].filter(a=>!a.hidden).pop().querySelector('span').textContent,
             cnt:+document.querySelector('#cnt-prijedlozi').textContent, chg:document.querySelectorAll('#prop-list .chg').length, tbl:document.querySelectorAll('#prop-list table').length,
             meta:document.querySelector('#prop-meta').textContent, on:document.querySelector('#v-prijedlozi').classList.contains('on')}))()""")
-        okp = pi["on"] and pi["n"] >= 4 and pi["nav"] == "02" and pi["zadnji"] == "14" and pi["cnt"] >= 4 and pi["chg"] >= 4 and pi["tbl"] >= 1 and "Zadnja analiza" in pi["meta"]
+        okp = pi["on"] and pi["n"] >= 4 and pi["nav"] == "02" and pi["zadnji"] == "15" and pi["cnt"] >= 4 and pi["chg"] >= 4 and pi["tbl"] >= 1 and "Zadnja analiza" in pi["meta"]
         print(("OK  " if okp else "FAIL") + " prijedlozi: modul s karticama, dokazima i izmjenama:", {k: pi[k] for k in ("n", "nav", "zadnji", "cnt", "chg", "tbl")}); bad += 0 if okp else 1
         await pg.screenshot(path=f"{OUT}/hosted_prijedlozi.png")
         pid = await fr.evaluate("document.querySelector('#prop-list [data-prop-set$=\"|prihvaceno\"]').dataset.propSet.split('|')[0]")
@@ -280,6 +280,87 @@ async def main():
         oks8 = "6.340" in ov and "Instagram 2.140" in ov and exs["m"] == 1050 and exs["p"] == 2 and exs["ig"] == 9 and exs["yt"] == 6 and tool and tool["top"] == 8.6 and tool["uz"] == 3
         print(("OK  " if oks8 else "FAIL") + " društvene mreže: pločica u Pregledu, izvoz za Claudea i alat AI analitičara:", ov[:60], exs, tool); bad += 0 if oks8 else 1
 
+        # suradnje i poveznice: kartice s prijedlogom i kontaktom, stanja, provjera poveznice, uvoz iz Search Consolea, DR
+        await fr.evaluate("location.hash='#suradnje'")
+        await pg.wait_for_timeout(500)
+        su = await fr.evaluate("""(()=>({on:document.querySelector('#v-suradnje').classList.contains('on'), nav:document.querySelector('#nav-suradnje span').textContent,
+            n:document.querySelectorAll('#sur-list .prop').length, chg:document.querySelectorAll('#sur-list .chg').length, copy:document.querySelectorAll('#sur-list [data-sur-copy]').length,
+            txt:document.querySelector('#sur-list').textContent, tiles:[...document.querySelectorAll('#sur-tiles .tile')].map(t=>t.querySelector('.k').textContent+':'+t.querySelector('.v').textContent).join(' | '),
+            meta:document.querySelector('#sur-meta').textContent, cnt:+document.querySelector('#cnt-suradnje').textContent, mail:document.querySelectorAll('#sur-list a[href^="mailto:"]').length,
+            dr:document.querySelectorAll('#sur-dr-body tbody tr').length, me:document.querySelectorAll('#sur-dr-body tr.me').length, drm:document.querySelector('#sur-dr-meta').textContent,
+            gsc:document.querySelectorAll('#sur-gsc-body tbody tr').length, html:document.querySelector('#sur-list').innerHTML.includes('<b>'), w:document.documentElement.scrollWidth-document.documentElement.clientWidth}))()""")
+        oku1 = su["on"] and su["nav"] == "12" and su["n"] >= 6 and su["chg"] >= 2 * su["n"] and su["copy"] == su["n"] and su["cnt"] == su["n"] and su["mail"] >= su["n"] and "Stručni komentar optometrista" in su["txt"] and "urednik rubrike Zdravlje" in su["txt"] and not su["html"] and su["w"] <= 0
+        print(("OK  " if oku1 else "FAIL") + " suradnje: kartice s prijedlogom, nacrtom poruke i javnim kontaktom, bez vodoravnog pomaka:", {k: su[k] for k in ("n", "chg", "cnt", "mail", "w")}); bad += 0 if oku1 else 1
+        oku2 = "Naš DR:1,4" in su["tiles"] and "Najjači konkurent:29" in su["tiles"] and "Poveznice (Google):3" in su["tiles"] and "Kandidata:" in su["tiles"] and su["dr"] == 6 and su["me"] == 1 and "Domain Rating by Ahrefs" in su["drm"] and "tjedna provjera je isključena" in su["drm"] and su["gsc"] == 3 and "jednom tjedno" in su["meta"]
+        print(("OK  " if oku2 else "FAIL") + " suradnje: pločice, DR nas i konkurenata s oznakom izvora, poveznice koje vidi Google:", su["tiles"]); bad += 0 if oku2 else 1
+        await pg.screenshot(path=f"{OUT}/hosted_suradnje.png", full_page=True)
+        # stanje: poruka poslana → dogovoreno → upis adrese s poveznicom, koju server provjeri
+        sid = await fr.evaluate("document.querySelector('#sur-list [data-sur-set$=\"|kontaktirano\"]').dataset.surSet.split('|')[0]")
+        await fr.click(f'[data-sur-set="{sid}|kontaktirano"]')
+        await fr.wait_for_function(f"S.sur.d.kandidati.find(c=>c.id==='{sid}').stanje==='kontaktirano' && S.sur.d.stanja.kontaktirano>=1", timeout=20000)
+        await fr.click('[data-sf="kontaktirano"]')
+        await fr.click(f'[data-sur-set="{sid}|dogovoreno"]')
+        await fr.wait_for_function("S.sur.d.stanja.dogovoreno>=1", timeout=20000)
+        await fr.click('[data-sf="dogovoreno"]')
+        await fr.fill(f'[data-sur-url="{sid}"] input', "https://portal-test.hr/clanak/")
+        await fr.click(f'[data-sur-url="{sid}"] button')
+        await fr.wait_for_function(f"(()=>{{const c=S.sur.d.kandidati.find(c=>c.id==='{sid}'); return c.veza && c.veza.ima===true}})()", timeout=20000)
+        sv = await fr.evaluate("({txt:document.querySelector('#sur-list').textContent, n:document.querySelectorAll('#sur-list .prop').length})")
+        oku3 = sv["n"] == 1 and "Poveznica postoji i prenosi autoritet" in sv["txt"]
+        print(("OK  " if oku3 else "FAIL") + " suradnje: stanja se spremaju, upisana adresa s poveznicom je provjerena na serveru"); bad += 0 if oku3 else 1
+        # nacrt poruke se kopira; „Napiši prijedloge” piše Claude na serveru
+        await fr.click('[data-sf="otvoreni"]')
+        n0 = await fr.evaluate("document.querySelectorAll('#sur-list .prop').length")
+        await fr.click("#btn-sur-write")
+        await fr.wait_for_function("!S.sur.busy", timeout=90000)
+        await pg.wait_for_timeout(300)
+        sw = await fr.evaluate("({n:document.querySelectorAll('#sur-list .prop').length, btn:document.querySelector('#btn-sur-write').textContent, meta:document.querySelector('#sur-meta').textContent, modal:document.querySelector('#modal').classList.contains('on'), err:S.sur.err})")
+        oku4 = sw["n"] == n0 + 1 and sw["btn"] == "Napiši prijedloge" and "upravo" in sw["meta"] and not sw["modal"] and sw["err"] is None
+        print(("OK  " if oku4 else "FAIL") + " suradnje: „Napiši prijedloge” dodaje prijedlog za kandidata koji ga nije imao:", sw); bad += 0 if oku4 else 1
+        # web pretraga traži potvrdu troška; odustajanje ne šalje ništa
+        dl = []
+        pg.once("dialog", lambda d: (dl.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await fr.click("#btn-sur-find")
+        await pg.wait_for_timeout(400)
+        busy0 = await fr.evaluate("S.sur.busy")
+        pg.once("dialog", lambda d: (dl.append(d.message), asyncio.ensure_future(d.accept())))
+        await fr.click("#btn-sur-find")
+        await fr.wait_for_function("!S.sur.busy && document.querySelector('#modal').classList.contains('on')", timeout=90000)
+        sf = await fr.evaluate("({m:document.querySelector('#modal-box').textContent, at:S.sur.d.zadnje.trazi_at})")
+        await fr.click("#nt-ok")
+        oku5 = len(dl) == 2 and "0,01 $" in dl[0] and busy0 is None and ("nije našao" in sf["m"] or "Dodano novih" in sf["m"]) and sf["at"] > 0
+        print(("OK  " if oku5 else "FAIL") + " suradnje: „Potraži nove tvrtke” ide tek nakon potvrde troška:", sf["m"][:80]); bad += 0 if oku5 else 1
+        # uvoz izvoza iz Search Consolea iz ploče
+        await fr.set_input_files("#sur-gsc-file", files=[{"name": "veze.csv", "mimeType": "text/csv", "buffer": "Site,Linking pages,Target pages\nwaze.com,4,1\nvecernji.hr,2,1\nlink-baron.com,300,2\nnovi-portal.hr,1,1\n".encode()}])
+        await fr.click("#btn-sur-gsc")
+        await fr.wait_for_function("!S.sur.busy && document.querySelector('#modal').classList.contains('on')", timeout=30000)
+        sg = await fr.evaluate("({m:document.querySelector('#modal-box').textContent, rows:document.querySelectorAll('#sur-gsc-body tbody tr').length, txt:document.querySelector('#sur-gsc-body').textContent, t:document.querySelector('#sur-tiles .tile .v').textContent, pill:document.querySelector('#sur-list').textContent.includes('Google već vidi poveznicu')})")
+        await fr.click("#nt-ok")
+        oku6 = "Učitano domena: 4" in sg["m"] and sg["rows"] == 4 and "po nazivu prodavač poveznica" in sg["txt"] and "kandidat s popisa" in sg["txt"] and sg["t"] == "3" and sg["pill"]
+        print(("OK  " if oku6 else "FAIL") + " suradnje: uvoz veza iz Search Consolea (prodavači poveznica označeni, kandidat koji nas povezuje označen):", sg["m"][:60], sg["t"]); bad += 0 if oku6 else 1
+        # ručno dodavanje: postojeća domena je jasna greška; DR na gumb
+        await fr.fill("#sur-add-d", "vecernji.hr")
+        await fr.click("#btn-sur-add")
+        await fr.wait_for_function("document.querySelector('#modal').classList.contains('on')", timeout=30000)
+        sa = await fr.evaluate("document.querySelector('#modal-box').textContent")
+        await fr.click("#nt-ok")
+        at0 = await fr.evaluate("S.sur.d.dr.at")
+        await pg.wait_for_timeout(1100)
+        await fr.click("#btn-sur-dr")
+        await fr.wait_for_function("!S.sur.busy", timeout=60000)
+        sd = await fr.evaluate("({at:S.sur.d.dr.at, btn:document.querySelector('#btn-sur-dr').textContent, modal:document.querySelector('#modal').classList.contains('on')})")
+        oku7 = "već na popisu" in sa and sd["at"] > at0 and sd["btn"] == "Provjeri DR sada" and not sd["modal"]
+        print(("OK  " if oku7 else "FAIL") + " suradnje: postojeća domena se ne dodaje dvaput; „Provjeri DR sada” osvježava DR:", sa[:50]); bad += 0 if oku7 else 1
+        await fr.evaluate("maybeExport(true)")
+        await pg.wait_for_timeout(1500)
+        exu = await fr.evaluate("OLR_HOSTED.api('doc/export/radar').then(d=>d.data.suradnje)")
+        tool = await fr.evaluate("(()=>{const t=chatTools().find(x=>x.name==='suradnje'); const r=t?t.execute():null; return r?{k:r.kandidati.length, dr:r.dr.length, g:r.google_vidi.domena, n:chatTools().length}:null})()")
+        await fr.evaluate("loadHosted()")
+        await pg.wait_for_timeout(2500)
+        bai = await fr.evaluate("document.querySelector('#banner-ai').textContent")
+        oku8 = exu and exu["kandidata"] >= 22 and exu["google_vidi_domena"] == 4 and tool and tool["k"] >= 6 and tool["dr"] == 6 and tool["g"] == 4 and tool["n"] <= 20 and "Claude ovaj mjesec:" in bai and "$" in bai
+        print(("OK  " if oku8 else "FAIL") + " suradnje: izvoz za Claudea i alat AI analitičara; Claudeov trošak u zaglavlju ploče:", exu, tool, bai); bad += 0 if oku8 else 1
+
         # pozicije: bez mjerenja je to napomena s objašnjenjem troška, ne greška ni vječno „učitavam”
         await fr.evaluate("location.hash='#pozicije'")
         await pg.wait_for_timeout(400)
@@ -416,6 +497,30 @@ async def main():
         msg = await pg.inner_text(".notice")
         okcb2 = "nije dovršeno" in msg and "● povezan" in await pg.inner_text("body")
         print(("OK  " if okcb2 else "FAIL") + " postavke: povratak s nepoznatim stateom ne mijenja vezu: " + msg[:70]); bad += 0 if okcb2 else 1
+        # postavke: suradnje u glavnom obrascu, Claude trošak, provjera DR-a i potvrda prije web pretrage
+        await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
+        ss = await pg.evaluate("""(()=>{const f=document.querySelector('input[name=action][value=olr_save]').form; const inForm=s=>[...document.querySelectorAll(s)].every(e=>e.form===f);
+            const h=[...document.querySelectorAll('h2')].find(x=>x.textContent==='Claude trošak'); const t=h&&h.nextElementSibling&&h.nextElementSibling.nextElementSibling;
+            return {polja:['input[name=suradnje_auto]','input[name=suradnje_trazi]','input[name=suradnje_dr]','input[name=suradnje_max]','input[name=suradnje_novih]','#suradnje_fokus','#konkurenti','button[name=olr_then][value=suradnje_pisi]','button[name=olr_then][value=suradnje_trazi]','button[name=olr_then][value=suradnje_dr]'].every(s=>document.querySelector(s)&&inForm(s)),
+                auto:document.querySelector('input[name=suradnje_auto]').checked, trazi:document.querySelector('input[name=suradnje_trazi]').checked, dr:document.querySelector('input[name=suradnje_dr]').checked,
+                konk:document.querySelector('#konkurenti').value, danas:h?h.nextElementSibling.textContent:'', red:t&&t.tagName==='TABLE'?t.querySelector('tbody tr').textContent:'', glave:t&&t.tagName==='TABLE'?[...t.querySelectorAll('th')].map(x=>x.textContent).join(','):'',
+                stanje:document.body.innerText.includes('Prijedlozi suradnje') && document.body.innerText.includes('Poveznice iz Search Consolea (uvoz)')}})()""")
+        okss = ss["polja"] and ss["auto"] and not ss["trazi"] and not ss["dr"] and "optika-anda.com" in ss["konk"] and "Danas:" in ss["danas"] and "$" in ss["danas"] and "dnevnog limita" in ss["danas"] and ss["glave"] == "Mjesec,Poziva,Ulazni tokeni,Izlazni tokeni,Web pretrage,Trošak" and "$" in ss["red"] and ss["stanje"]
+        print(("OK  " if okss else "FAIL") + " postavke: suradnje u glavnom obrascu (web pretraga i DR zadano isključeni); tablica „Claude trošak”:", ss["danas"][:90], "|", ss["red"][:60]); bad += 0 if okss else 1
+        prije = await kljucevi()
+        dl = []
+        pg.once("dialog", lambda d: (dl.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await pg.click("button[name=olr_then][value=suradnje_trazi]")
+        await pg.wait_for_timeout(500)
+        okpt = len(dl) == 1 and "0,01 $" in dl[0] and "ol-radar-postavke" in pg.url and not await pg.query_selector(".notice-success")
+        print(("OK  " if okpt else "FAIL") + " postavke: web pretraga traži potvrdu troška, odustajanje ne šalje ništa"); bad += 0 if okpt else 1
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=suradnje_dr]")
+        msg = await pg.inner_text(".notice")
+        okdr = "DR provjeren" in msg and "naš DR 1,4" in msg and await kljucevi() == prije
+        print(("OK  " if okdr else "FAIL") + " postavke: „Spremi i provjeri DR sada” (ključevi netaknuti): " + msg[:110]); bad += 0 if okdr else 1
+        await pg.screenshot(path=f"{OUT}/hosted_postavke_suradnje.png", full_page=True)
+
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
         html = await pg.content()
         leak = any(x in html for x in ("meta-test-token", "page-token", "yt-test-key", "tt-secret", "tt-access", "tt-refresh"))

@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.3.0)
+# OL Radar – most za Claudea (v2.4.0)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -101,13 +101,35 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   - YouTube: za svaku temu iz Postavki najgledaniji videi zadnjih 120 dana, uz omjer pregleda i pretplatnika kanala. Jedna tema troši 100 jedinica dnevne kvote (10.000, besplatno).
   - Instagram: zadnje objave javnih profesionalnih profila koje navedeš (Business Discovery), prema medijanu tog profila.
   - TikTok i Facebook ne daju službeni pristup tuđim objavama.
-- **Što raditi.** Claude jednom tjedno (ili gumbom „Izradi preporuke”, najviše četiri puta dnevno) dobije brojke i kratke opise objava i vrati do pet preporuka s koracima i do šest ideja za objave. Odgovor stiže prisilnim pozivom alata; prekinut odgovor traži se jednom ponovno, kraće.
+- **Što raditi.** Claude jednom tjedno (ili gumbom „Izradi preporuke”, najviše četiri puta dnevno) dobije brojke i kratke opise objava i vrati do pet preporuka s koracima i do šest ideja za objave. Odgovor stiže pozivom alata (od 2.4.0 traženim uputom, jer Opus 5.5 i Sonnet 5.5 odbijaju prisilu); prekinut odgovor traži se jednom ponovno, kraće.
 - **Meta metrike:** traže se u jednom batch pozivu. Objava kojoj Meta odbije širi skup metrika dobiva uži. Ako batch ne prođe, čita se objava po objava.
 - **TikTok povezivanje:** „Spremi i poveži TikTok” vodi na TikTokovu stranicu za odobrenje (dopuštenja `user.info.basic`, `user.info.stats`, `video.list`). Povratak je na `…/wp-json/ol-radar/v1/oauth/tiktok`; tu adresu treba upisati kao Redirect URI u TikTok aplikaciji.
   - Povratna adresa je javna, ali bez jednokratnog `state` koda izdanog administratoru (vrijedi 15 minuta) ne mijenja ništa.
   - Pristupni token vrijedi 24 sata i obnavlja se sam; odobrenje vrijedi godinu dana, nakon toga treba ponovno „Poveži TikTok”.
 - **Veza:** pozivi prema mrežama koriste isti rezervni način kao Google (ponavljanje preko IPv4).
 - **Ne radi (zasad):** YouTube zadržavanje publike i izvori prometa (traže YouTube Analytics uz OAuth), preskakanje reela u prvim sekundama (Meta ga ne daje pouzdano za sve objave).
+
+### Suradnje i poveznice (od 2.4.0)
+- **Čemu služi.** Prave poveznice s tuđih webova dižu Domain Rating i vidljivost. Modul vodi popis mogućih partnera i za svakoga priprema prijedlog: zašto baš on, što ponuditi, koraci, nacrt poruke i javni kontakt. Ništa se ne šalje nikome; poruku šalje vlasnik.
+- **Odakle kandidati:**
+  - priložena arhiva Ahrefsa od 12. 11. 2026. (`data/suradnje-pocetno.json`): 20 domena koje povezuju konkurente, a ne nas, s brojem poveznica po konkurentu;
+  - tvrtke i ustanove koje Claude nađe web pretragom (gumb „Potraži nove tvrtke”, uz potvrdu troška; tjedno samo ako se uključi u Postavkama);
+  - ručno dodane domene.
+- **Što radi server, a što Claude.** Server provjeri da web kandidata postoji i s njega pročita javni kontakt (stranica Kontakt, e-pošta, telefon). Claude piše prijedlog iz domene, vrste, DR-a i broja poveznica konkurenata. Claude ne dobiva e-adrese i ne navodi imena osoba, samo ulogu.
+- **Pravila prijedloga:** bez kupnje i razmjene poveznica; plaćeni članak samo uz napomenu da je poveznica sponzorirana i ne diže DR; bez izmišljenih cijena i brojki.
+- **Stanja:** novo → kontaktirano → dogovoreno → dobiveno (ili odbijeno). Uz „dogovoreno” i „dobiveno” upisuje se adresa stranice s poveznicom; server provjeri postoji li poveznica i je li `nofollow`/`sponsored`.
+- **Poveznice koje vidi Google (glavno mjerilo).** Search Console API ne daje izvještaj o vezama, pa se izvoz iz sučelja (Veze → Vanjske veze → Izvoz, CSV) učitava u modulu. Prihvaća tablice „Najčešće web-lokacije s vezama” i „Najnovije veze”. Svaki uvoz pokazuje nove domene od prošlog; kandidat koji nas već povezuje dobiva oznaku. Domene koje po nazivu izgledaju kao prodavači poveznica samo su označene (gruba oznaka, ne presuda).
+- **Domain Rating.** DR je Ahrefsova brojka i ne može se dobiti iz Search Consolea. Zadano se prikazuje arhiva od 12. 11. 2026. (naš DR 0; konkurenti 7 do 28). Tjedna provjera Ahrefsovim besplatnim javnim servisom (bez pretplate i ključa) uključuje se u Postavkama; gumb „Provjeri DR sada” radi uvijek. Oznaka „Domain Rating by Ahrefs” je uvjet licence.
+- **Raspored:** prijedlozi jednom tjedno (ako je uključeno, zadano jest), nove tvrtke i DR jednom tjedno samo ako su uključeni; svaki posao u svom satnom prolazu. Ručno najviše tri puta dnevno po poslu.
+
+### Claude trošak (od 2.4.0)
+- **Gdje:** Postavke → „Claude trošak” (danas i po mjesecima: pozivi, ulazni i izlazni tokeni, web pretrage, iznos u USD), zaglavlje ploče (iznos za mjesec i danas), stanje izvora (iznos zadnjeg poziva), `ol-radar/radar-stanje`.
+- **Kako se računa:** iz stvarnih tokena svakog poziva i cjenika modela na dan 12. 11. 2026.: Opus 5.5 4 $ ulaz i 20 $ izlaz, Sonnet 5.5 2 $ i 10 $, Haiku 5.5 0,10 $ i 0,50 $ po milijunu tokena (zahtjev s više od 100.000 ulaznih tokena 0,50 $ i 2,50 $); web pretraga 0,01 $ po upitu. Cjenik je u `OLR_AI::PRICES`; kad se cijene promijene, mijenja se ondje.
+- **Ograničenja:** broje se samo pozivi OL Radara. Mjeseci s pozivima prije 2.4.0 označeni su kao procjena („oko”). Mjerodavan je iznos u Claude Consoleu.
+
+### Claude API: alat se traži uputom, ne prisilom (od 2.4.0)
+- Opus 5.5 i Sonnet 5.5 odbijaju `tool_choice` vrste `tool` i `any` (HTTP 400). `OLR_AI::call()` zato šalje zadani način i u sistemsku poruku dodaje uputu da se odgovori pozivom alata. Ako alat nije pozvan, ide jedan ponovljeni pokušaj s podsjetnikom.
+- Web pretragu i dulji odgovor (do 8.000 tokena) mogu uključiti samo poslovi na serveru; REST posrednik ploče ne može.
 
 ### Izvori i trošak
 
@@ -119,6 +141,8 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | Indeksiranost | Search Console URL Inspection API, isti servisni račun | 0 |
 | Učinak izmjena | Search Console API (dnevni podaci po stranici) | 0 |
 | Društvene mreže | Meta Graph API, YouTube Data API v3, TikTok Display API | 0 (tjedne preporuke: nekoliko centi API kredita) |
+| Suradnje i poveznice | arhiva Ahrefsa (priložena), webovi kandidata, Claude; po izboru Anthropicova web pretraga i Ahrefsov javni DR | jedan Claudeov poziv tjedno; web pretraga 0,01 $ po upitu uz tokene; DR 0 |
+| Poveznice koje vidi Google | ručni izvoz iz Search Consolea (API ih ne daje) | 0 |
 | Claude u ploči | Anthropic API; Ultra plan uključuje mjesečne API kredite | po upotrebi, uz dnevni limit poziva |
 
 - **Mjerenje pozicija** pokreće se samo uz tvoju odluku:
@@ -190,11 +214,12 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 |---|---|
 | `GET /podaci` | sve za ploču (GSC, pozicije, SERP-ovi, popis sadržaja, audit, stanje) |
 | `GET /docs/{zbirka}` | dokumenti zbirke |
-| `GET\|PUT\|DELETE /doc/{zbirka}/{id}` | jedan dokument; pisanje je dopušteno samo u zbirke ploče: issues, fixes, plan, kp, snap, cfg, trends, export, tjedno |
+| `GET\|PUT\|DELETE /doc/{zbirka}/{id}` | jedan dokument; pisanje je dopušteno samo u zbirke ploče: issues, fixes, plan, kp, snap, cfg, trends, export, tjedno, prijedlozi_stanje, suradnje_stanje |
 | `POST /ai` | Claude (Anthropic API) |
 | `GET /prijedlozi` | samo prijedlozi (ploča ga čita dok se tekst dopisuje u pozadini) |
+| `GET /suradnje` | samo suradnje (ploča ga čita nakon promjene stanja; usput provjeri upisane adrese s poveznicom) |
 | `GET /oauth/tiktok` | povratak s TikToka nakon odobrenja; javna ruta, radi samo uz jednokratni `state` izdan administratoru |
-| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera), `mreze`, `mreze_uzori`, `mreze_preporuke`; bez troška (osim Claudeovih poziva). `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
+| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera), `mreze`, `mreze_uzori`, `mreze_preporuke`, `suradnje`, `suradnje_dr`, `suradnje_gsc`, `suradnje_dodaj`, `suradnje_veza`; bez troška (osim Claudeovih poziva). `suradnje_trazi` pokreće web pretragu i traži `potvrda=da`. `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
 
 ## Most za Claudea (MCP)
 
@@ -213,6 +238,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/radar-pozicije` (novo) | pozicije, povijest, AI pregled po riječi; uz `konkurenti: true` top 10 po riječi i kretanje konkurenata (2.2.0) |
 | `ol-radar/radar-indeks` (2.2.0) | indeksiranost: brojke i stranice s problemom (razlog iz Googlea, kanonska adresa, zadnji posjet); `sve: true` vraća sve stranice |
 | `ol-radar/radar-mreze` (2.3.0) | društvene mreže: račun i pratitelji, analiza (medijan, objave iznad i ispod uobičajenog, obrasci), preporuke; `mreza` za jednu mrežu, `objave: true` za popis objava, `uzori: true` za uzore |
+| `ol-radar/radar-suradnje` (2.4.0) | suradnje i poveznice: kandidati s prijedlogom, kontaktom i stanjem, poveznice koje vidi Google, DR nas i konkurenata; `stanje` za jedno stanje, `svi: true` i za kandidate bez prijedloga |
 | `ol-radar/radar-stanje` (2.1.1) | kratko stanje bez podataka: verzija, koji su ključevi postavljeni (da/ne), stanje izvora i ishod zadnjih provjera, mjerenje u tijeku, upozorenje nakon nadogradnje |
 | `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem; uz provedene i izmjereni učinak (2.2.0) |
 
@@ -254,7 +280,9 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
 ## Testirano (lokalno: WordPress 6.9, SQLite, MCP Adapter 0.7.1, PHP 8.3)
 - **Postojeći testovi:** MCP spajanje, prava (anonimno 401, pretplatnik odbijen, čitač dopušten), crawl i audit na 311 stranica.
 - **Nadogradnja (`tests/wordpress/upgrade_test.sh`):** sa svake izdane verzije 2.x na trenutni kod, deaktivacija/aktivacija, brisanje i ponovna instalacija; ključevi, postavke i podaci moraju ostati isti.
-- **Radar na hostingu (`tests/wordpress/radar_test.php`, 238 provjera)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube i TikTok odgovorima:
+- **Radar na hostingu (`tests/wordpress/radar_test.php`, 283 provjere)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima te lažnim webovima kandidata:
+  - suradnje: arhiva, provjera weba i kontakt, prijedlozi (čišćenje, odbacivanje), web pretraga (isključena, prekinuta, bez poziva alata), stanja i provjera poveznice, uvoz iz Search Consolea, DR, satni prolaz, REST, MCP;
+  - Claude: prisilni poziv alata se ne šalje (lažni API ga odbija kao pravi), ponovljeni pokušaj, trošak po modelu i po mjesecu;
   - društvene mreže: Meta batch i rezervni načini, istekao token, YouTube kvota i rezervna veza, TikTok OAuth (state, obnova tokena, prekid veze), analiza, uzori, preporuke, cron, REST, MCP, bez curenja tokena;
   - veza prema Googleu: rezervni način, rezervna adresa, dijagnostika, cron nakon neuspjeha;
   - provjera ključeva nakon nadogradnje i nečitljiv zapis;
@@ -276,9 +304,11 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
   - `export/radar`;
   - modul Prijedlozi: kartice, prihvaćanje, filtri, „Analiziraj sada”;
   - Postavke ne otkrivaju ključeve; spremanje, Enter i „obriši” ne diraju druge ključeve;
-  - modul Društvene mreže (pločice, preporuke, što prolazi, uzori, „Osvježi mreže”, „Nove preporuke”) i odjeljak u Postavkama (preuzimanje, prekid i povezivanje TikToka).
+  - modul Društvene mreže (pločice, preporuke, što prolazi, uzori, „Osvježi mreže”, „Nove preporuke”) i odjeljak u Postavkama (preuzimanje, prekid i povezivanje TikToka);
+  - modul Suradnje (kartice, stanja, provjera poveznice, „Napiši prijedloge”, potvrda prije web pretrage, uvoz iz Search Consolea, DR) i u Postavkama odjeljak Suradnje te tablica „Claude trošak”.
 
 ## Plan
 Cijeli plan s prioritetima, troškovima i izvorima: `docs/Plan-razvoja.md`.
-- Instagram i YouTube na hostingu (Meta Graph API).
+- Google Business Profile: analiza i prijedlozi (sljedeća verzija).
+- Search Console do kraja: uređaji, države, vrsta prikaza, Discover, stanje sitemapa.
 - Faza 2 upisa: Rank Math naslovi, opisi i fokus riječi, uz dnevnik promjena, vraćanje i odobrenje za svaki upis.

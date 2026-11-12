@@ -10,7 +10,7 @@ class OLR_REST {
 	const NS = 'ol-radar/v1';
 
 	/** Zbirke koje nadzorna ploča smije mijenjati; podatke izvora (gsc, rank, serp…) piše samo server. */
-	const WRITABLE = array( 'issues', 'fixes', 'plan', 'kp', 'snap', 'cfg', 'trends', 'export', 'tjedno', 'prijedlozi_stanje' );
+	const WRITABLE = array( 'issues', 'fixes', 'plan', 'kp', 'snap', 'cfg', 'trends', 'export', 'tjedno', 'prijedlozi_stanje', 'suradnje_stanje' );
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -46,6 +46,15 @@ class OLR_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( __CLASS__, 'prijedlozi' ),
+				'permission_callback' => array( __CLASS__, 'can' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/suradnje',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'suradnje' ),
 				'permission_callback' => array( __CLASS__, 'can' ),
 			)
 		);
@@ -157,6 +166,8 @@ class OLR_REST {
 				'indeks' => OLR_Indeks::summary( 400 ),
 				// Društvene mreže: računi, objave s brojkama, analiza, uzori i Claudeove preporuke.
 				'mreze'  => OLR_Social::summary( 40 ),
+				// Suradnje i poveznice: kandidati s prijedlozima, DR, poveznice koje vidi Google.
+				'suradnje' => OLR_Suradnje::summary( 300 ),
 				'stanje' => self::state_array(),
 			)
 		);
@@ -182,6 +193,14 @@ class OLR_REST {
 			'ai'       => array(
 				'model'   => OLR_Settings::get( 'ai_model' ),
 				'potrosnja' => OLR_AI::usage(),
+				// Trošak u USD: danas i po mjesecima (iz stvarnih tokena svakog poziva).
+				'trosak'  => OLR_AI::cost_summary(),
+			),
+			'suradnje' => array(
+				'auto'     => (bool) OLR_Settings::get( 'suradnje_auto' ),
+				'pretraga' => (bool) OLR_Settings::get( 'suradnje_trazi' ),
+				'dr_auto'  => (bool) OLR_Settings::get( 'suradnje_dr' ),
+				'zadnje'   => array_diff_key( OLR_Suradnje::last_run(), array( 'rucno' => 1 ) ),
 			),
 			'dfs'      => array(
 				'trosak_po_mjesecima' => is_array( $cost ) ? $cost : array(),
@@ -207,6 +226,12 @@ class OLR_REST {
 	/** Samo prijedlozi: ploča ovo čita dok se tekst izmjena dopisuje u pozadini. */
 	public static function prijedlozi() {
 		return rest_ensure_response( OLR_Prijedlozi::summary( 'svi', 300 ) );
+	}
+
+	/** Samo suradnje: ploča ovo čita nakon promjene stanja ili upisa adrese s poveznicom. */
+	public static function suradnje() {
+		OLR_Suradnje::verify_links( 2 );
+		return rest_ensure_response( OLR_Suradnje::summary( 300 ) );
 	}
 
 	public static function docs( WP_REST_Request $r ) {
@@ -258,7 +283,8 @@ class OLR_REST {
 	}
 
 	public static function ai( WP_REST_Request $r ) {
-		$res = OLR_AI::call( (array) $r->get_json_params() );
+		// Poziv iz ploče: bez web pretrage i duljih odgovora (to smiju samo poslovi na serveru).
+		$res = OLR_AI::call( (array) $r->get_json_params(), false );
 		return is_wp_error( $res ) ? $res : rest_ensure_response( $res );
 	}
 
@@ -364,8 +390,34 @@ class OLR_REST {
 			if ( ! is_wp_error( $res ) ) {
 				$res = array( 'mreze' => OLR_Social::summary( 40 ) );
 			}
+		} elseif ( 0 === strpos( $dio, 'suradnje' ) ) {
+			if ( 'suradnje' === $dio ) {
+				$res = OLR_Suradnje::write( 'rucno' );
+			} elseif ( 'suradnje_trazi' === $dio ) {
+				// Web pretraga se naplaćuje po upitu: samo uz potvrdu korisnika u ploči.
+				if ( 'da' !== (string) $r->get_param( 'potvrda' ) ) {
+					return new WP_Error( 'olr_potvrda', 'Web pretraga se naplaćuje (Anthropic API); potrebna je potvrda.', array( 'status' => 400 ) );
+				}
+				$res = OLR_Suradnje::search( 'rucno' );
+			} elseif ( 'suradnje_dr' === $dio ) {
+				$res = OLR_Suradnje::dr_refresh();
+			} elseif ( 'suradnje_gsc' === $dio ) {
+				$res = OLR_Suradnje::import_gsc_links( (string) $r->get_param( 'csv' ) );
+			} elseif ( 'suradnje_dodaj' === $dio ) {
+				$res = OLR_Suradnje::add_manual( (string) $r->get_param( 'domena' ), sanitize_text_field( (string) $r->get_param( 'naziv' ) ), sanitize_key( (string) $r->get_param( 'vrsta' ) ) );
+			} elseif ( 'suradnje_veza' === $dio ) {
+				$res = OLR_Suradnje::recheck( sanitize_text_field( (string) $r->get_param( 'id' ) ) );
+			} else {
+				return new WP_Error( 'olr_dio', 'Nepoznat dio suradnji.', array( 'status' => 400 ) );
+			}
+			if ( ! is_wp_error( $res ) ) {
+				$res = array(
+					'ishod'    => $res,
+					'suradnje' => OLR_Suradnje::summary( 300 ),
+				);
+			}
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks, mreze, mreze_uzori, mreze_preporuke).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks, mreze, mreze_uzori, mreze_preporuke, suradnje, suradnje_trazi, suradnje_dr, suradnje_gsc, suradnje_dodaj, suradnje_veza).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

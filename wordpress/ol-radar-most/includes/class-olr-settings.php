@@ -67,6 +67,15 @@ class OLR_Settings {
 			'yt_teme'         => 'progresivne naočale, dioptrijske naočale, pregled vida, optičar, progressive lenses, optometrist',
 			'ig_uzori'        => '',
 			'tt_client_key'   => '',
+			// Suradnje i poveznice: prijedlozi jednom tjedno. Traženje novih tvrtki web pretragom i tjedna
+			// provjera DR-a (Ahrefsov besplatni javni servis) uključuju se zasebno.
+			'suradnje_auto'   => true,
+			'suradnje_max'    => 5,
+			'suradnje_trazi'  => false,
+			'suradnje_novih'  => 3,
+			'suradnje_dr'     => false,
+			'suradnje_fokus'  => '',
+			'konkurenti'      => 'jojo-optika.hr, optika-anda.com, adrialece.hr, livision-optika.com, optika-dado.hr',
 		);
 	}
 

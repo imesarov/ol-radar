@@ -1,24 +1,38 @@
 # OL Radar – kako Claude koristi alat
 
-Stanje 12. 11. 2026.:
+Stanje 13. 11. 2026. (00:20):
 - Radar na claude.ai: v3.1.
-- WordPress dodatak (Radar na hostingu): **na webu je 2.2.0** (provjereno 12. 11. u 22:30 preko `ol-radar/radar-stanje`). Spremljena su sva tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
+- WordPress dodatak (Radar na hostingu): **na webu je 2.3.0** (provjereno 12. 11. u 23:12 preko `ol-radar/radar-stanje`). Spremljena su tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
 - Što na webu radi sa stvarnim podacima (12. 11. navečer):
-  - Google podaci stižu (do 9. 11.), veza 0,4 s.
-  - **Prvo mjerenje pozicija je obavljeno** 12. 11. u 21:35 (DataForSEO, 0,0648 $): 12 od 27 riječi pronađeno u prvih 40. Tjedno mjerenje nije uključeno.
-  - **Indeksiranost radi** (servisni račun ima pristup URL Inspection API-ju): 4 od 40 stranica provjereno, sve u indeksu; ostale idu po 12 na sat.
-  - **Učinak izmjena:** jedan prijedlog je označen kao proveden i mjeri se.
-  - **Prijedlozi:** 5 ukupno, 1 otvoren. Taj jedan je ostao bez Claudeova teksta („Claude nije vratio prijedlog u očekivanom obliku”, odgovor nije bio prekinut zbog duljine). Najvjerojatniji uzrok: Claude je vratio samo korake, bez izmjene teksta, a 2.2.0 je tražio barem jednu izmjenu. Popravljeno u 2.3.0 (odgovor samo s koracima je valjan; nakon nadogradnje takav prijedlog dobiva još jedan pokušaj). Ako se ponovi, `stanje.izvori.ai_poziv` pokazuje kako je zadnji poziv završio.
-- **Verzija 2.3.0 je spremna i čeka da je Ivan učita** (izravno preko 2.2.0; sadrži i 2.2.1):
-  - **društvene mreže na hostingu:** Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API); što prolazi prema medijanu vlastite mreže, uzori i tjedne Claudeove preporuke. Radi tek kad Ivan upiše pristupne podatke (vidi „Društvene mreže” niže);
-  - popravak prijedloga bez teksta (gore);
-  - popravak iz 2.2.1: gumbi „Predloži popravak” / „Novi prijedlog” i „Brief” više ne javljaju „Claude je odgovorio u krivom obliku”.
-- Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.3.0, `kljucevi.gsc`, `kljucevi.dataforseo` i `kljucevi.anthropic` `true`, `nadogradnja` `null`, `prijedlozi.ceka_tekst` (treba pasti na 0 unutar sat vremena), `stanje.izvori.ai_poziv`. Za mreže: `kljucevi.meta`, `kljucevi.youtube`, `kljucevi.tiktok` i `mreze.<mreža>.stanje` (poruka zadnjeg preuzimanja; tu piše i ako tokenu nedostaje dopuštenje).
-- **Društvene mreže još nisu provjerene na stvarnim API-jima.** Sve je testirano prema lažnim odgovorima Mete, YouTubea i TikToka. Prvo stvarno preuzimanje treba pogledati zajedno: nazivi metrika i dopuštenja kod Mete mijenjaju se nekoliko puta godišnje.
+  - Google podaci stižu, prvo mjerenje pozicija je obavljeno (12 od 27 riječi u prvih 40; 0,0648 $), indeksiranost se provjerava (sve provjerene stranice su u indeksu).
+  - Prijedlozi: 5 ukupno, 0 otvorenih, 0 čeka tekst; 2 provedena se mjere.
+  - Društvene mreže: pristupni podaci još nisu upisani (`kljucevi.meta`, `youtube`, `tiktok` su `false`).
+  - Tjedno mjerenje pozicija: Ivan ga želi (12. 11.), ali kvačicu „Mjeri automatski jednom tjedno” mora uključiti sam u Postavkama. Provjera: `stanje.dfs.tjedno` mora biti `true`.
+- **Verzija 2.4.0 je spremna i čeka da je Ivan učita** (izravno preko 2.3.0):
+  - **Suradnje i poveznice:** kandidati za suradnju, Claudeovi prijedlozi (zašto, što ponuditi, koraci, nacrt poruke), javni kontakt, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata (vidi „Suradnje i poveznice” niže).
+  - **Claude trošak** u Postavkama i u zaglavlju ploče.
+  - **Popravak za Opus 5.5 i Sonnet 5.5:** ti modeli odbijaju prisilni poziv alata (HTTP 400). Do 2.3.0 je svaki prijedlog i svaki „Predloži popravak” prvo dobio 400 pa prešao na rezervni način, a preporuke za društvene mreže ne bi radile. Od 2.4.0 dodatak prisilu ne šalje.
+- Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.4.0, tri ključa `true`, `nadogradnja` `null`, `suradnje.kandidata` 20 (arhiva se uveze pri prvom čitanju), `stanje.ai.trosak`. Prvi tjedni prijedlozi suradnje stižu unutar nekoliko sati (satni prolaz), ili odmah gumbom „Napiši prijedloge”.
+- **Nije provjereno na stvarnim servisima:** društvene mreže (2.3.0), Anthropicova web pretraga i Ahrefsov javni DR (2.4.0). Sve je testirano prema lažnim odgovorima. Prvi stvarni prolaz treba pogledati zajedno (`stanje.izvori.suradnje`, `suradnje_trazi`, `suradnje_dr`, `mreze_*`).
 - Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
-- DataForSEO: prijava radi (mjerenje je prošlo). AI pregled ima podatke od prvog mjerenja, kretanje konkurenata tek nakon drugog, pa vrijedi uključiti tjedno mjerenje (oko 0,28 $ mjesečno); odluka je Ivanova. Mjerenje pokreće samo Ivan gumbom u modulu Pozicije; Claude ga ne pokreće.
-- **Greška u 2.0.0:** gumb „obriši” bio je ugniježđeni obrazac, pa su „Spremi” i provjere brisali već spremljeni ključ (popravljeno u 2.0.1).
+- DataForSEO: prijava radi. Mjerenje pokreće samo Ivan (gumb ili tjedna kvačica); Claude ga ne pokreće.
 - OpenSEO tracker radi i arhiva Ahrefsa je gotova.
+
+## GSC je glavni izvor, Ahrefs je samo arhiva (Ivan, 12. 11. 2026.)
+- **Odluka:** Search Console je najtočniji izvor i koristi se za sve što može dati. Od Ahrefsa se koristi samo arhiva koju imamo; pretplata prestaje 30. 11. 2026.
+- **Što GSC pokriva potpuno** (i već radi na hostingu bez Ahrefsa): klikovi, prikazivanja, CTR, prosječna pozicija, upiti, stranice, dnevni niz, indeksiranost (URL Inspection).
+- **Što GSC nema, i čime se pokriva:**
+
+  | Potreba | Zašto GSC ne može | Čime se pokriva |
+  |---|---|---|
+  | Pozicija za ciljanu riječ na određeni dan i mjesto | GSC daje samo prosjek za upite s prikazivanjima | DataForSEO mjerenje (plaća se po mjerenju) |
+  | Konkurenti (tko je u top 10, tko nas je pretekao) | GSC vidi samo naš web | isto mjerenje (top 20 po riječi) |
+  | Obujam pretraga za riječi na kojima se ne prikazujemo | GSC vidi samo upite s našim prikazivanjima | Google Keyword Planner; arhiva Ahrefsa |
+  | Poveznice prema nama | izvještaj postoji samo u sučelju; API ga nema | ručni izvoz iz Search Consolea, uvoz u modul Suradnje |
+  | Poveznice konkurenata | GSC vidi samo naš web | arhiva Ahrefsa (12. 11. 2026.); po potrebi DataForSEO Backlinks, uz Ivanov OK za trošak |
+  | DR | Ahrefsova vlastita brojka | arhiva; po izboru Ahrefsov besplatni javni servis (bez pretplate) |
+
+- **Posljedica za Claudea:** kad Ivan pita o našem webu u Googleu, brojke su iz GSC-a (`ol-radar/radar-gsc`), ne iz Ahrefsa. Ahrefs konektor ne koristi za nove podatke osim ako Ivan izričito zatraži; do 30. 11. vrijedi još jednom povući završnu arhivu (prijedlog, čeka Ivanov OK).
 
 **Aplikacija:** https://claude.ai/artifact/FwKJowHqdJUASipjeAkoBT
 **Slug za alate (db_get / db_query / db_list):** 78f5630e-c158-4ddc-b32b-b3b711130c3e
@@ -30,6 +44,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Od 2.1.0 gotovi prijedlozi izmjena čekaju na serveru:** `ol-radar/radar-prijedlozi` (zadano: otvoreni). Kad Ivan pita „što mijenjamo”, kreni od njih: imaju dokaze s brojkama, sadašnji i predloženi tekst i stanje. Stanje (prihvaćeno, provedeno, odbijeno) mijenja Ivan u ploči; konektor je samo za čitanje.
 - **Od 2.2.0 učinak izmjena mjeri server:** kad Ivan pita „je li pomoglo”, pozovi `ol-radar/radar-prijedlozi` sa `stanje: provedeno`. Uz svaki provedeni prijedlog je polje `mjerenje` (Search Console prije i poslije za 7, 14 i 28 dana, trend cijelog weba, ocjena, sažetak). Ne računaj to ručno iz GSC-a ako mjerenje postoji.
 - **Indeksiranost:** `ol-radar/radar-indeks` (zadano samo stranice s problemom). **Konkurenti i AI pregled:** `ol-radar/radar-pozicije` s `konkurenti: true`.
+- **Suradnje i poveznice (od 2.4.0):** `ol-radar/radar-suradnje`. Kad Ivan pita kako povećati DR, kome se obratiti ili s kim surađivati, kreni odavde: kandidati s prijedlogom, kontaktom i stanjem, poveznice koje vidi Google, DR nas i konkurenata.
 - **Društvene mreže (od 2.3.0):** `ol-radar/radar-mreze`. Kad Ivan pita što objavljivati ili zašto nešto ne prolazi, kreni odavde: po mreži medijan, objave iznad i ispod uobičajenog, obrasci i zadnje preporuke. `objave: true` daje popis objava, `uzori: true` tuđi gledani sadržaj. Za sadržaj i ton vrijede pravila brenda (premium, bez emojija, bez izmišljenih cijena i tvrdnji).
 
 ## Pravilo za nove verzije dodatka (Ivan, 12. 11. 2026.)
@@ -39,7 +54,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - Ne mijenjaj način šifriranja (`OLR_Settings::encrypt`, ključ iz `wp_salt('auth')`) ni imena opcija `olr_secrets` i `olr_settings` bez migracije koja čita stari oblik i testa za nju.
 - `set_secret()` se zove samo na izričit unos ili „obriši” u Postavkama. Svaki novi gumb na stranici Postavke mora biti unutar glavnog obrasca (bez ugniježđenih obrazaca) i pokriven e2e testom „Spremi postavke čuva ključeve”.
 - Nakon što Ivan učita novu verziju, provjeri `ol-radar/radar-stanje` (do 2.1.0: `ol-radar/radar-sazetak`): `stanje.verzija`, `stanje.kljucevi` (`gsc`, `dataforseo` i `anthropic` moraju biti `true`; `meta`, `youtube` i `tiktok` su `true` tek kad ih Ivan upiše) i `stanje.nadogradnja` (mora biti `null`).
-- Popis tajni `OLR_Settings::NAMES` smije se samo dopunjavati (2.3.0 je dodao `meta_token`, `yt_key`, `tt_secret`). TikTok tokeni su u zasebnoj opciji `olr_tt_tokens`, da njihova obnova nikad ne dira `olr_secrets`.
+- Popis tajni `OLR_Settings::NAMES` smije se samo dopunjavati (2.3.0 je dodao `meta_token`, `yt_key`, `tt_secret`; 2.4.0 nije dodao nijednu). TikTok tokeni su u zasebnoj opciji `olr_tt_tokens`, da njihova obnova nikad ne dira `olr_secrets`.
 - Uputa Ivanu je uvijek „Dodaci → Dodaj novi → Učitaj dodatak → Zamijeni postojeći”. Od 2.1.0 ključevi preživljavaju i brisanje dodatka pa ponovnu instalaciju.
 - **Inače:** pročitaj `export/radar` u bazi artefakta.
 - **Zastario ili nepostojeći sažetak:** ako ga nema ili je stariji od 7 dana, napomeni da treba otvoriti Radar (wp-admin → OL Radar).
@@ -55,7 +70,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - crawl dodatka;
   - Anthropic API za Claudea u ploči (Ultra plan: 200 $ API kredita mjesečno uz povezanu Console organizaciju).
 - **Ključeve** upisuje samo Ivan na stranici Postavke. Spremaju se šifrirano i nikad se ne lijepe u chat.
-- **Pohrana:** tablica `ol_radar_docs`, s istim zbirkama kao artefakt, plus `gsc`, `rank`, `rank_run`, `serp`, `prijedlozi`, `prijedlozi_stanje`, `ucinak`, `indeks` i `mreze`.
+- **Pohrana:** tablica `ol_radar_docs`, s istim zbirkama kao artefakt, plus `gsc`, `rank`, `rank_run`, `serp`, `prijedlozi`, `prijedlozi_stanje`, `ucinak`, `indeks`, `mreze`, `suradnje`, `suradnje_stanje` i `suradnje_dr`.
 - **Uvoz iz claude.ai Radara:** Arhiva → „Izvezi za hosting”, zatim Postavke → Uvoz.
 - **Društvene mreže (2.3.0):**
   - Samo čitanje. Dodatak ništa ne objavljuje, ne briše i ne mijenja na mrežama.
@@ -69,6 +84,16 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - **Preporuke:** Claude tjedno ili na gumb (najviše 4 puta dnevno): sažetak, do 5 preporuka s koracima, do 6 ideja za objave. Brojke su iz podataka.
   - **TikTok veza:** pristupni token se obnavlja sam; odobrenje vrijedi godinu dana, zatim ponovno „Poveži TikTok”. Povratna adresa je javna, ali bez jednokratnog `state` koda ne mijenja ništa.
   - **Nema (zasad):** YouTube zadržavanje i izvori prometa (traži YouTube Analytics uz OAuth), preskakanje reela u prvim sekundama. To i dalje daje vidIQ u Radaru na claude.ai.
+- **Suradnje i poveznice (2.4.0):**
+  - **Cilj:** prave poveznice i spominjanja (dižu DR) kroz suradnje koje imaju smisla i bez poveznice. Kupnja i razmjena poveznica se ne predlažu. Ništa se ne šalje nikome; poruku šalje Ivan.
+  - **Nalaz 12. 11. (Ahrefs):** naš DR je 0; optika-anda.com 28, jojo-optika.hr 27, adrialece.hr 25, livision-optika.com 16, optika-dado.hr 7. Naše poveznice su gotovo sve s domena koje prodaju poveznice (iste povezuju i konkurente); prava je waze.com. Konkurenti imaju poveznice s nacionalnih medija (24sata, Večernji, Jutarnji, Index, tportal, Net.hr, Dnevnik.hr, Gloria, Story), partnerskih programa (Diners, American Express, BoxNow), profila poslodavca i trgovine (MojPosao, Njuškalo) i obrazovnih ustanova (skole.hr, asoo.hr).
+  - **Kandidati:** ta arhiva (20 domena, priložena dodatku), tvrtke koje Claude nađe web pretragom, ručno dodane.
+  - **Prijedlog po kandidatu:** zašto, što ponuditi, do 3 koraka, nacrt poruke, kome (uloga). Javni kontakt čita server s weba kandidata; Claude ga ne dobiva i ne izmišlja.
+  - **Raspored i trošak:** prijedlozi jednom tjedno, najviše 5 (postavka `suradnje_auto`, uključeno). Traženje novih tvrtki web pretragom tjedno samo uz kvačicu (`suradnje_trazi`, isključeno; Anthropic naplaćuje 0,01 $ po upitu uz tokene), na gumb uvijek uz potvrdu troška. DR tjedno samo uz kvačicu (`suradnje_dr`, isključeno; besplatno), na gumb uvijek.
+  - **Mjerilo napretka:** poveznice koje vidi Google. Ivan jednom mjesečno u Search Consoleu otvori Veze → Vanjske veze → Izvoz i CSV učita u modulu Suradnje. Domene koje po nazivu izgledaju kao prodavači poveznica samo su označene.
+  - **Stanja** vodi Ivan u ploči (novo, kontaktirano, dogovoreno, dobiveno, odbijeno). Uz adresu stranice s poveznicom server provjeri postoji li poveznica i je li nofollow.
+  - **Claude preko konektora:** `ol-radar/radar-suradnje` (zadano kandidati s prijedlogom; `stanje`, `svi: true`, `limit`). Kad Ivan pita kome se obratiti ili kako dići DR, kreni odavde. Stanja ne mijenjaš (konektor je samo za čitanje).
+- **Claude trošak (2.4.0):** Postavke → „Claude trošak” (danas i po mjesecima), zaglavlje ploče, `stanje.ai.trosak`. Računa se iz stvarnih tokena svakog poziva po cjeniku modela (stanje 12. 11. 2026.: Opus 5.5 4/20 $, Sonnet 5.5 2/10 $, Haiku 5.5 0,10/0,50 $ po milijunu tokena; web pretraga 0,01 $ po upitu). Mjeseci s pozivima prije 2.4.0 su procjena. Mjerodavan je Claude Console.
 - **Dnevni prijedlozi izmjena (2.1.0, dorađeno u 2.1.1):**
   - Pokreću se sami kad stignu novi Google podaci (jednom dnevno), ili gumbom „Analiziraj sada” (ploča, Postavke; najviše 6 puta dnevno).
   - Analiza je u PHP-u (`OLR_Analiza`): nizak CTR na visokoj poziciji, upiti blizu vrha (4–15), kanibalizacija u zadnjih 7 dana, tjedni pad, ciljane riječi (pad, ispadanje, kriva stranica), tehnički nalazi crawla, upiti bez prave stranice.
@@ -98,6 +123,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - `ol-radar/radar-pozicije` (uvijek `ai_pregled` po riječi; konkurenti: true daje top 10 po riječi i `kretanje_konkurenata`);
   - `ol-radar/radar-indeks` (od 2.2.0; zadano stranice s problemom; `sve: true`, `limit` do 400);
   - `ol-radar/radar-mreze` (od 2.3.0; zadano sve mreže bez popisa objava; `mreza`: ig, fb, yt, tt; `objave: true`; `uzori: true`);
+  - `ol-radar/radar-suradnje` (od 2.4.0; zadano kandidati s prijedlogom; `stanje`: novo, kontaktirano, dogovoreno, dobiveno, odbijeno; `svi: true`; `limit` do 100);
   - `ol-radar/radar-prijedlozi` (stanje: otvoreni, svi, novo, prihvaceno, provedeno, odbijeno; limit do 50; uz provedene polje `mjerenje`, u korijenu `ucinak` s brojem po ocjeni).
 - **Plan razvoja** (što još dodati, s cijenama i izvorima): projektni dokument `claude/OL-Radar-plan-razvoja.md`.
 
@@ -142,7 +168,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - Zadano tržište projekta je SAD/en. U svakom pozivu zadaj `locationCode` 2191 (Hrvatska) i `languageCode` `hr`, a za lokalno `locationName` „Zagreb,City of Zagreb,Croatia”.
   - SERP košta oko 5 kredita po riječi (dubina 10).
   - Prije novih troškova traži Ivanovo odobrenje. Za serije veće od 2.000 kredita uvijek pitaj.
-- **Ahrefs:** do isteka pretplate (~30. 11. 2026.) radi uživo, a nakon toga samo arhiva.
+- **Ahrefs:** samo arhiva (Ivanova odluka 12. 11. 2026.; pretplata prestaje 30. 11. 2026.). Iznimka po izboru: besplatni javni DR, koji ne traži pretplatu.
 
 ## Tracker pozicija (OpenSEO)
 - **ID:** `7d777ee3-4d5d-4297-9d4a-24c00fa6c248`.
@@ -189,7 +215,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 2.2.0. Verzija 2.3.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+- **Verzija:** na webu 2.3.0. Verzija 2.4.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
   - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
   - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.
@@ -252,5 +278,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
     - naslov dirati tek ako treba, nakon 2–3 tjedna.
 
 ## U pripremi
+- **Google Business Profile u Radaru (Ivanov zahtjev 12. 11.; sljedeća verzija):** analiza profila i prijedlozi. Službene brojke (pozivi, upute, klikovi na web, upiti) traže Googleovo odobrenje pristupa API-ju; zahtjev „Application for Basic API Access” podnosi Ivan iz Google Cloud projekta, a odgovor stiže za do dva tjedna. Javni dio (ocjena, recenzije, objave, usporedba s konkurentima) može ranije preko DataForSEO-a, uz Ivanov OK za trošak.
+- Završna arhiva Ahrefsa prije 30. 11. (šire poveznice konkurenata za modul Suradnje), uz Ivanov OK.
 - Mjesečni snimak SERP-ova za konkurente preko OpenSEO-a (oko 135 kredita), uz Ivanov OK.
 - Faza 2 WP mosta: upis Rank Math naslova i opisa s dnevnikom i vraćanjem.

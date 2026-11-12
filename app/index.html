@@ -250,6 +250,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
       <a href="#trendovi" data-v="trendovi"><span>08</span>Trendovi</a>
       <a href="#audit" data-v="audit"><span>09</span>Audit weba <em class="cnt" id="cnt-audit" hidden></em></a>
       <a href="#drustvene-mreze" data-v="drustvene-mreze"><span>10</span>Društvene mreže <em class="cnt" id="cnt-social" hidden></em></a>
+      <a href="#suradnje" data-v="suradnje" id="nav-suradnje" hidden><span>11</span>Suradnje <em class="cnt" id="cnt-suradnje" hidden></em></a>
       <a href="#popravci" data-v="popravci"><span>11</span>Popravci i AI</a>
       <a href="#arhiva" data-v="arhiva"><span>12</span>Arhiva Ahrefsa</a>
       <a href="#metodologija" data-v="metodologija"><span>13</span>Kako radi</a>
@@ -509,6 +510,36 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
       <div class="panel soc-h" id="sh-uz" hidden><header><h3>Uzori: što se gleda <em>kod drugih</em></h3><p id="sh-uz-meta"></p></header><div id="sh-uz-body" style="display:flex;flex-direction:column;gap:14px"></div></div>
     </section>
 
+    <!-- SURADNJE I POVEZNICE (samo na hostingu) -->
+    <section class="view" id="v-suradnje">
+      <div class="vhead">
+        <div class="t">
+          <div class="eb">Poveznice i partneri</div>
+          <h1>Suradnje i <em>poveznice</em></h1>
+          <p>Tko bi nas mogao spomenuti i povezati, kome se obratiti i što ponuditi. Prijedloge piše Claude; server prije toga provjeri da web postoji i s njega pročita javni kontakt. Ništa se ne šalje nikome: poruku šalješ sam.</p>
+        </div>
+        <div class="row"><button class="btn btn-g" type="button" id="btn-sur-write">Napiši prijedloge</button><button class="btn btn-g" type="button" id="btn-sur-find">Potraži nove tvrtke</button></div>
+      </div>
+      <p class="small muted" id="sur-meta"></p>
+      <div class="tiles" id="sur-tiles"></div>
+      <div class="row"><span class="seg" role="group" aria-label="Stanje suradnje" id="sur-seg">
+        <button type="button" data-sf="otvoreni" aria-pressed="true">Prijedlozi</button><button type="button" data-sf="kontaktirano">Kontaktirano</button><button type="button" data-sf="dogovoreno">Dogovoreno</button><button type="button" data-sf="dobiveno">Dobiveno</button><button type="button" data-sf="odbijeno">Odbijeno</button><button type="button" data-sf="svi">Svi kandidati</button>
+      </span></div>
+      <div class="props" id="sur-list"><p class="loading">Učitavam…</p></div>
+      <div class="panel"><header><h3>Poveznice koje vidi <em>Google</em></h3><p id="sur-gsc-meta"></p></header>
+        <p class="small lead" style="margin:0;max-width:90ch">Najtočniji popis onih koji nas povezuju ima sam Google, ali ga daje samo kroz izvoz: Search Console → Veze → Vanjske veze → Izvoz vanjskih veza → Najnovije veze (CSV). Može i izvoz tablice „Najčešće web-lokacije s vezama”. Ako Google preuzme ZIP, raspakiraj ga i odaberi CSV iz njega. Uvoz jednom mjesečno je dovoljan.</p>
+        <div class="row"><input type="file" id="sur-gsc-file" accept=".csv,text/csv,text/plain" aria-label="CSV izvoz veza iz Search Consolea"><button class="btn btn-s" type="button" id="btn-sur-gsc">Učitaj izvoz</button></div>
+        <div id="sur-gsc-body"></div>
+      </div>
+      <div class="split">
+        <div class="panel"><header><h3>Domain Rating</h3><button class="btn btn-g btn-s" type="button" id="btn-sur-dr">Provjeri DR sada</button></header><p class="small muted" id="sur-dr-meta" style="margin:0"></p><div id="sur-dr-body"></div></div>
+        <div class="panel"><header><h3>Dodaj kandidata</h3><p>domena tvrtke, portala ili ustanove</p></header>
+          <form class="row" id="sur-add"><label for="sur-add-d" class="small" hidden>Domena</label><input type="text" id="sur-add-d" placeholder="npr. primjer.hr" style="flex:1 1 180px"><label for="sur-add-n" class="small" hidden>Naziv</label><input type="text" id="sur-add-n" placeholder="naziv (neobavezno)" style="flex:1 1 180px"><label for="sur-add-v" class="small" hidden>Vrsta</label><select id="sur-add-v"></select><button class="btn btn-s" type="submit" id="btn-sur-add">Dodaj</button></form>
+          <p class="small muted" style="margin:0">Server odmah provjeri da web postoji i pročita javni kontakt. Prijedlog stiže u sljedećem prolazu ili gumbom „Napiši prijedloge”.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- 08 POPRAVCI -->
     <section class="view" id="v-popravci">
       <div class="vhead">
@@ -597,6 +628,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
             <tr><td>Indeksiranost</td><td>Googleov URL Inspection API za svaku stranicu koja treba biti u indeksu: je li u indeksu, razlog ako nije, kanonska adresa koju je Google odabrao, zadnji posjet Googlebota</td><td>svaka stranica jednom tjedno, problematične svaka 2 dana</td><td>0 (do 600 provjera dnevno, Google dopušta 2.000)</td></tr>
             <tr><td>Pozicije i AI pregled</td><td>DataForSEO: stvarni Google rezultat za ciljane riječi (mobitel, Zagreb). Iz istog rezultata bilježi se i Googleov AI pregled: pojavljuje li se i citira li nas</td><td>na gumb ili tjedno, ako je uključeno</td><td>oko 0,07 $ po mjerenju; naknadno učitani AI pregledi po izboru +0,0006 $ po riječi</td></tr>
             <tr><td>Društvene mreže</td><td>Vlastite objave i njihove brojke: Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Svaka objava uspoređuje se s medijanom vlastite mreže u zadnjih 180 dana (× medijana); obrazac se navodi tek uz barem tri objave i odstupanje od 30 %. Uzori su najgledaniji YouTube videi po zadanim temama i objave navedenih Instagram profila; TikTok i Facebook ne daju tuđi sadržaj. Što raditi piše Claude iz tih brojki. Samo čitanje, ništa se ne objavljuje</td><td>podaci dvaput dnevno, uzori i preporuke tjedno</td><td>0 za podatke; nekoliko centi API kredita tjedno za preporuke</td></tr>
+            <tr><td>Suradnje i poveznice</td><td>Popis mogućih partnera: domene koje povezuju konkurente, a ne nas (arhiva Ahrefsa od 12. 11. 2026.), tvrtke koje Claude nađe web pretragom i ručno dodane. Server provjeri da web postoji i pročita javni kontakt; Claude piše zašto, što ponuditi, korake i nacrt poruke. Napredak se mjeri poveznicama koje vidi Google (ručni izvoz iz Search Consolea, jer ih API ne daje). Kupnja i razmjena poveznica se ne predlažu; ništa se ne šalje nikome</td><td>prijedlozi jednom tjedno; nove tvrtke i DR samo ako su uključeni ili na gumb</td><td>jedan Claudeov poziv tjedno; web pretraga 0,01 $ po upitu uz tokene; DR (Ahrefsov javni servis) 0</td></tr>
             <tr><td>Kretanje konkurenata</td><td>Iz prvih 20 rezultata svakog mjerenja: po domeni broj riječi u top 3 i top 10 i udio vidljivosti (pozicija × opća krivulja CTR-a, bez volumena), te tko je ušao, ispao ili nas pretekao</td><td>nakon svakog mjerenja</td><td>0</td></tr>
           </tbody>
         </table></div>
@@ -688,6 +720,7 @@ const S = {
   prop: { items: [], meta: null, auto: true, claude: false, filter: "otvoreni", busy: false, loaded: false, uc: null },
   indeks: null, ixBusy: false,
   mreze: null, soc: { net: null, busy: false, recBusy: false, err: null, recErr: null },
+  sur: { d: null, filter: "otvoreni", busy: null, err: null },
   units: { limit: null, used: null, reset: null, session: 0 },
   src: {},
   acc: { ig: IG_FALLBACK, yt: YT_FALLBACK, list: null },
@@ -1054,16 +1087,16 @@ const pill = (sev, txt) => `<span class="pill ${sev}">${esc(txt)}</span>`;
 const SEV_TXT = { crit: "Kritično", warn: "Upozorenje", info: "Napomena", good: "Radi dobro" };
 
 /* ---------- usmjeravanje ---------- */
-const VIEWS = ["pregled", "prijedlozi", "tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "arhiva", "metodologija"];
+const VIEWS = ["pregled", "prijedlozi", "tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "suradnje", "popravci", "arhiva", "metodologija"];
 function route() {
-  let v = (location.hash || "").replace("#", ""); if (!VIEWS.includes(v) || (v === "prijedlozi" && !HOSTED)) v = "pregled";
+  let v = (location.hash || "").replace("#", ""); if (!VIEWS.includes(v) || ((v === "prijedlozi" || v === "suradnje") && !HOSTED)) v = "pregled";
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $$(".nav a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   S.view = v; renderView(v);
 }
 function renderView(v) {
   try {
-    ({ pregled: renderOverview, prijedlozi: renderProp, tjedno: renderWeek, pozicije: renderRank, google: renderGoogle, "kljucne-rijeci": () => { renderKw(); renderArchKw(); }, planer: renderPlan, arhiva: renderArchive, konkurencija: renderComp, trendovi: renderTrends, audit: renderAudit, "drustvene-mreze": renderSocial, popravci: renderFixes, metodologija: () => { } })[v]?.();
+    ({ pregled: renderOverview, prijedlozi: renderProp, tjedno: renderWeek, pozicije: renderRank, google: renderGoogle, "kljucne-rijeci": () => { renderKw(); renderArchKw(); }, planer: renderPlan, arhiva: renderArchive, konkurencija: renderComp, trendovi: renderTrends, audit: renderAudit, "drustvene-mreze": renderSocial, suradnje: renderSur, popravci: renderFixes, metodologija: () => { } })[v]?.();
   } catch (e) { console.error(e); }
 }
 function rerender() { recompute(); renderView(S.view); renderBadges(); }
@@ -1167,6 +1200,9 @@ async function loadHosted() {
   try { P = await OLR_HOSTED.api("podaci"); }
   catch (e) { ["gsc", "rank", "wp"].forEach(k => setSrc(k, "err", e.status === 403 || e.status === 401 ? "Prijava u wp-admin je istekla. Osvježi stranicu." : (e.message || "Server ne odgovara"))); rerender(); return; }
   const st = P.stanje || {}, iz = st.izvori || {}, keys = st.kljucevi || {};
+  // Claudeov trošak ovaj mjesec (iz stvarnih tokena svakog poziva); detalji su u Postavkama
+  const tr = st.ai && st.ai.trosak, mj = tr && tr.mjeseci && tr.mjeseci[0], bai = $("#banner-ai");
+  if (bai) bai.textContent = mj && mj.mjesec === new Date().toISOString().slice(0, 7) && mj.usd != null ? "Claude ovaj mjesec: " + (mj.procjena ? "oko " : "") + dec(mj.usd, mj.usd < 1 ? 3 : 2) + " $ · danas " + dec(tr.danas.usd, tr.danas.usd < 1 ? 3 : 2) + " $" : "";
   const pre = HOSTED ? '<a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke</a>' : "";
   /* Google Search Console */
   const G = P.gsc || {};
@@ -1211,6 +1247,7 @@ async function loadHosted() {
   }
   /* društvene mreže: Meta Graph API, YouTube Data API, TikTok Display API (skuplja server) */
   setMreze(P.mreze || null);
+  S.sur.d = P.suradnje || null;
   if (P.prijedlozi) setProp(P.prijedlozi);
   S.done = { gsc: true, wp: true, rank: true, social: true };
   rerender(); maybeSnapshot(); maybeExport();
@@ -1267,6 +1304,142 @@ async function socRecommend() {
     if (res && res.rezultat && res.rezultat.mreze) setMreze(res.rezultat.mreze);
   } catch (e) { S.soc.recErr = e.message || "Server ne odgovara."; }
   S.soc.recBusy = false; renderSocial();
+}
+
+/* ---------- suradnje i poveznice (samo na hostingu) ---------- */
+const SUR_STANJE = { novo: "novo", kontaktirano: "kontaktirano", dogovoreno: "dogovoreno", dobiveno: "dobiveno", odbijeno: "odbijeno" };
+const SUR_IZVOR = { rucno: "dodano ručno", "claude-pretraga": "Claude, web pretraga" };
+const surDr = v => v == null ? "–" : (Number.isInteger(+v) ? String(+v) : dec(+v, 1));
+const surHost = d => d.replace(/\.(com|hr)$/, "");
+function surCard(c) {
+  const P = c.prijedlog, K = c.kontakt, D = S.sur.d, vr = (D.vrste && D.vrste[c.vrsta]) || c.vrsta;
+  const komp = Object.entries(c.konkurenti || {}).sort((a, b) => b[1] - a[1]);
+  const b = (stanje, txt, primary) => `<button type="button" class="btn ${primary ? "" : "btn-g "}btn-s" data-sur-set="${esc(c.id)}|${stanje}">${txt}</button>`;
+  const btns = c.stanje === "novo" ? b("kontaktirano", "Poruka poslana", true) + b("odbijeno", "Odbij")
+    : c.stanje === "kontaktirano" ? b("dogovoreno", "Dogovoreno", true) + b("novo", "Vrati u prijedloge") + b("odbijeno", "Nije uspjelo")
+    : c.stanje === "dogovoreno" ? b("dobiveno", "Poveznica objavljena", true) + b("kontaktirano", "Još nije dogovoreno")
+    : c.stanje === "dobiveno" ? b("dogovoreno", "Još nije objavljena") : b("novo", "Vrati u prijedloge");
+  const contact = K ? [
+    K.stranica ? `<a href="${esc(K.stranica)}" target="_blank" rel="noopener">${esc(K.stranica.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : "",
+    ...(K.email || []).map(e => `<a href="mailto:${esc(e)}">${esc(e)}</a>`),
+    ...(K.telefon || []).map(t => esc(t))
+  ].filter(Boolean).join(" · ") : "";
+  const V = c.veza, link = (c.stanje === "dogovoreno" || c.stanje === "dobiveno")
+    ? `<div class="chg"><div class="lab"><span>Stranica na kojoj je poveznica</span></div><form class="row" data-sur-url="${esc(c.id)}"><input type="text" value="${esc(c.url || "")}" placeholder="https://…" style="flex:1 1 280px" aria-label="Adresa stranice s poveznicom"><button class="btn btn-g btn-s" type="submit">Spremi i provjeri</button></form>${V && V.url === c.url && V.poruka ? `<p class="${V.ima && !V.nofollow ? "note" : "err"}" style="margin:0">${esc(V.poruka)} <span class="muted">· provjereno ${esc(ago(V.provjereno))}</span></p>` : ""}</div>` : "";
+  return `<article class="prop st-${esc(c.stanje)}" data-sur="${esc(c.id)}">
+    <header><h3>${esc(c.naziv)}</h3><a href="https://${esc(c.domena)}/" target="_blank" rel="noopener">${esc(c.domena)}</a></header>
+    <div class="meta">${pill(c.vrsta === "medij" || c.vrsta === "lokalni_portal" ? "gold" : "info", vr)}<span>DR ${surDr(c.dr)}</span>${komp.length ? `<span>poveznice konkurenata: ${komp.map(([d, n]) => esc(surHost(d)) + " " + fmt(n)).join(", ")}</span>` : ""}<span>${esc(SUR_IZVOR[c.izvor] || "arhiva Ahrefsa")}</span><span>stanje: ${esc(SUR_STANJE[c.stanje] || c.stanje)}</span>${c.u_gsc ? pill("good", "Google već vidi poveznicu") : ""}</div>
+    ${P ? `<p class="why">${esc(P.zasto)}</p>
+    <div class="chg"><div class="lab"><span>Što ponuditi</span></div><div class="new" style="white-space:normal">${esc(P.ponuda)}</div></div>
+    ${(P.koraci || []).length ? '<ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--lead)">' + P.koraci.map(k => "<li>" + esc(k) + "</li>").join("") + "</ol>" : ""}
+    <div class="chg"><div class="lab"><span>Nacrt poruke${P.kome ? " <small>· za: " + esc(P.kome) + "</small>" : ""}</span><button type="button" class="btn btn-g btn-s" data-sur-copy="${esc(c.id)}">Kopiraj</button></div><pre class="new">${esc(P.poruka)}</pre></div>`
+      : `<p class="note">${c.ziv === false ? "Web ovog kandidata se trenutno ne otvara, pa prijedlog nije napisan." : "Prijedlog još nije napisan. Stiže u sljedećem tjednom prolazu ili gumbom „Napiši prijedloge”."}</p>`}
+    ${contact ? `<p class="small" style="margin:0"><span class="muted">Javni kontakt s njihova weba:</span> ${contact}</p>` : (K ? '<p class="small muted" style="margin:0">Na webu nije pronađen javni kontakt; potraži ga na stranici Kontakt ili Impressum.</p>' : "")}
+    ${link}
+    <div class="propbar">${btns}</div>
+  </article>`;
+}
+function renderSur() {
+  if (!HOSTED) return;
+  const D = S.sur.d, f = S.sur.filter, busy = S.sur.busy;
+  const bw = $("#btn-sur-write"), bf = $("#btn-sur-find"), bd = $("#btn-sur-dr"), bg = $("#btn-sur-gsc");
+  bw.disabled = bf.disabled = bd.disabled = bg.disabled = !!busy;
+  bw.textContent = busy === "pisi" ? "Claude piše…" : "Napiši prijedloge"; bf.textContent = busy === "trazi" ? "Claude pretražuje…" : "Potraži nove tvrtke";
+  bd.textContent = busy === "dr" ? "Provjeravam…" : "Provjeri DR sada"; bg.textContent = busy === "gsc" ? "Učitavam…" : "Učitaj izvoz";
+  $$("#sur-seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sf === f)));
+  if (!D) { $("#sur-list").innerHTML = '<p class="loading">Učitavam…</p>'; return; }
+  bw.hidden = bf.hidden = !D.claude;
+  const sel = $("#sur-add-v"); if (!sel.options.length) sel.innerHTML = Object.entries(D.vrste || {}).map(([k, v]) => `<option value="${esc(k)}"${k === "ostalo" ? " selected" : ""}>${esc(v)}</option>`).join("");
+  const Z = D.zadnje || {}, meta = [];
+  if (Z.pisi_at) meta.push("Zadnji prolaz " + ago(Z.pisi_at * 1000) + (Z.pisi ? ": napisano " + fmt(Z.pisi.napisano) + (Z.pisi.preostalo ? ", čeka " + fmt(Z.pisi.preostalo) : "") : ""));
+  if (Z.trazi_at) meta.push("Nove tvrtke tražene " + ago(Z.trazi_at * 1000) + (Z.trazi ? ": dodano " + fmt(Z.trazi.novih) : ""));
+  meta.push(D.auto ? "Prijedlozi stižu sami jednom tjedno." : "Tjedni prijedlozi su isključeni (Postavke).");
+  meta.push(D.pretraga ? "Nove tvrtke Claude traži jednom tjedno." : "Tjedno traženje novih tvrtki je isključeno; radi na gumb.");
+  if (!D.claude) meta.push("Anthropic ključ nije postavljen, pa se prijedlozi ne pišu.");
+  if (D.stanje && !D.stanje.ok) meta.push("Zadnja poruka: " + D.stanje.msg);
+  $("#sur-meta").textContent = meta.join(" · ");
+  const G = D.gsc, R = D.dr || {}, st = D.stanja || {}, top = (R.domene || []).find(x => !x.nasa), me = (R.domene || []).find(x => x.nasa);
+  const chg = me && me.prije != null && me.prije !== me.dr ? `<span class="${me.dr > me.prije ? "up" : "down"}">${me.dr > me.prije ? "+" : "−"}${surDr(Math.abs(Math.round((me.dr - me.prije) * 10) / 10))}</span> od prošle provjere` : "";
+  $("#sur-tiles").innerHTML = [
+    tile("Poveznice (Google)", G ? fmt(G.ostalih) : "–", G ? esc("domena nas povezuje" + (G.domena - G.ostalih ? " · još " + fmt(G.domena - G.ostalih) + " po nazivu prodavači poveznica" : "")) : "izvoz još nije učitan", G ? "Search Console · uvoz " + ago(G.at) : "Search Console → Veze → Izvoz"),
+    tile("Naš DR", surDr(R.nas), chg, "Domain Rating by Ahrefs"),
+    tile("Najjači konkurent", top ? surDr(top.dr) : "–", top ? esc(top.domena) : "", "Domain Rating by Ahrefs"),
+    tile("Kandidata", fmt(D.ukupno), esc(fmt(D.s_prijedlogom) + " s prijedlogom"), "mediji, portali, ustanove, tvrtke"),
+    tile("U tijeku", fmt((st.kontaktirano || 0) + (st.dogovoreno || 0)), esc(fmt(st.dobiveno || 0) + " dobiveno"), "kontaktirano i dogovoreno")
+  ].join("");
+  /* popis */
+  const all = D.kandidati || [];
+  const list = f === "svi" ? all : f === "otvoreni" ? all.filter(c => c.ai && c.stanje === "novo") : all.filter(c => c.stanje === f);
+  $("#sur-list").innerHTML = (S.sur.err ? `<p class="err">${esc(S.sur.err)}</p>` : "")
+    + (f === "svi"
+      ? tableHtml(["Kandidat", "Vrsta", "DR", "Poveznice konkurenata", "Prijedlog", "Stanje"], all.map(c => [`<span style="color:var(--text)">${esc(c.naziv)}</span><span class="u">${esc(c.domena)}</span>`, esc((D.vrste && D.vrste[c.vrsta]) || c.vrsta), r(surDr(c.dr)), r(fmt(sum(Object.values(c.konkurenti || {})))), c.ai ? "napisan" : c.ziv === false ? '<span class="down">web se ne otvara</span>' : "čeka", esc(SUR_STANJE[c.stanje] || c.stanje) + (c.u_gsc ? " · Google vidi poveznicu" : "")]))
+      : list.length ? list.map(surCard).join("")
+        : `<p class="note">${f === "otvoreni" ? (D.claude ? "Nema otvorenih prijedloga. Novi stižu u sljedećem tjednom prolazu ili gumbom „Napiši prijedloge”." : "Prijedloge piše Claude; upiši Anthropic ključ u Postavkama.") : "Nema kandidata u ovom stanju."}</p>`);
+  /* poveznice koje vidi Google */
+  $("#sur-gsc-meta").textContent = G ? "uvoz " + ago(G.at) + " · " + fmt(G.domena) + " domena" : "još nije uvezeno";
+  const hist = G && G.povijest && G.povijest.length > 1 ? G.povijest[G.povijest.length - 2] : null;
+  $("#sur-gsc-body").innerHTML = !G ? '<p class="note">Kad učitaš prvi izvoz, ovdje je popis domena koje nas povezuju, a kandidati koji nas već povezuju dobivaju oznaku. Svaki sljedeći uvoz pokazuje što je novo.</p>'
+    : (hist ? `<p class="small muted" style="margin:0">Prošli uvoz (${esc(hrDate(hist.datum))}): ${fmt(hist.domena)} domena. ${(G.nove || []).length ? "Nove od tada: " + G.nove.slice(0, 12).map(esc).join(", ") + "." : "Nema novih domena od tada."}</p>` : "")
+      + tableHtml(["Domena", G.vrsta === "stranice" ? "Stranica s vezom" : "Stranica s vezom", "Zadnje viđeno", "Napomena"], (G.domene || []).slice(0, 40).map(x => [`<span style="color:var(--text)">${esc(x.d)}</span>`, r(fmt(x.stranica)), x.zadnje ? esc(hrDate(x.zadnje)) : "–", x.prodavac ? '<span class="muted">po nazivu prodavač poveznica</span>' : all.some(c => c.domena === x.d) ? "kandidat s popisa" : ""]))
+      + ((G.domene || []).length > 40 ? `<p class="small muted" style="margin:0">Prikazano 40 od ${fmt(G.domena)} domena, poredano po broju stranica s vezom.</p>` : "");
+  /* DR */
+  $("#sur-dr-meta").innerHTML = (R.at ? "Stanje " + esc(ago(R.at)) : "") + (D.dr_auto ? " · provjera jednom tjedno" : " · arhiva; tjedna provjera je isključena (Postavke)") + ` · <a href="${esc(R.licenca || "https://ahrefs.com/legal/domain-rating-license")}" target="_blank" rel="noopener">Domain Rating by Ahrefs</a>`;
+  const rows = (R.domene || []).map(x => { const row = [esc(x.domena) + (x.nasa ? ' <span class="chip">mi</span>' : ""), r(surDr(x.dr)), r(x.prije == null || x.prije === x.dr ? "–" : `<span class="${x.dr > x.prije ? "up" : "down"}">${x.dr > x.prije ? "+" : "−"}${surDr(Math.abs(Math.round((x.dr - x.prije) * 10) / 10))}</span>`)]; row.__me = x.nasa; return row; });
+  $("#sur-dr-body").innerHTML = rows.length ? tableHtml(["Domena", "DR", "Promjena"], rows) + '<p class="small muted" style="margin:0">DR je Ahrefsova ocjena snage poveznica (0 do 100) i ne dolazi iz Search Consolea. Raste sporo: nekoliko pravih poveznica s jakih domena vrijedi više od stotina slabih.</p>' : '<p class="note">DR još nije provjeren.</p>';
+}
+async function surCall(kind, body, title) {
+  if (S.sur.busy) return null; S.sur.busy = kind; S.sur.err = null; renderSur();
+  let out = null;
+  try {
+    const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body });
+    if (res && res.rezultat && res.rezultat.suradnje) { S.sur.d = res.rezultat.suradnje; out = res.rezultat.ishod || {}; }
+  } catch (e) {
+    // dugi zahtjev je hosting možda prekinuo, a posao je ipak završio: pročitaj stanje s servera
+    try { S.sur.d = await OLR_HOSTED.api("suradnje"); } catch (e2) { /* ostaje staro */ }
+    if (title) note(title, e.message || "Server ne odgovara."); else S.sur.err = e.message || "Server ne odgovara.";
+  }
+  S.sur.busy = null; rerender();
+  return out;
+}
+async function surWrite() { const r = await surCall("pisi", { dio: "suradnje" }, "Prijedlozi nisu napisani"); if (r && !r.napisano) note("Prijedlozi", "Svi kandidati već imaju prijedlog. Nove kandidate dodaj ručno ili gumbom „Potraži nove tvrtke”."); else if (r) { S.sur.filter = "otvoreni"; renderSur(); } }
+async function surFind() {
+  const D = S.sur.d; if (!D) return;
+  const n = D.novih_po_prolazu || 3;
+  if (!window.confirm("Claude će web pretragom potražiti do " + n + " novih tvrtki ili ustanova za suradnju i svakoj napisati prijedlog.\n\nWeb pretragu Anthropic naplaćuje 0,01 $ po upitu (najviše " + Math.min(6, n + 2) + " upita), uz tokene za pročitane rezultate. Stvarni iznos vidiš u Postavkama → Claude trošak. Traje do dvije minute.\n\nPokrenuti?")) return;
+  const r = await surCall("trazi", { dio: "suradnje_trazi", potvrda: "da" }, "Traženje nije uspjelo");
+  if (r) { S.sur.filter = "otvoreni"; renderSur(); note("Nove tvrtke", r.novih ? "Dodano novih kandidata s prijedlogom: " + r.novih + "." + (r.odbaceno ? " Odbačeno: " + r.odbaceno + " (web ne postoji ili je domena već poznata)." : "") : "Claude ovaj put nije našao kandidata koji prolazi provjeru (web mora postojati i ne smije već biti na popisu). Pokušaj s užim fokusom u Postavkama."); }
+}
+async function surSet(id, stanje, url) {
+  const c = S.sur.d && (S.sur.d.kandidati || []).find(x => x.id === id); if (!c) return;
+  const prev = [c.stanje, c.url]; c.stanje = stanje; if (url !== undefined) c.url = url; rerender();
+  try {
+    await OLR_HOSTED.api("doc/suradnje_stanje/" + encodeURIComponent(id), { method: "PUT", body: { data: { stanje, url: c.url || "", at: Date.now() } } });
+    S.sur.d = await OLR_HOSTED.api("suradnje"); rerender(); // server usput provjeri upisanu adresu
+  } catch (e) { [c.stanje, c.url] = prev; rerender(); note("Stanje nije spremljeno", e.message || "Server ne odgovara."); }
+}
+async function surCopy(id, btn) {
+  const c = S.sur.d && (S.sur.d.kandidati || []).find(x => x.id === id); if (!c || !c.prijedlog) return;
+  let ok = false; const txt = c.prijedlog.poruka;
+  try { await navigator.clipboard.writeText(txt); ok = true; }
+  catch (e) { const t = document.createElement("textarea"); t.value = txt; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } t.remove(); }
+  btn.textContent = ok ? "Kopirano" : "Označi i kopiraj ručno"; setTimeout(() => { btn.textContent = "Kopiraj"; }, 1800);
+}
+async function surImport() {
+  const f = $("#sur-gsc-file").files[0];
+  if (!f) { note("Uvoz veza", "Prvo odaberi CSV datoteku izvezenu iz Search Consolea."); return; }
+  if (f.size > 3e6) { note("Uvoz veza", "Datoteka je veća od 3 MB. Izvezi „Najnovije veze” ili „Najčešće web-lokacije s vezama”."); return; }
+  const csv = await f.text();
+  const r = await surCall("gsc", { dio: "suradnje_gsc", csv }, "Uvoz nije uspio");
+  if (r) { $("#sur-gsc-file").value = ""; note("Uvoz veza", "Učitano domena: " + r.domena + (r.novih ? ", novih od prošlog uvoza: " + r.novih : "") + "."); }
+}
+async function surAdd(e) {
+  e.preventDefault();
+  const d = $("#sur-add-d").value.trim(); if (!d) return;
+  const host = d.toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/[\/?#].*$/, "").replace(/^www\./, "");
+  if (!/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,24}$/.test(host)) { note("Kandidat nije dodan", "Upiši domenu, npr. primjer.hr."); return; }
+  if (S.sur.d && (S.sur.d.kandidati || []).some(c => c.domena === host)) { note("Kandidat nije dodan", "Ta domena je već na popisu kandidata."); return; }
+  const r = await surCall("dodaj", { dio: "suradnje_dodaj", domena: d, naziv: $("#sur-add-n").value.trim(), vrsta: $("#sur-add-v").value }, "Kandidat nije dodan");
+  if (r) { $("#sur-add-d").value = ""; $("#sur-add-n").value = ""; S.sur.filter = "svi"; renderSur(); }
 }
 
 /* ---------- mjerenje pozicija na hostingu: pokreće se samo uz potvrdu troška ---------- */
@@ -1603,6 +1776,7 @@ async function maybeExport(force) {
           preporuke: S.mreze.preporuke ? { at: S.mreze.preporuke.at, sazetak: S.mreze.preporuke.sazetak, naslovi: (S.mreze.preporuke.preporuke || []).map(x => x.naslov) } : null,
           napomena: "Detalji: ol-radar/radar-mreze."
         } : null,
+        suradnje: S.sur.d ? { kandidata: S.sur.d.ukupno, s_prijedlogom: S.sur.d.s_prijedlogom, stanja: S.sur.d.stanja, nas_dr: S.sur.d.dr ? S.sur.d.dr.nas : null, google_vidi_domena: S.sur.d.gsc ? S.sur.d.gsc.domena : null, napomena: "Detalji: ol-radar/radar-suradnje." } : null,
         ucinak_izmjena: S.prop.uc ? { ...S.prop.uc, izmjene: S.prop.items.filter(p => p.stanje === "provedeno" && p.mjerenje).slice(0, 20).map(p => ({ url: p.put, vrsta: p.vrsta, provedeno: p.mjerenje.provedeno, stanje: p.mjerenje.stanje, ocjena: p.mjerenje.ocjena, sazetak: p.mjerenje.sazetak })) } : null
       } : {}),
       audit_web: wpGroups().map(g => ({ kod: g.kod, ozbiljnost: g.sev, opis: g.opis, stranice: g.urls.slice(0, 20).map(path) })),
@@ -1868,6 +2042,7 @@ function renderBadges() {
   const n = a => open.filter(i => a.includes(i.area)).length;
   const set = (id, v) => { const el = $(id); if (!el) return; el.hidden = !v; el.textContent = v; };
   set("#cnt-prijedlozi", S.prop.items.filter(p => !p.isteklo && p.stanje === "novo").length);
+  set("#cnt-suradnje", S.sur.d ? (S.sur.d.kandidati || []).filter(c => c.ai && c.stanje === "novo").length : 0);
   set("#cnt-google", n(["google"])); set("#cnt-rank", n(["pozicije"])); set("#cnt-audit", n(["audit", "web"])); set("#cnt-social", n(["instagram", "youtube"]));
 }
 
@@ -2827,6 +3002,7 @@ function chatTools() {
       { name: "indeksiranost", description: "Indeksiranost stranica u Googleu (URL Inspection API, provjera jednom tjedno): koliko je stranica u indeksu, koje nisu i koji razlog navodi Google, gdje je Google odabrao drugu kanonsku adresu, zadnji posjet Googlebota.", execute: () => { const X = S.indeks; if (!X || !X.provjereno) throw new Error("Indeksiranost još nije provjerena (modul Audit weba → Provjeri sada)."); return { provjereno: X.provjereno, ukupno: X.ukupno, u_indeksu: X.u_indeksu, nije: X.nije, druga_kanonska: X.kanonski, zadnja_provjera: X.zadnja ? new Date(X.zadnja).toISOString() : null, problemi: (X.stranice || []).filter(p => p.problem).slice(0, 40).map(p => ({ stranica: p.put, problem: p.problem, razlog: p.razlog, zadnji_posjet: p.zadnji_posjet, prikazivanja_28d: p.prikazivanja_28 })) }; } },
       { name: "kretanje_konkurenata", description: "Kretanje konkurenata iz naših mjerenja pozicija (top 20 po ciljanoj riječi): po domeni broj riječi u top 3 i top 10, udio vidljivosti sada i u prethodnom mjerenju, te po riječi tko je ušao u top 10, tko je ispao i tko nas je pretekao.", execute: () => { const K = S.rank.komp; if (!K) throw new Error("Još nema mjerenja pozicija."); return { mjerenja: K.mjerenja, rijeci: K.rijeci, domene: K.domene.slice(0, 20).map(d => ({ domena: d.domena, mi: d.nasa, top3: d.top3, top10: d.top10, udio: d.udio, prije: d.prije, promjena: d.promjena, rijeci: d.rijeci })), promjene: (K.promjene || []).slice(0, 15), napomena: K.napomena }; } }] : []),
     ...(HOSTED ? [{ name: "drustvene_mreze", description: "Društvene mreže (Instagram, Facebook, YouTube, TikTok) s hostinga: pratitelji, medijan pregleda, objave iznad i ispod uobičajenog (× medijana vlastite mreže), obrasci, uzori (najgledaniji tuđi YouTube videi po temama i objave navedenih Instagram profila) i zadnje preporuke.", execute: () => { const D = S.mreze; if (!D) throw new Error("Podaci društvenih mreža još nisu učitani."); const slim = p => ({ d: (p.t || "").slice(0, 10), vrsta: p.vrsta, opis: (p.opis || "").slice(0, 140), pregledi: p.pregledi, doseg: p.doseg, omjer: p.omjer, angazman: p.angazman, dijeljenja: p.dijeljenja, spremanja: p.spremanja }); return { mreze: Object.fromEntries(Object.entries(D.mreze || {}).map(([n, m]) => [n, m.povezano ? { racun: m.racun, medijan: m.analiza ? m.analiza.medijan : null, mjera: m.analiza ? m.analiza.mjera : null, objava: m.analiza ? m.analiza.objava : 0, najbolje: ((m.analiza && m.analiza.top) || []).map(slim), najslabije: ((m.analiza && m.analiza.slabo) || []).map(slim), obrasci: (m.analiza && m.analiza.obrasci) || [], napomena: (m.analiza && m.analiza.napomena) || null, greska: m.stanje && !m.stanje.ok ? m.stanje.msg : null } : "nije povezano"])), uzori_youtube: ((D.uzori && D.uzori.yt) || []).slice(0, 10).map(v => ({ naslov: v.opis, kanal: v.kanal, tema: v.tema, trajanje_s: v.trajanje, pregledi: v.pregledi, pretplatnika: v.pretplatnika, omjer: v.omjer })), uzori_instagram: ((D.uzori && D.uzori.ig) || []).slice(0, 10).map(v => ({ profil: v.profil, opis: v.opis, vrsta: v.vrsta, lajkovi: v.lajkovi, pregledi: v.pregledi, omjer: v.omjer })), preporuke: D.preporuke || null }; } }] : []),
+    ...(HOSTED ? [{ name: "suradnje", description: "Suradnje i poveznice s hostinga: kandidati za suradnju s Claudeovim prijedlogom (zašto, što ponuditi, koraci), stanjem i javnim kontaktom; poveznice koje vidi Google (uvoz iz Search Consolea) i Domain Rating naše domene i konkurenata.", execute: () => { const D = S.sur.d; if (!D) throw new Error("Podaci o suradnjama još nisu učitani."); return { stanja: D.stanja, kandidata: D.ukupno, dr: (D.dr && D.dr.domene || []).map(x => ({ d: x.domena, mi: x.nasa, dr: x.dr, prije: x.prije })), google_vidi: D.gsc ? { domena: D.gsc.domena, bez_prodavaca_poveznica: D.gsc.ostalih, uvoz: new Date(D.gsc.at).toISOString().slice(0, 10), nove: D.gsc.nove, najjace: (D.gsc.domene || []).slice(0, 15).map(x => x.d) } : "izvoz iz Search Consolea još nije učitan", kandidati: (D.kandidati || []).filter(c => c.ai || c.stanje !== "novo").slice(0, 25).map(c => ({ d: c.domena, naziv: c.naziv, vrsta: c.vrsta, dr: c.dr, stanje: c.stanje, poveznice_konkurenata: c.konkurenti, zasto: c.prijedlog ? c.prijedlog.zasto : null, ponuda: c.prijedlog ? c.prijedlog.ponuda : null, koraci: c.prijedlog ? c.prijedlog.koraci : null, google_vidi_poveznicu: !!c.u_gsc })) }; } }] : []),
     { name: "tjedno", description: "Tjedni sažetak: Google 7 dana prema prethodnih 7, upiti koji rastu i padaju, novi upiti, promjene pozicija, stranice promijenjene ovaj tjedan i Instagram objave tjedna.", execute: () => { const w = weekExport(); if (!w) throw new Error("Google podaci još nisu učitani"); return w; } },
     { name: "onpage", description: "Naslov, H1, meta opis, canonical, robots, broj riječi i Rank Math fokus za stranice weba (WordPress most; rezerva Search Console), s Google klikovima i prikazivanjima za 28 dana.", execute: () => (S.onpage || []).map(p => ({ url: path(p.page), naslov: p.title, meta: p.meta, h1: p.h1, canonical: p.canonical, robots: p.robots, c: p.clicks, i: p.impressions, rijeci: p.words ?? null, fokus: p.focus || null })) },
     { name: "planer", description: "Vraća teme iz planera sadržaja poredane po prilici (potražnja, vaš udio, radnja: nova stranica, dorada, spoji, zaštiti) i stavke koje su već u planu.", execute: () => ({ teme: planClusters().slice(0, 25).map(c => ({ tema: c.head, potraznja: c.demand, udio: +c.share.toFixed(2), najbolja_poz: c.best == null ? null : +c.best.toFixed(1), radnja: c.action, vrhunac: c.peak == null ? null : MONTHS[c.peak], stranice: c.pages.map(path), rijeci: c.kws.slice(0, 8).map(x => x.k) })), plan: S.plan.items.map(x => ({ tema: x.title, radnja: x.action, mjesec: x.month, stanje: x.status })) }) },
@@ -3286,6 +3462,19 @@ function bindStatic() {
     const cp = e.target.closest("[data-prop-copy]"); if (cp) propCopy(cp.dataset.propCopy, cp);
   });
   $("#prop-list").addEventListener("change", e => { const d = e.target.closest("[data-prop-dan]"); if (d) propSetDay(d.dataset.propDan, d.value); });
+  // suradnje i poveznice
+  $("#btn-sur-write").onclick = surWrite; $("#btn-sur-find").onclick = surFind; $("#btn-sur-gsc").onclick = surImport;
+  $("#btn-sur-dr").onclick = () => surCall("dr", { dio: "suradnje_dr" }, "DR nije provjeren");
+  $("#sur-add").addEventListener("submit", surAdd);
+  $$("[data-sf]").forEach(b => b.onclick = () => { S.sur.filter = b.dataset.sf; renderSur(); });
+  $("#sur-list").addEventListener("click", e => {
+    const st = e.target.closest("[data-sur-set]"); if (st) { const [id, stanje] = st.dataset.surSet.split("|"); surSet(id, stanje); return; }
+    const cp = e.target.closest("[data-sur-copy]"); if (cp) surCopy(cp.dataset.surCopy, cp);
+  });
+  $("#sur-list").addEventListener("submit", e => {
+    const fm = e.target.closest("[data-sur-url]"); if (!fm) return; e.preventDefault();
+    const c = S.sur.d && (S.sur.d.kandidati || []).find(x => x.id === fm.dataset.surUrl); if (c) surSet(c.id, c.stanje, fm.querySelector("input").value.trim());
+  });
   $("#btn-ix-run").onclick = ixRun;
   // arhiva Ahrefsa
   $("#btn-arch-run").onclick = runArchive;
@@ -3315,7 +3504,7 @@ function initTema() {
 async function boot() {
   initTema(); bindStatic(); renderSources(); route(); renderChat();
   // redni brojevi modula: samo za vidljive stavke (Prijedlozi postoje samo na hostingu)
-  $("#nav-prijedlozi").hidden = !HOSTED;
+  $("#nav-prijedlozi").hidden = !HOSTED; $("#nav-suradnje").hidden = !HOSTED;
   $("#meth-host").hidden = !HOSTED;
   $$(".nav a").filter(a => !a.hidden).forEach((a, i) => { a.querySelector("span").textContent = String(i + 1).padStart(2, "0"); });
   if (HOSTED) {
@@ -3324,7 +3513,7 @@ async function boot() {
     $("#btn-sh-rec").onclick = socRecommend;
     const eb = $("#v-pozicije .eb"); if (eb) eb.textContent = "DataForSEO · mobitel · Zagreb";
     const pl = $("#pregled-lead"); if (pl) pl.textContent = "Stvarni Google podaci iz Search Consolea (Google API, svakih 12 sati), pozicije za ciljane riječi iz DataForSEO-a, web iznutra iz ovog WordPressa i arhiva Ahrefsa. Sve se skuplja na hostingu, a ploča samo čita spremljeno.";
-    $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a></div>';
+    $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a><span id="banner-ai"></span></div>';
     const [d, s] = await Promise.all([claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
     DB = d; SAMPLE = s; MCP = null;
     setSrc("ai", SAMPLE ? "ok" : "off", SAMPLE ? "Anthropic API, ključ na serveru" : "Anthropic ključ nije postavljen (Postavke)");

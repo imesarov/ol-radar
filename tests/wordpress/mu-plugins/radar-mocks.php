@@ -1,6 +1,6 @@
 <?php
 /**
- * Samo za lokalni test: lažni Google, DataForSEO, Anthropic, Meta, YouTube i TikTok odgovori (uključeni opcijom olr_test_mocks).
+ * Samo za lokalni test: lažni Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovori te webovi kandidata za suradnju (uključeni opcijom olr_test_mocks).
  * Google token mock provjerava potpis JWT-a javnim ključem iz opcije olr_test_pub.
  */
 
@@ -560,6 +560,56 @@ add_filter(
 			return $json( 404, array( 'data' => new stdClass(), 'error' => array( 'code' => 'not_found', 'message' => 'TEST: nepoznat TikTok poziv', 'log_id' => 'x' ) ) );
 		}
 
+		// Ahrefsov besplatni javni DR. Opcija olr_test_dr: targets = drugi oblik odgovora, kljuc = traži ključ, pad = veza ne radi.
+		if ( 0 === strpos( $url, 'https://api.ahrefs.com/v3/public/domain-rating-free' ) ) {
+			$mode = (string) get_option( 'olr_test_dr' );
+			parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $q );
+			$t = isset( $q['target'] ) ? $q['target'] : '';
+			update_option( 'olr_test_dr_calls', (int) get_option( 'olr_test_dr_calls', 0 ) + 1, false );
+			if ( 'pad' === $mode ) {
+				return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+			}
+			if ( 'kljuc' === $mode ) {
+				return $json( 401, array( 'error' => 'API key is required' ) );
+			}
+			$map = array( 'optikaljiljana.hr' => 1.4, 'optika-anda.com' => 29, 'jojo-optika.hr' => 27, 'adrialece.hr' => 25, 'livision-optika.com' => 16, 'optika-dado.hr' => 7, 'poliklinika-test.hr' => 31 );
+			$dr  = isset( $map[ $t ] ) ? $map[ $t ] : 40;
+			return $json( 200, 'targets' === $mode ? array( 'domain_rating' => array( 'targets' => array( array( 'target' => $t, 'domain_rating' => $dr ) ), 'license' => 'x' ) ) : array( 'domain_rating' => array( 'domain_rating' => $dr ) ) );
+		}
+
+		// Webovi kandidata za suradnju i stranice s poveznicom (zahtjevi s oznakom olr_site). Nepoznati webovi ne postoje.
+		if ( ! empty( $args['olr_site'] ) ) {
+			$host = preg_replace( '/^www\./', '', (string) wp_parse_url( $url, PHP_URL_HOST ) );
+			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+			$html = static function ( $body ) {
+				return array(
+					'headers'  => array( 'content-type' => 'text/html; charset=utf-8' ),
+					'body'     => '<!doctype html><html><body>' . $body . '</body></html>',
+					'response' => array( 'code' => 200, 'message' => 'OK' ),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			};
+			update_option( 'olr_test_site_calls', (int) get_option( 'olr_test_site_calls', 0 ) + 1, false );
+			if ( 'portal-test.hr' === $host ) {
+				if ( '/clanak/' === $path ) {
+					return $html( '<p>Tekst. <a href="https://www.optikaljiljana.hr/progresivne-naocale/">Optika Ljiljana</a></p>' );
+				}
+				if ( '/nofollow/' === $path ) {
+					return $html( '<p><a rel="nofollow sponsored" href="https://optikaljiljana.hr/">Optika Ljiljana</a></p>' );
+				}
+				return $html( '<p>Stranica bez poveznice. <a href="https://example.com/">Drugi</a></p>' );
+			}
+			$alive = array( '24sata.hr', 'vecernji.hr', 'jutarnji.hr', 'index.hr', 'tportal.hr', 'net.hr', 'dnevnik.hr', 'gloria.hr', 'poliklinika-test.hr', 'klub-test.hr' );
+			if ( ! in_array( $host, $alive, true ) || get_option( 'olr_test_site_down' ) === $host ) {
+				return new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: ' . $host );
+			}
+			if ( false !== strpos( $path, 'kontakt' ) ) {
+				return $html( '<h1>Kontakt</h1><p><a href="mailto:Info@' . $host . '">Pišite nam</a> ili <a href="tel:+385 1 2345 678">nazovite</a>. Tuđa adresa: netko@drugdje.com</p>' );
+			}
+			return $html( '<nav><a href="/o-portalu/">O portalu</a> <a href="//' . $host . '/kontakt/">Kontakt</a></nav><p>redakcija@' . $host . '</p>' );
+		}
+
 		// Anthropic Messages API.
 		if ( 'https://api.anthropic.com/v1/messages' === $url ) {
 			if ( 'sk-ant-test-1234' !== $args['headers']['x-api-key'] || '2023-06-01' !== $args['headers']['anthropic-version'] ) {
@@ -567,19 +617,89 @@ add_filter(
 			}
 			$req = json_decode( $args['body'], true );
 			update_option( 'olr_test_ai_last', $req, false );
+			update_option( 'olr_test_ai_calls', (int) get_option( 'olr_test_ai_calls', 0 ) + 1, false );
+			// Kao Opus 5.5 i Sonnet 5.5: prisilni poziv alata vraća 400. Dodatak ga zato ne smije slati.
+			if ( isset( $req['tool_choice']['type'] ) && in_array( $req['tool_choice']['type'], array( 'tool', 'any' ), true ) ) {
+				return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tool_choice: type "tool" and "any" are not supported for this model.' ) ) );
+			}
+			$names = array();
+			foreach ( isset( $req['tools'] ) && is_array( $req['tools'] ) ? $req['tools'] : array() as $t ) {
+				$names[] = isset( $t['type'] ) ? $t['type'] : ( isset( $t['name'] ) ? $t['name'] : '' );
+			}
 			$last = end( $req['messages'] );
+			// Suradnje i poveznice.
+			if ( isset( $req['system'] ) && false !== strpos( $req['system'], '[zadatak: suradnje i poveznice]' ) ) {
+				$model = $req['model'];
+				$prop  = static function ( $d, $extra = array() ) {
+					return array_merge(
+						array(
+							'domena' => $d,
+							'naziv'  => 'Naziv ' . $d,
+							'vrsta'  => 'medij',
+							'zasto'  => 'Konkurent ima poveznice s domene ' . $d . '.',
+							'ponuda' => 'Stručni komentar optometrista o temi vida.',
+							'kome'   => 'urednik rubrike Zdravlje',
+							'koraci' => array( 'Prvi korak', 'Drugi korak', 'Treći korak', 'Četvrti korak' ),
+							'poruka' => "Poštovani,\n\njavljam se s <b>prijedlogom</b> suradnje.\n\nIvan Mesarov, optometrist, Optika Ljiljana",
+						),
+						$extra
+					);
+				};
+				if ( in_array( 'web_search_20250305', $names, true ) ) {
+					// Traženje novih tvrtki. Opcija olr_test_ai_trazi: iskljuceno, pauza, bez_alata.
+					$mode = (string) get_option( 'olr_test_ai_trazi' );
+					if ( 'iskljuceno' === $mode ) {
+						return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'Web search is not enabled for this organization.' ) ) );
+					}
+					$found  = array(
+						$prop( 'https://www.poliklinika-test.hr/o-nama/', array( 'naziv' => 'Poliklinika Test', 'vrsta' => 'zdravstvo', 'kome' => 'voditelj poliklinike' ) ),
+						$prop( 'ne-postoji-test.hr', array( 'vrsta' => 'tvrtka' ) ),
+						$prop( '24sata.hr' ),
+						$prop( 'jojo-optika.hr' ),
+						$prop( 'klub-test.hr', array( 'naziv' => 'Klub Test', 'vrsta' => 'sport' ) ),
+						$prop( 'facebook.com' ),
+					);
+					$search = array(
+						array( 'type' => 'server_tool_use', 'id' => 'srvtoolu_1', 'name' => 'web_search', 'input' => array( 'query' => 'poliklinika Sesvete' ) ),
+						array( 'type' => 'web_search_tool_result', 'tool_use_id' => 'srvtoolu_1', 'content' => array( array( 'type' => 'web_search_result', 'url' => 'https://www.poliklinika-test.hr/', 'title' => 'Poliklinika Test', 'encrypted_content' => 'abc', 'page_age' => null ) ) ),
+					);
+					$use    = array( 'input_tokens' => 21000, 'output_tokens' => 1500, 'server_tool_use' => array( 'web_search_requests' => 3 ) );
+					$tool   = array( 'type' => 'tool_use', 'id' => 'toolu_s', 'name' => 'spremi_suradnje', 'input' => array( 'prijedlozi' => $found ) );
+					$after  = 'assistant' === $last['role'] || ( is_string( $last['content'] ) && false !== strpos( $last['content'], 'Sada pozovi alat' ) );
+					if ( 'pauza' === $mode && ! $after ) {
+						return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'pause_turn', 'usage' => $use, 'content' => $search ) );
+					}
+					if ( 'bez_alata' === $mode && ! $after ) {
+						return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'end_turn', 'usage' => $use, 'content' => array_merge( $search, array( array( 'type' => 'text', 'text' => 'Našao sam nekoliko kandidata.' ) ) ) ) );
+					}
+					return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'tool_use', 'usage' => $after ? array( 'input_tokens' => 22000, 'output_tokens' => 1400 ) : $use, 'content' => $after ? array( $tool ) : array_merge( $search, array( $tool ) ) ) );
+				}
+				// Prijedlozi za postojeće kandidate. Opcija olr_test_ai_suradnje: tekst = prvi odgovor bez alata, prekid = prekinut.
+				$mode = (string) get_option( 'olr_test_ai_suradnje' );
+				$use  = array( 'input_tokens' => 1800, 'output_tokens' => 2200 );
+				if ( 'prekid' === $mode ) {
+					return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'max_tokens', 'usage' => $use, 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_s', 'name' => 'spremi_suradnje', 'input' => array() ) ) ) );
+				}
+				if ( 'tekst' === $mode && false === strpos( $req['system'], 'VAŽNO: u prethodnom pokušaju alat nije pozvan' ) ) {
+					return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'end_turn', 'usage' => $use, 'content' => array( array( 'type' => 'text', 'text' => 'Evo prijedloga u tekstu, bez alata.' ) ) ) );
+				}
+				$in  = json_decode( $last['content'], true );
+				$out = array();
+				foreach ( $in['kandidati'] as $i => $c ) {
+					$out[] = 1 === $i ? $prop( $c['domena'], array( 'poruka' => '' ) ) : $prop( $c['domena'], array( 'zasto' => 'Konkurenti imaju ' . array_sum( (array) $c['poveznice_konkurenata'] ) . ' poveznica s domene ' . $c['domena'] . '.' ) );
+				}
+				$out[] = $prop( 'nije-u-ulazu.hr' );
+				return $json( 200, array( 'id' => 'msg_s', 'model' => $model, 'stop_reason' => 'tool_use', 'usage' => $use, 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'sig' ), array( 'type' => 'tool_use', 'id' => 'toolu_s', 'name' => 'spremi_suradnje', 'input' => array( 'prijedlozi' => $out ) ) ) ) );
+			}
 			// Dnevni prijedlozi: za svaki nalaz vrati izmjene (jedan predug naslov i jedan link na nepostojeći izvor, za provjeru čišćenja).
 			if ( isset( $req['system'] ) && false !== strpos( $req['system'], '[zadatak: dnevni prijedlozi]' ) ) {
-				$tool = ! empty( $req['tools'] ) && isset( $req['tool_choice']['name'] ) && 'spremi_prijedlog' === $req['tool_choice']['name'];
+				// Alat je ponuđen (dodatak ga traži uputom, ne prisilom). Opcija olr_test_ai_tool_fail: model ne pozove alat nego odgovori tekstom.
+				$tool = in_array( 'spremi_prijedlog', $names, true ) && ! get_option( 'olr_test_ai_tool_fail' );
 				$use  = array( 'input_tokens' => 700, 'output_tokens' => 300 );
 				// Prekinut ili neupotrebljiv odgovor u oba načina.
 				if ( get_option( 'olr_test_ai_bad_json' ) ) {
 					$c = $tool ? array( array( 'type' => 'tool_use', 'id' => 'toolu_x', 'name' => 'spremi_prijedlog', 'input' => array() ) ) : array( array( 'type' => 'text', 'text' => '{"naslov":"Prekinut' ) );
 					return $json( 200, array( 'id' => 'msg_p', 'model' => $req['model'], 'stop_reason' => 'max_tokens', 'usage' => $use, 'content' => $c ) );
-				}
-				// API odbija prisilni poziv alata: mora proći rezervni način s JSON-om u tekstu.
-				if ( $tool && get_option( 'olr_test_ai_tool_fail' ) ) {
-					return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tool_choice: not supported for this model' ) ) );
 				}
 				$n  = json_decode( $last['content'], true );
 				$ch = array();
@@ -629,12 +749,12 @@ add_filter(
 				);
 				return $json( 200, array( 'id' => 'msg_m', 'model' => $req['model'], 'stop_reason' => 'tool_use', 'usage' => array( 'input_tokens' => 2500, 'output_tokens' => 600 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_m', 'name' => 'spremi_preporuke', 'input' => $out ) ) ) );
 			}
-			// JSON odgovor ploče (popravak nalaza, brief): prisilni poziv alata „odgovor”.
-			// Opcija olr_test_ai_json: odbij = API odbija poziv alata (400), prekid = odgovor prekinut zbog duljine.
-			if ( isset( $req['tool_choice']['name'] ) && 'odgovor' === $req['tool_choice']['name'] ) {
+			// JSON odgovor ploče (popravak nalaza, brief): alat „odgovor”, tražen uputom.
+			// Opcija olr_test_ai_json: odbij = model ne pozove alat nego odgovori tekstom, prekid = odgovor prekinut zbog duljine.
+			if ( in_array( 'odgovor', $names, true ) ) {
 				$mode = get_option( 'olr_test_ai_json' );
 				if ( 'odbij' === $mode ) {
-					return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tool_choice: not supported for this model' ) ) );
+					return $json( 200, array( 'id' => 'msg_j', 'model' => $req['model'], 'stop_reason' => 'end_turn', 'usage' => array( 'input_tokens' => 900, 'output_tokens' => 200 ), 'content' => array( array( 'type' => 'text', 'text' => '{"dijagnoza":"Dijagnoza iz teksta.","koraci":["a"]}' ) ) ) );
 				}
 				if ( 'prekid' === $mode ) {
 					return $json( 200, array( 'id' => 'msg_j', 'model' => $req['model'], 'stop_reason' => 'max_tokens', 'usage' => array( 'input_tokens' => 900, 'output_tokens' => 4096 ), 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_j', 'name' => 'odgovor', 'input' => array() ) ) ) );

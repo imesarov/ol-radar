@@ -166,6 +166,29 @@ class OLR_Radar_Admin {
 		$vals['ig_uzori']      = sanitize_text_field( (string) self::post( 'ig_uzori' ) );
 		$vals['tt_client_key'] = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) self::post( 'tt_client_key' ) );
 		$vals['mreze_auto']    = '1' === self::post( 'mreze_auto' );
+		// Suradnje i poveznice.
+		$vals['suradnje_auto']  = '1' === self::post( 'suradnje_auto' );
+		$vals['suradnje_trazi'] = '1' === self::post( 'suradnje_trazi' );
+		$vals['suradnje_dr']    = '1' === self::post( 'suradnje_dr' );
+		$smax                   = (int) self::post( 'suradnje_max' );
+		if ( $smax > 0 ) {
+			$vals['suradnje_max'] = min( 8, $smax );
+		}
+		$snew = (int) self::post( 'suradnje_novih' );
+		if ( $snew > 0 ) {
+			$vals['suradnje_novih'] = min( 5, $snew );
+		}
+		$vals['suradnje_fokus'] = sanitize_text_field( (string) self::post( 'suradnje_fokus' ) );
+		if ( null !== self::post( 'konkurenti' ) ) {
+			$doms = array();
+			foreach ( preg_split( '/[,\s]+/', sanitize_text_field( (string) self::post( 'konkurenti' ) ) ) as $d ) {
+				$d = OLR_Suradnje::host( $d );
+				if ( '' !== $d && ! in_array( $d, $doms, true ) ) {
+					$doms[] = $d;
+				}
+			}
+			$vals['konkurenti'] = implode( ', ', array_slice( $doms, 0, 10 ) );
+		}
 		$kws = self::post( 'rank_keywords' );
 		if ( null !== $kws ) {
 			$list = array();
@@ -294,6 +317,25 @@ class OLR_Radar_Admin {
 				$r = OLR_Social::recommend( 'rucno' );
 				if ( ! is_wp_error( $r ) ) {
 					$r = sprintf( 'Claude je napisao %d preporuka i %d ideja. Otvori nadzornu ploču → Društvene mreže.', count( $r['preporuke'] ), count( $r['ideje'] ) );
+				}
+				break;
+			case 'suradnje_pisi':
+				$r = OLR_Suradnje::write( 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$r = sprintf( 'Napisano prijedloga suradnje: %d%s. Otvori nadzornu ploču → Suradnje.', $r['napisano'], $r['preostalo'] ? ' (kandidata koji čekaju sljedeći prolaz: ' . $r['preostalo'] . ')' : '' );
+				}
+				break;
+			case 'suradnje_trazi':
+				$r = OLR_Suradnje::search( 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$r = sprintf( 'Novih kandidata iz web pretrage, s prijedlogom: %d%s. Otvori nadzornu ploču → Suradnje.', $r['novih'], $r['pretraga'] ? ' (web pretraga: ' . $r['pretraga'] . ')' : '' );
+				}
+				break;
+			case 'suradnje_dr':
+				$r = OLR_Suradnje::dr_refresh();
+				if ( ! is_wp_error( $r ) ) {
+					$st = OLR_Settings::status();
+					$r  = 'DR provjeren: ' . $st['suradnje_dr']['msg'] . '.';
 				}
 				break;
 			case 'tt_connect':
@@ -426,6 +468,31 @@ class OLR_Radar_Admin {
 		echo '</td></tr>';
 	}
 
+	/** Tablica Claudeova troška: danas i po mjesecima. Iznos se računa iz stvarnih tokena svakog poziva. */
+	private static function render_ai_cost( $c ) {
+		// Iznosi ispod jednog dolara s tri decimale (pojedini poziv stoji djelić centa).
+		$usd = static function ( $v ) {
+			return null === $v ? 'nepoznato' : number_format( (float) $v, (float) $v < 1 ? 3 : 2, ',', '.' ) . ' $';
+		};
+		echo '<p style="max-width:900px">Danas: <strong>' . esc_html( $usd( $c['danas']['usd'] ) ) . '</strong> · ' . (int) $c['danas']['pozivi'] . ' poziva od dnevnog limita ' . (int) $c['danas']['limit'] . '. Model: <code>' . esc_html( $c['model'] ) . '</code>';
+		if ( $c['cijena'] ) {
+			echo esc_html( sprintf( ' (%s $ ulaz i %s $ izlaz po milijunu tokena; web pretraga %s $ po upitu)', number_format( $c['cijena']['ulaz'], 2, ',', '.' ), number_format( $c['cijena']['izlaz'], 2, ',', '.' ), number_format( $c['cijena']['pretraga'], 2, ',', '.' ) ) );
+		} else {
+			echo ' (cijena ovog modela nije u cjeniku dodatka, pa se trošak ne može izračunati)';
+		}
+		echo '.</p>';
+		if ( ! $c['mjeseci'] ) {
+			echo '<p class="description">Još nema zabilježenih poziva.</p>';
+			return;
+		}
+		echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Mjesec</th><th>Poziva</th><th>Ulazni tokeni</th><th>Izlazni tokeni</th><th>Web pretrage</th><th>Trošak</th></tr></thead><tbody>';
+		foreach ( $c['mjeseci'] as $r ) {
+			echo '<tr><td>' . esc_html( $r['mjesec'] ) . '</td><td>' . (int) $r['pozivi'] . '</td><td>' . esc_html( number_format_i18n( $r['ulaz'] ) ) . '</td><td>' . esc_html( number_format_i18n( $r['izlaz'] ) ) . '</td><td>' . (int) $r['pretrage'] . '</td><td><strong>' . esc_html( ( $r['procjena'] && null !== $r['usd'] ? 'oko ' : '' ) . $usd( $r['usd'] ) ) . '</strong>' . ( $r['bez_cijene'] ? ' <span style="color:#646970">(' . (int) $r['bez_cijene'] . ' poziva bez poznate cijene)</span>' : '' ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '<p class="description" style="max-width:900px">Računa se iz stvarnih tokena svakog poziva, po službenom cjeniku na dan ' . esc_html( wp_date( 'j. n. Y.', strtotime( $c['cjenik'] ) ) ) . ' „Oko” znači da je dio mjeseca procijenjen: pozivi prije verzije 2.4.0 nisu imali zabilježen iznos, pa su obračunati po cijeni sadašnjeg modela. Ovdje su samo pozivi OL Radara (ploča, prijedlozi, mreže, suradnje); mjerodavan je iznos u Claude Consoleu, gdje se vidi i stanje kredita.</p>';
+	}
+
 	public static function render_settings() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -437,7 +504,6 @@ class OLR_Radar_Admin {
 			delete_transient( 'olr_settings_notice_' . get_current_user_id() );
 		}
 		$cost    = get_option( 'olr_dfs_cost', array() );
-		$usage   = OLR_AI::usage();
 		$pending = get_option( OLR_DFS::PENDING );
 		$m       = gmdate( 'Y-m' );
 		?>
@@ -481,6 +547,10 @@ class OLR_Radar_Admin {
 					'mreze_tt'     => 'TikTok',
 					'mreze_uzori'  => 'Uzori (tuđi gledani sadržaj)',
 					'mreze_preporuke' => 'Preporuke za društvene mreže',
+					'suradnje'        => 'Prijedlozi suradnje',
+					'suradnje_trazi'  => 'Traženje novih tvrtki (web pretraga)',
+					'suradnje_gsc'    => 'Poveznice iz Search Consolea (uvoz)',
+					'suradnje_dr'     => 'Domain Rating (Ahrefsov javni servis)',
 				);
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;
@@ -496,17 +566,25 @@ class OLR_Radar_Admin {
 				<tr><td><strong>Claude (Anthropic API)</strong></td><td>
 					<?php
 					echo OLR_AI::available() ? '<span style="color:#008a20">●</span> ključ postavljen' : '<span style="color:#646970">ključ nije postavljen</span>';
-					if ( isset( $usage['mjeseci'][ $m ] ) ) {
-						$u = $usage['mjeseci'][ $m ];
-						echo esc_html( sprintf( ' · ovaj mjesec %d poziva, %s ulaznih i %s izlaznih tokena', $u['pozivi'], number_format_i18n( $u['ulaz'] ), number_format_i18n( $u['izlaz'] ) ) );
+					$ai_cost = OLR_AI::cost_summary();
+					if ( $ai_cost['mjeseci'] && $ai_cost['mjeseci'][0]['mjesec'] === $m ) {
+						$u = $ai_cost['mjeseci'][0];
+						$f = static function ( $v ) {
+							return null === $v ? '?' : number_format( (float) $v, (float) $v < 1 ? 3 : 2, ',', '.' );
+						};
+						echo esc_html( sprintf( ' · ovaj mjesec %d poziva, %s%s $ · danas %s $', $u['pozivi'], $u['procjena'] ? 'oko ' : '', $f( $u['usd'] ), $f( $ai_cost['danas']['usd'] ) ) );
 					}
 					?>
+					· <a href="#olr-claude-trosak">detalji</a>
 				</td></tr>
 				<tr><td><strong>DataForSEO trošak</strong></td><td>
 					<?php echo esc_html( sprintf( 'ovaj mjesec %.4f $ · procjena jednog mjerenja %.4f $', isset( $cost[ $m ] ) ? $cost[ $m ] : 0, OLR_DFS::estimate() ) ); ?>
 				</td></tr>
 				</tbody>
 			</table>
+
+			<h2 id="olr-claude-trosak">Claude trošak</h2>
+			<?php self::render_ai_cost( $ai_cost ); ?>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'olr_save' ); ?>
@@ -644,6 +722,31 @@ class OLR_Radar_Admin {
 					</td></tr>
 				</table>
 				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="collect_mreze">Spremi i preuzmi podatke s mreža sada</button> <button type="submit" class="button" name="olr_then" value="mreze_preporuke">Spremi i izradi preporuke sada</button></p>
+				<h2>Suradnje i poveznice</h2>
+				<p class="description" style="max-width:900px">Radar vodi popis mogućih partnera (mediji, portali, ustanove, tvrtke, klubovi) i za svakoga priprema prijedlog: zašto baš on, što ponuditi, koraci i nacrt poruke. Ništa se ne šalje nikome; poruku šalješ sam. Polazni popis je snimak poveznica konkurenata iz Ahrefsa (12. 11. 2026.), a napredak se mjeri poveznicama koje vidi Google: u Search Consoleu otvori Veze → Vanjske veze → Izvoz, pa CSV učitaj u nadzornoj ploči → Suradnje.</p>
+				<table class="form-table" role="presentation">
+					<tr><th scope="row">Tjedni prijedlozi</th><td>
+						<label><input type="checkbox" name="suradnje_auto" value="1" <?php checked( ! empty( $s['suradnje_auto'] ) ); ?>> Jednom tjedno napiši prijedloge za kandidate koji ih još nemaju</label>
+						<p class="description">Najviše <input type="number" name="suradnje_max" class="small-text" min="1" max="8" value="<?php echo (int) $s['suradnje_max']; ?>"> po prolazu. Jedan Claudeov poziv tjedno; trošak vidiš u tablici „Claude trošak”. Prije poziva server provjeri da web kandidata postoji i s njega pročita javni kontakt.</p>
+					</td></tr>
+					<tr><th scope="row">Nove tvrtke (web pretraga)</th><td>
+						<label><input type="checkbox" name="suradnje_trazi" value="1" <?php checked( ! empty( $s['suradnje_trazi'] ) ); ?>> Jednom tjedno neka Claude web pretragom pronađe nove tvrtke i ustanove za suradnju</label>
+						<p class="description">Do <input type="number" name="suradnje_novih" class="small-text" min="1" max="5" value="<?php echo (int) $s['suradnje_novih']; ?>"> novih po prolazu. Web pretragu Anthropic naplaćuje 0,01 $ po upitu (najviše <?php echo (int) min( 6, (int) $s['suradnje_novih'] + 2 ); ?> upita po prolazu), a pročitani rezultati broje se kao ulazni tokeni, pa jedan prolaz stoji više od običnog poziva. Stvarni iznos svakog prolaza vidiš u „Claude trošak”. Gumb ispod i gumb u ploči rade i kad je ovo isključeno.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="suradnje_fokus">Fokus traženja</label></th><td>
+						<input type="text" id="suradnje_fokus" name="suradnje_fokus" class="large-text" value="<?php echo esc_attr( $s['suradnje_fokus'] ); ?>" placeholder="npr. škole i vrtići u Sesvetama, sportski klubovi, tvrtke s uredskim radom u istočnom Zagrebu">
+						<p class="description">Neobavezno. Kad je prazno, Claude sam bira vrste partnera koje imaju smisla za lokalnu optiku.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="konkurenti">Konkurenti</label></th><td>
+						<input type="text" id="konkurenti" name="konkurenti" class="large-text code" value="<?php echo esc_attr( $s['konkurenti'] ); ?>">
+						<p class="description">Do 10 domena, odvojenih zarezom. Ne ulaze među kandidate, a u ploči se uspoređuju s nama.</p>
+					</td></tr>
+					<tr><th scope="row">Domain Rating</th><td>
+						<label><input type="checkbox" name="suradnje_dr" value="1" <?php checked( ! empty( $s['suradnje_dr'] ) ); ?>> Jednom tjedno provjeri DR naše domene i konkurenata</label>
+						<p class="description">DR je Ahrefsova brojka i ne može se dobiti iz Search Consolea. Provjera koristi Ahrefsov besplatni javni servis: radi bez pretplate i bez ključa, ne košta ništa. Kad je isključeno, ploča prikazuje DR iz arhive (12. 11. 2026.). Domain Rating by Ahrefs.</p>
+					</td></tr>
+				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="suradnje_pisi">Spremi i napiši prijedloge sada</button> <button type="submit" class="button" name="olr_then" value="suradnje_trazi" data-olr-potvrda="Claude će web pretragom potražiti nove tvrtke za suradnju. Pretraga se naplaćuje 0,01 $ po upitu, uz tokene za pročitane rezultate. Nastaviti?">Spremi i potraži nove tvrtke sada</button> <button type="submit" class="button" name="olr_then" value="suradnje_dr">Spremi i provjeri DR sada</button></p>
 				<?php submit_button( 'Spremi postavke' ); ?>
 			</form>
 			<script>

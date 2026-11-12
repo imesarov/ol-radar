@@ -315,6 +315,25 @@ class OLR_Abilities {
 			)
 		);
 		wp_register_ability(
+			'ol-radar/radar-suradnje',
+			array(
+				'label'               => 'Radar: suradnje i poveznice',
+				'description'         => 'Suradnje i poveznice s hostinga: kandidati za suradnju (mediji, portali, ustanove, tvrtke, klubovi) s Claudeovim prijedlogom (zašto, što ponuditi, koraci, nacrt poruke), javnim kontaktom pročitanim s njihova weba i stanjem (novo, kontaktirano, dogovoreno, dobiveno, odbijeno); poveznice koje vidi Google (ručni uvoz izvoza iz Search Consolea, glavno mjerilo napretka) i Domain Rating naše domene i konkurenata (Domain Rating by Ahrefs; arhiva od 12. 11. 2026. ili tjedna provjera besplatnim javnim servisom ako je uključena). Zadano vraća kandidate s prijedlogom; svi: true vraća i one bez prijedloga. Samo čitanje; nikome se ništa ne šalje.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'stanje' => array( 'type' => 'string', 'enum' => OLR_Suradnje::STANJA, 'description' => 'Samo kandidati u tom stanju.' ),
+						'svi'    => array( 'type' => 'boolean', 'description' => 'Uključi i kandidate kojima prijedlog još nije napisan.' ),
+						'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'description' => 'Najviše kandidata (zadano 25).' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_partners' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
 			'ol-radar/radar-prijedlozi',
 			array(
 				'label'               => 'Radar: prijedlozi izmjena',
@@ -332,6 +351,29 @@ class OLR_Abilities {
 				'meta'                => self::meta(),
 			)
 		);
+	}
+
+	public static function radar_partners( $input = array() ) {
+		$s     = OLR_Suradnje::summary( 2000 );
+		$state = isset( $input['stanje'] ) && in_array( $input['stanje'], OLR_Suradnje::STANJA, true ) ? $input['stanje'] : '';
+		$all   = ! empty( $input['svi'] );
+		$limit = isset( $input['limit'] ) ? max( 1, min( 100, (int) $input['limit'] ) ) : 25;
+		$rows  = array_values(
+			array_filter(
+				$s['kandidati'],
+				static function ( $c ) use ( $state, $all ) {
+					return ( '' === $state || $c['stanje'] === $state ) && ( $all || ! empty( $c['ai'] ) || '' !== $state );
+				}
+			)
+		);
+		$s['kandidati'] = array_slice( $rows, 0, $limit );
+		$s['prikazano'] = count( $s['kandidati'] );
+		if ( $s['gsc'] ) {
+			// Popis domena iz Search Consolea skraćen na 40 najjačih; brojke ostaju potpune.
+			$s['gsc']['domene'] = array_slice( $s['gsc']['domene'], 0, 40 );
+		}
+		unset( $s['vrste'] );
+		return $s;
 	}
 
 	public static function radar_social( $input = array() ) {
@@ -417,6 +459,8 @@ class OLR_Abilities {
 				'ucinak'     => $p['ucinak'],
 			),
 			'indeks'     => OLR_Indeks::summary( 0 ),
+			// Suradnje i poveznice: samo brojke; prijedlozi su u ol-radar/radar-suradnje.
+			'suradnje'   => self::partners_brief(),
 			// Društvene mreže: samo je li povezano i kad je zadnji put osvježeno; podaci su u ol-radar/radar-mreze.
 			'mreze'      => array_map(
 				static function ( $m ) {
@@ -429,6 +473,17 @@ class OLR_Abilities {
 				},
 				OLR_Social::summary( 0 )['mreze']
 			),
+		);
+	}
+
+	private static function partners_brief() {
+		$s = OLR_Suradnje::summary( 0 );
+		return array(
+			'kandidata'     => $s['ukupno'],
+			's_prijedlogom' => $s['s_prijedlogom'],
+			'stanja'        => $s['stanja'],
+			'nas_dr'        => $s['dr']['nas'],
+			'google_vidi_domena' => $s['gsc'] ? $s['gsc']['domena'] : null,
 		);
 	}
 

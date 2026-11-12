@@ -2,16 +2,25 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: GPL-2.0-or-later
 
-OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
+OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, suradnje i poveznice, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
 
 == Description ==
 
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.4.0 =
+* Suradnje i poveznice: popis mogućih partnera (mediji, portali, ustanove, tvrtke, klubovi) i za svakoga Claudeov prijedlog: zašto baš on, što ponuditi, koraci i nacrt poruke. Server prije toga provjeri da web postoji i pročita javni kontakt. Ništa se ne šalje nikome.
+* Nove tvrtke: Claude ih može tražiti web pretragom (na gumb uz potvrdu troška, ili jednom tjedno ako se uključi u Postavkama).
+* Poveznice koje vidi Google: uvoz izvoza iz Search Consolea (Veze → Vanjske veze → Izvoz) kao glavno mjerilo napretka; Search Console API taj izvještaj ne daje.
+* Domain Rating nas i konkurenata: arhiva od 12. 11. 2026. ili, ako se uključi, tjedna provjera Ahrefsovim besplatnim javnim servisom (bez pretplate i ključa). Domain Rating by Ahrefs.
+* Claude trošak u Postavkama: danas i po mjesecima, iz stvarnih tokena svakog poziva; iznos za mjesec i u zaglavlju ploče.
+* Popravak: Claude Opus 5.5 i Sonnet 5.5 odbijaju prisilni poziv alata. Dodatak ga više ne šalje, pa preporuke za društvene mreže rade i na tim modelima, a prijedlozi i popravci više ne troše jedan odbijeni zahtjev po pozivu.
+* Nova MCP sposobnost ol-radar/radar-suradnje. Postojeći ključevi i postavke se ne diraju.
 
 = 2.3.0 =
 * Društvene mreže na hostingu: Instagram i Facebook (Meta Graph API), YouTube (Data API v3) i TikTok (Display API). Dodatak skuplja vlastite objave i njihove brojke dvaput dnevno. Samo čitanje: ništa se ne objavljuje, ne briše i ne mijenja.

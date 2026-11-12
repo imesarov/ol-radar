@@ -1,6 +1,6 @@
 <?php
 /**
- * Test Radara na hostingu (dodatak 2.x) s lažnim Google, DataForSEO i Anthropic odgovorima.
+ * Test Radara na hostingu (dodatak 2.x) s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima.
  * Pokretanje: WPTEST_DIR=... php radar_test.php
  */
 $_SERVER['HTTP_HOST']   = '127.0.0.1:8089';
@@ -441,7 +441,7 @@ foreach ( $a as $p ) {
 }
 ok( $clean, 'prijedlozi: HTML uklonjen, nepoznata polja odbačena' );
 $sent = get_option( 'olr_test_ai_last' );
-ok( false === strpos( wp_json_encode( $sent ), 'sk-ant' ) && false === strpos( wp_json_encode( $sent ), 'PRIVATE KEY' ) && false !== strpos( $sent['system'], 'Ne izmišljaj' ) && 'spremi_prijedlog' === $sent['tool_choice']['name'] && $sent['max_tokens'] <= 3000 && ! isset( json_decode( $sent['messages'][0]['content'], true )['nalazi'] ), 'prijedlozi: jedan nalaz po pozivu, prisilni poziv alata, Claudeu idu samo podaci o stranici i upitima' );
+ok( false === strpos( wp_json_encode( $sent ), 'sk-ant' ) && false === strpos( wp_json_encode( $sent ), 'PRIVATE KEY' ) && false !== strpos( $sent['system'], 'Ne izmišljaj' ) && ! isset( $sent['tool_choice'] ) && 'spremi_prijedlog' === $sent['tools'][0]['name'] && false !== strpos( $sent['system'], 'Odgovori isključivo pozivom alata spremi_prijedlog' ) && $sent['max_tokens'] <= 3000 && ! isset( json_decode( $sent['messages'][0]['content'], true )['nalazi'] ), 'prijedlozi: jedan nalaz po pozivu, alat tražen uputom (bez prisile koju novi modeli odbijaju), Claudeu idu samo podaci o stranici i upitima' );
 ok( false === OLR_Prijedlozi::due() && false === OLR_Prijedlozi::fill_due(), 'prijedlozi: za iste Google podatke automatika ne pokreće ponovno' );
 
 // Stanja: odbijeni se ne vraća, otvoreni se ne dupliciraju.
@@ -638,7 +638,7 @@ if ( $reader ) {
 	wp_set_current_user( $admin[0]->ID );
 }
 
-// 14) Claude u ploči: JSON odgovor preko prisilnog poziva alata; odbijen zahtjev ima svoju oznaku; zadnji poziv u stanju.
+// 14) Claude u ploči: JSON odgovor pozivom alata (traženim uputom, bez prisile); zadnji poziv u stanju.
 delete_option( 'olr_test_ai_json' );
 $jq = array(
 	'messages'    => array( array( 'role' => 'user', 'content' => 'NALAZ: test. Vrati SAMO JSON objekt.' ) ),
@@ -653,9 +653,16 @@ update_option( 'olr_test_ai_json', 'prekid' );
 $jr = OLR_AI::call( $jq );
 $js = OLR_Settings::status()['ai_poziv'];
 ok( ! is_wp_error( $jr ) && 'max_tokens' === $jr['stop_reason'] && false === $js['ok'] && false !== strpos( $js['msg'], 'prekinut zbog duljine' ), 'ai: prekinut odgovor je vidljiv u stanju izvora' );
+// Model ne pozove alat nego odgovori tekstom: jedan ponovljeni pokušaj s podsjetnikom, zatim se vraća što je stiglo.
 update_option( 'olr_test_ai_json', 'odbij' );
+$n0 = (int) get_option( 'olr_test_ai_calls' );
 $jr = OLR_AI::call( $jq );
-ok( is_wp_error( $jr ) && 'olr_ai_zahtjev' === $jr->get_error_code() && 400 === $jr->get_error_data()['status'] && false === OLR_Settings::status()['ai_poziv']['ok'], 'ai: zahtjev koji API odbije ima svoju oznaku (ploča tada prelazi na rezervni način)' );
+$jl = get_option( 'olr_test_ai_last' );
+ok( ! is_wp_error( $jr ) && 'end_turn' === $jr['stop_reason'] && false !== strpos( $jr['content'][0]['text'], 'Dijagnoza iz teksta' ) && 2 === (int) get_option( 'olr_test_ai_calls' ) - $n0 && false !== strpos( $jl['system'], 'u prethodnom pokušaju alat nije pozvan' ), 'ai: kad model ne pozove alat, ide jedan ponovljeni pokušaj s podsjetnikom' );
+ok( ! isset( $jl['tool_choice'] ) && 'odgovor' === $jl['tools'][0]['name'], 'ai: prisilni poziv alata se ne šalje (Opus 5.5 i Sonnet 5.5 ga odbijaju s 400)' );
+// Zahtjev koji API odbije (ovdje: prisila poslana mimo dodatka) ima svoju oznaku.
+$raw = wp_remote_post( 'https://api.anthropic.com/v1/messages', array( 'headers' => array( 'x-api-key' => 'sk-ant-test-1234', 'anthropic-version' => '2023-06-01' ), 'body' => wp_json_encode( array( 'model' => 'claude-opus-5-5', 'max_tokens' => 10, 'messages' => array( array( 'role' => 'user', 'content' => 'x' ) ), 'tool_choice' => array( 'type' => 'tool', 'name' => 'odgovor' ) ) ) ) );
+ok( 400 === wp_remote_retrieve_response_code( $raw ), 'mock: prisilni poziv alata vraća 400 kao pravi API' );
 delete_option( 'olr_test_ai_json' );
 
 // 15) Društvene mreže: Instagram i Facebook (Meta Graph API), YouTube (Data API), TikTok (Display API), analiza i preporuke.
@@ -824,7 +831,7 @@ ok( 9000 === $ai['nase_mreze']['ig']['najbolje'][0]['pregledi'] && ! isset( $ai[
 $pr = OLR_Social::recommend( 'rucno' );
 $rq = get_option( 'olr_test_ai_last' );
 ok( ! is_wp_error( $pr ) && 2 === count( $pr['preporuke'] ) && 3 === count( $pr['preporuke'][0]['koraci'] ) && 'ig' === $pr['preporuke'][0]['mreza'] && 'sve' === $pr['preporuke'][1]['mreza'] && 'Preporuka s nepoznatom mrežom bez HTML-a' === $pr['preporuke'][1]['naslov'] && 2 === count( $pr['ideje'] ) && false !== strpos( $pr['sazetak'], '9000' ), 'preporuke: Claudeov odgovor je očišćen (najviše 3 koraka, nepoznata mreža → sve, bez HTML-a, stavka bez naslova ispada)' );
-ok( 'spremi_preporuke' === $rq['tool_choice']['name'] && 4000 === $rq['max_tokens'] && false === strpos( wp_json_encode( $rq ), 'meta-test-token' ) && false === strpos( wp_json_encode( $rq ), 'tt-access' ) && true === OLR_Settings::status()['mreze_preporuke']['ok'], 'preporuke: prisilni poziv alata; u zahtjevu nema tokena' );
+ok( ! isset( $rq['tool_choice'] ) && 'spremi_preporuke' === $rq['tools'][0]['name'] && false !== strpos( $rq['system'], 'Odgovori isključivo pozivom alata spremi_preporuke' ) && 4000 === $rq['max_tokens'] && false === strpos( wp_json_encode( $rq ), 'meta-test-token' ) && false === strpos( wp_json_encode( $rq ), 'tt-access' ) && true === OLR_Settings::status()['mreze_preporuke']['ok'], 'preporuke: alat tražen uputom, bez prisile; u zahtjevu nema tokena' );
 update_option( 'olr_test_ai_mreze', 'prekid' );
 delete_option( 'olr_test_ai_mreze_calls' );
 $pr = OLR_Social::recommend( 'rucno' );
@@ -916,6 +923,195 @@ OLR_Social::analyze();
 $names = OLR_Settings::readable_names();
 sort( $names );
 ok( array( 'anthropic_key', 'dfs_login', 'dfs_password', 'gsc_sa', 'meta_token', 'tt_secret', 'yt_key' ) === $names && get_option( 'olr_keys_seen' ) == OLR_Settings::readable_names(), 'ključevi: novi ključevi mreža ulaze u provjeru nakon nadogradnje' );
+
+// 16) Suradnje i poveznice: kandidati, prijedlozi, traženje novih tvrtki web pretragom, DR, poveznice iz Search Consolea.
+$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll IN ('suradnje','suradnje_stanje','suradnje_dr')" );
+foreach ( array( 'olr_suradnje_run', 'olr_suradnje_seed', 'olr_test_ai_suradnje', 'olr_test_ai_trazi', 'olr_test_dr', 'olr_test_dr_calls', 'olr_test_site_down' ) as $o ) {
+	delete_option( $o );
+}
+OLR_Settings::update( array( 'ai_daily_limit' => 500 ) );
+$S = 'OLR_Suradnje';
+ok( 'primjer.hr' === $S::host( 'https://www.Primjer.hr/put?x=1' ) && '' === $S::host( 'nije domena' ) && '' === $S::host( 'http://localhost/' ), 'suradnje: domena iz adrese; neispravan unos se odbija' );
+ok( $S::blocked( 'optikaljiljana.hr' ) && $S::blocked( 'jojo-optika.hr' ) && $S::blocked( 'facebook.com' ) && $S::blocked( 'seoexpress.xyz' ) && ! $S::blocked( '24sata.hr' ), 'suradnje: naša domena, konkurenti, velike platforme i prodavači poveznica nisu kandidati' );
+ok( 20 === $S::seed() && 0 === $S::seed() && 20 === count( $S::all() ), 'suradnje: početni kandidati iz priložene arhive uvoze se jednom' );
+$sm = $S::summary();
+ok( 20 === $sm['ukupno'] && 0 === $sm['s_prijedlogom'] && 0.0 === (float) $sm['dr']['nas'] && 6 === count( $sm['dr']['domene'] ) && 'optika-anda.com' === $sm['dr']['domene'][0]['domena'] && 28.0 === (float) $sm['dr']['domene'][0]['dr'] && 'Domain Rating by Ahrefs' === $sm['dr']['izvor'] && false === $sm['dr_auto'] && null === $sm['gsc'], 'suradnje: polazni DR iz arhive (naš 0, najjači konkurent 28), s oznakom izvora; tjedna provjera DR-a je isključena' );
+$dup = $S::add( array( 'domena' => 'www.24sata.hr' ), 'rucno' );
+ok( ! is_wp_error( $dup ) && 'ahrefs-2026-11-12' === $dup['izvor'] && 20 === count( $S::all() ) && is_wp_error( $S::add( array( 'domena' => 'optika-anda.com' ), 'rucno' ) ), 'suradnje: ista domena se ne dodaje dvaput; konkurent se ne može dodati' );
+
+// Prijedlozi: server prvo provjeri web i pročita javni kontakt, zatim jedan Claudeov poziv za najviše 5 kandidata.
+$n0 = (int) get_option( 'olr_test_ai_calls' );
+$w  = $S::write( 'rucno' );
+$rq = get_option( 'olr_test_ai_last' );
+$by = array();
+foreach ( $S::all() as $c ) {
+	$by[ $c['domena'] ] = $c;
+}
+ok( ! is_wp_error( $w ) && 4 === $w['napisano'] && 2 === $w['odbaceno'] && 15 === $w['preostalo'] && 1 === (int) get_option( 'olr_test_ai_calls' ) - $n0, 'suradnje: 4 prijedloga iz jednog poziva; nepotpun i nepoznata domena odbačeni (' . ( is_wp_error( $w ) ? $w->get_error_message() : wp_json_encode( $w ) ) . ')' );
+$p1 = $by['24sata.hr'];
+ok( true === $p1['ai'] && false !== strpos( $p1['prijedlog']['zasto'], '287 poveznica' ) && 3 === count( $p1['prijedlog']['koraci'] ) && false === strpos( $p1['prijedlog']['poruka'], '<' ) && false !== strpos( $p1['prijedlog']['poruka'], "\n\n" ) && 'urednik rubrike Zdravlje' === $p1['prijedlog']['kome'], 'suradnje: prijedlog je očišćen (najviše 3 koraka, bez HTML-a, prijelomi redaka u poruci ostaju)' );
+ok( true === $p1['ziv'] && 'https://24sata.hr/kontakt/' === $p1['kontakt']['stranica'] && array( 'info@24sata.hr', 'redakcija@24sata.hr' ) === $p1['kontakt']['email'] && array( '+385 1 2345 678' ) === $p1['kontakt']['telefon'], 'suradnje: javni kontakt pročitan s weba kandidata (stranica Kontakt, e-pošta, telefon); tuđa adresa iz teksta ne ulazi' );
+ok( false === $by['bug.hr']['ziv'] && empty( $by['bug.hr']['ai'] ) && empty( $by['jutarnji.hr']['ai'] ) && true === $by['jutarnji.hr']['ziv'], 'suradnje: kandidat čiji se web ne otvara ne ide Claudeu; nepotpun prijedlog ostaje za sljedeći prolaz' );
+ok( ! isset( $rq['tool_choice'] ) && false !== strpos( $rq['system'], '[zadatak: suradnje i poveznice]' ) && false !== strpos( $rq['system'], 'Nikad ne predlaži kupnju poveznica' ) && false !== strpos( $rq['system'], 'Odgovori isključivo pozivom alata spremi_suradnje' ) && 6000 === $rq['max_tokens'] && 1 === count( $rq['tools'] ) && false === strpos( $rq['messages'][0]['content'], '@' ) && false === strpos( wp_json_encode( $rq ), 'sk-ant' ), 'suradnje: zahtjev Claudeu (bez prisile i web pretrage, dulji odgovor dopušten, bez e-adresa i ključeva)' );
+ok( true === OLR_Settings::status()['suradnje']['ok'] && 4 === $S::summary()['s_prijedlogom'] && true === $S::summary()['kandidati'][0]['ai'], 'suradnje: stanje izvora i sažetak (kandidati s prijedlogom su prvi)' );
+// Model prvi put odgovori tekstom: ponovljeni pokušaj s podsjetnikom prolazi.
+update_option( 'olr_test_ai_suradnje', 'tekst' );
+$n0 = (int) get_option( 'olr_test_ai_calls' );
+$w2 = $S::write( 'rucno' );
+ok( ! is_wp_error( $w2 ) && 3 === $w2['napisano'] && 2 === (int) get_option( 'olr_test_ai_calls' ) - $n0, 'suradnje: odgovor bez poziva alata ide ponovno i prolazi (' . ( is_wp_error( $w2 ) ? $w2->get_error_message() : wp_json_encode( $w2 ) ) . ')' );
+update_option( 'olr_test_ai_suradnje', 'prekid' );
+$w3 = $S::write( 'rucno' );
+ok( is_wp_error( $w3 ) && 'olr_suradnje_oblik' === $w3->get_error_code() && false !== strpos( $w3->get_error_message(), 'prekinut zbog duljine' ) && false === OLR_Settings::status()['suradnje']['ok'], 'suradnje: prekinut odgovor je jasna greška u stanju izvora' );
+delete_option( 'olr_test_ai_suradnje' );
+$w4 = $S::write( 'rucno' );
+ok( is_wp_error( $w4 ) && 'olr_suradnje_limit' === $w4->get_error_code(), 'suradnje: najviše 3 ručna pokretanja dnevno' );
+
+// Traženje novih tvrtki: Anthropicova web pretraga, samo sa servera; kandidat ulazi tek ako mu web postoji.
+$dr0 = (int) get_option( 'olr_test_dr_calls' );
+$f   = $S::search( 'rucno' );
+$rq  = get_option( 'olr_test_ai_last' );
+$by  = array();
+foreach ( $S::all() as $c ) {
+	$by[ $c['domena'] ] = $c;
+}
+$ws  = end( $rq['tools'] );
+ok( ! is_wp_error( $f ) && 2 === $f['novih'] && 4 === $f['odbaceno'] && 3 === $f['pretraga'] && 22 === count( $S::all() ), 'suradnje: web pretraga dodaje 2 nove tvrtke; nepostojeći web, već poznata domena, konkurent i društvena mreža odbačeni (' . ( is_wp_error( $f ) ? $f->get_error_message() : wp_json_encode( $f ) ) . ')' );
+$np = isset( $by['poliklinika-test.hr'] ) ? $by['poliklinika-test.hr'] : null;
+ok( $np && 'claude-pretraga' === $np['izvor'] && 'zdravstvo' === $np['vrsta'] && 'Poliklinika Test' === $np['naziv'] && true === $np['ai'] && array( 'info@poliklinika-test.hr', 'redakcija@poliklinika-test.hr' ) === $np['kontakt']['email'] && null === $np['dr'] && $dr0 === (int) get_option( 'olr_test_dr_calls' ), 'suradnje: novi kandidat ima prijedlog i kontakt koji je pročitao server; DR se ne provjerava dok je isključen' );
+ok( 'web_search_20250305' === $ws['type'] && 5 === $ws['max_uses'] && 'HR' === $ws['user_location']['country'] && ! isset( $rq['tool_choice'] ) && 6000 === $rq['max_tokens'] && in_array( '24sata.hr', json_decode( $rq['messages'][0]['content'], true )['vec_poznato'], true ) && in_array( 'optikaljiljana.hr', json_decode( $rq['messages'][0]['content'], true )['vec_poznato'], true ), 'suradnje: zahtjev s web pretragom (najviše 5 upita, lokacija Hrvatska, poznate domene isključene)' );
+ok( 3 === OLR_AI::usage()['mjeseci'][ gmdate( 'Y-m' ) ]['pretrage'] && true === OLR_Settings::status()['suradnje_trazi']['ok'], 'suradnje: web pretrage se broje u potrošnji' );
+// Web pretraga nije uključena u Claude Consoleu: jasna poruka, ništa se ne mijenja.
+update_option( 'olr_test_ai_trazi', 'iskljuceno' );
+$f2 = $S::search( 'rucno' );
+ok( is_wp_error( $f2 ) && 'olr_suradnje_pretraga' === $f2->get_error_code() && false !== strpos( $f2->get_error_message(), 'Claude Consoleu' ) && false === OLR_Settings::status()['suradnje_trazi']['ok'] && 22 === count( $S::all() ), 'suradnje: isključena web pretraga daje jasnu poruku' );
+// Prekinut prolaz (pause_turn) nastavlja se s dosadašnjim sadržajem, nepromijenjenim.
+OLR_Store::delete( 'suradnje', $S::id( 'poliklinika-test.hr' ) );
+update_option( 'olr_test_ai_trazi', 'pauza' );
+$f3 = $S::search( 'rucno' );
+$rq = get_option( 'olr_test_ai_last' );
+ok( ! is_wp_error( $f3 ) && 1 === $f3['novih'] && 2 === count( $rq['messages'] ) && 'assistant' === $rq['messages'][1]['role'] && 'server_tool_use' === $rq['messages'][1]['content'][0]['type'] && 'abc' === $rq['messages'][1]['content'][1]['content'][0]['encrypted_content'], 'suradnje: prekinut prolaz pretrage se nastavlja, rezultati pretrage vraćaju se API-ju nepromijenjeni' );
+$f4 = $S::search( 'rucno' );
+ok( is_wp_error( $f4 ) && 'olr_suradnje_limit' === $f4->get_error_code(), 'suradnje: i pretraga ima dnevno ograničenje ručnih pokretanja' );
+// Pretraga bez poziva alata: jedan nastavak s izričitim zahtjevom.
+$run = $S::last_run();
+unset( $run['rucno'] );
+update_option( 'olr_suradnje_run', $run );
+OLR_Store::delete( 'suradnje', $S::id( 'klub-test.hr' ) );
+update_option( 'olr_test_ai_trazi', 'bez_alata' );
+$f5 = $S::search( 'rucno' );
+$rq = get_option( 'olr_test_ai_last' );
+ok( ! is_wp_error( $f5 ) && 1 === $f5['novih'] && 3 === count( $rq['messages'] ) && false !== strpos( $rq['messages'][2]['content'], 'Sada pozovi alat' ), 'suradnje: pretraga bez poziva alata dobiva jedan nastavak' );
+delete_option( 'olr_test_ai_trazi' );
+// Ploča ne može uključiti web pretragu ni dulji odgovor (REST posrednik).
+$ai = new WP_REST_Request( 'POST', '/ol-radar/v1/ai' );
+$ai->set_header( 'content-type', 'application/json' );
+$ai->set_body( wp_json_encode( array( 'messages' => array( array( 'role' => 'user', 'content' => 'x' ) ), 'web_search' => 5, 'long' => true, 'max_tokens' => 8000 ) ) );
+rest_do_request( $ai );
+$rq = get_option( 'olr_test_ai_last' );
+ok( empty( $rq['tools'] ) && 4096 === $rq['max_tokens'], 'rest: AI posrednik ploče ne prihvaća web pretragu ni dulji odgovor' );
+
+// Stanja i provjera dobivene poveznice.
+$sid = $S::id( '24sata.hr' );
+$put = new WP_REST_Request( 'PUT', '/ol-radar/v1/doc/suradnje_stanje/' . $sid );
+$put->set_header( 'content-type', 'application/json' );
+$put->set_body( wp_json_encode( array( 'data' => array( 'stanje' => 'dobiveno', 'url' => 'https://portal-test.hr/clanak/', 'at' => time() * 1000 ) ) ) );
+ok( 200 === rest_do_request( $put )->get_status(), 'rest: ploča smije zapisati stanje suradnje' );
+$gs = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/suradnje' ) )->get_data();
+$c1 = array_values( array_filter( $gs['kandidati'], static function ( $c ) use ( $sid ) { return $c['id'] === $sid; } ) )[0];
+ok( 'dobiveno' === $c1['stanje'] && true === $c1['veza']['ima'] && false === $c1['veza']['nofollow'] && 1 === $gs['stanja']['dobiveno'], 'suradnje: upisana adresa se provjerava (poveznica postoji i prenosi autoritet)' );
+OLR_Store::set( 'suradnje_stanje', $sid, array( 'stanje' => 'dobiveno', 'url' => 'https://portal-test.hr/nofollow/' ) );
+$v2 = $S::recheck( $sid );
+OLR_Store::set( 'suradnje_stanje', $sid, array( 'stanje' => 'dobiveno', 'url' => 'https://portal-test.hr/bez/' ) );
+$v3 = $S::recheck( $sid );
+ok( true === $v2['ima'] && true === $v2['nofollow'] && false === $v3['ima'] && false !== strpos( $v3['poruka'], 'nema poveznice' ) && is_wp_error( $S::recheck( $S::id( 'vecernji.hr' ) ) ), 'suradnje: nofollow poveznica i stranica bez poveznice su prepoznate' );
+
+// Poveznice koje vidi Google: uvoz izvoza iz Search Consolea (oba oblika).
+$csv = "\xEF\xBB\xBFSite,Linking pages,Target pages\nseoexpress.xyz,120,3\nwaze.com,4,1\n24sata.hr,\"2\",1\noptikaljiljana.hr,50,10\n";
+$im  = $S::import_gsc_links( $csv );
+$sm  = $S::summary();
+$c1  = array_values( array_filter( $sm['kandidati'], static function ( $c ) { return '24sata.hr' === $c['domena']; } ) )[0];
+ok( ! is_wp_error( $im ) && 3 === $im['domena'] && 1 === $im['prodavaca'] && 'domene' === $im['vrsta'] && 3 === $sm['gsc']['domena'] && 2 === $sm['gsc']['ostalih'] && 'seoexpress.xyz' === $sm['gsc']['domene'][0]['d'] && true === $sm['gsc']['domene'][0]['prodavac'] && true === $c1['u_gsc'], 'gsc poveznice: uvoz tablice „Najčešće web-lokacije s vezama”; naša domena ne ulazi, kandidat koji nas već povezuje je označen' );
+$im2 = $S::import_gsc_links( "Linking page;Last crawled\nhttps://www.24sata.hr/clanak-1;2026-11-01\nhttps://www.24sata.hr/clanak-2;2026-11-05\nhttps://novi-portal.hr/tekst;2026-11-10\n" );
+$g2  = OLR_Store::data( 'suradnje_dr', 'gsc' );
+ok( ! is_wp_error( $im2 ) && 2 === $im2['domena'] && 'stranice' === $im2['vrsta'] && 2 === $g2['domene'][0]['stranica'] && '2026-11-05' === $g2['domene'][0]['zadnje'] && array( 'novi-portal.hr' ) === $g2['nove'] && 1 === count( $g2['povijest'] ), 'gsc poveznice: uvoz tablice „Najnovije veze” (stranice se zbrajaju po domeni; nova domena od prošlog uvoza)' );
+ok( is_wp_error( $S::import_gsc_links( "Upit,Klikovi\nprogresivne naočale,12\n" ) ) && 2 === count( OLR_Store::data( 'suradnje_dr', 'gsc' )['domene'] ), 'gsc poveznice: kriva datoteka se odbija i ne briše prethodni uvoz' );
+
+// Ručno dodan kandidat i DR (Ahrefsov besplatni javni servis).
+$run = $S::last_run();
+unset( $run['rucno'] );
+update_option( 'olr_suradnje_run', $run );
+OLR_Store::delete( 'suradnje', $S::id( 'klub-test.hr' ) );
+$am = $S::add_manual( 'https://www.klub-test.hr/', 'Klub Test', 'sport' );
+ok( ! is_wp_error( $am ) && 'rucno' === $am['izvor'] && 'sport' === $am['vrsta'] && true === $am['ziv'] && is_wp_error( $S::add_manual( 'klub-test.hr' ) ) && is_wp_error( $S::add_manual( 'optikaljiljana.hr' ) ) && is_wp_error( $S::add_manual( 'nema-weba-test.hr' ) ), 'suradnje: ručno dodan kandidat (web provjeren odmah); duplikat i naša domena se odbijaju, web koji se ne otvara je dojavljen' );
+$h = OLR_Store::data( 'suradnje_dr', 'hist' );
+$h['datumi'] = array( '2026-11-01' );
+OLR_Store::set( 'suradnje_dr', 'hist', $h );
+$dr = $S::dr_refresh();
+$sm = $S::summary();
+$me = array_values( array_filter( $sm['dr']['domene'], static function ( $x ) { return $x['nasa']; } ) )[0];
+ok( ! is_wp_error( $dr ) && 1.4 === (float) $sm['dr']['nas'] && 0.0 === (float) $me['prije'] && 2 === count( $sm['dr']['datumi'] ) && 29.0 === (float) $sm['dr']['domene'][0]['dr'] && true === OLR_Settings::status()['suradnje_dr']['ok'] && 31.0 === (float) OLR_Store::data( 'suradnje', $S::id( 'poliklinika-test.hr' ) )['dr'], 'dr: provjera za nas i konkurente ulazi u povijest (0 → 1,4); kandidati bez DR-a ga dobivaju' );
+update_option( 'olr_test_dr', 'targets' );
+ok( 27.0 === (float) $S::dr_fetch( 'jojo-optika.hr' ), 'dr: čita i drugi oblik odgovora' );
+update_option( 'olr_test_dr', 'kljuc' );
+$dk = $S::dr_refresh();
+ok( is_wp_error( $dk ) && false !== strpos( $dk->get_error_message(), 'bez ključa' ) && false === OLR_Settings::status()['suradnje_dr']['ok'] && 1.4 === (float) $S::summary()['dr']['nas'], 'dr: ako servis zatraži ključ, greška je jasna i povijest ostaje' );
+delete_option( 'olr_test_dr' );
+
+// Satni prolaz: tjedno prijedlozi; DR i web pretraga samo ako su uključeni.
+$run = $S::last_run();
+foreach ( array( 'pisi_at', 'pisi_pokusaj', 'trazi_at', 'trazi_pokusaj', 'dr_at', 'dr_pokusaj' ) as $k ) {
+	$run[ $k ] = time() - 9 * DAY_IN_SECONDS;
+}
+update_option( 'olr_suradnje_run', $run );
+$n0  = (int) get_option( 'olr_test_ai_calls' );
+$dr0 = (int) get_option( 'olr_test_dr_calls' );
+$S::tick();
+$S::tick();
+$run = $S::last_run();
+ok( 1 === (int) get_option( 'olr_test_ai_calls' ) - $n0 && $dr0 === (int) get_option( 'olr_test_dr_calls' ) && 'auto' === $run['pisi']['nacin'] && time() - $run['pisi_at'] < 60 && time() - $run['trazi_at'] > 8 * DAY_IN_SECONDS, 'suradnje: satni prolaz jednom tjedno piše prijedloge; web pretraga i DR ne idu dok nisu uključeni' );
+OLR_Settings::update( array( 'suradnje_trazi' => true, 'suradnje_dr' => true ) );
+$S::tick();
+$a1 = (int) get_option( 'olr_test_ai_calls' ) - $n0;
+$d1 = (int) get_option( 'olr_test_dr_calls' ) - $dr0;
+$S::tick();
+ok( 1 === $a1 && $d1 >= 6 && 2 === (int) get_option( 'olr_test_ai_calls' ) - $n0 && time() - $S::last_run()['trazi_at'] < 60, 'suradnje: kad su uključeni, DR i web pretraga idu svaki u svom satu' );
+OLR_Settings::update( array( 'suradnje_trazi' => false, 'suradnje_dr' => false ) );
+
+// REST i MCP.
+$resp = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/podaci' ) )->get_data();
+ok( isset( $resp['suradnje']['kandidati'] ) && $resp['suradnje']['ukupno'] >= 22 && isset( $resp['stanje']['suradnje']['zadnje']['pisi_at'] ) && ! isset( $resp['stanje']['suradnje']['zadnje']['rucno'] ) && isset( $resp['stanje']['ai']['trosak']['mjeseci'][0]['usd'] ), 'rest: podaci ploče sadrže suradnje i Claudeov trošak' );
+$os = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$os->set_param( 'dio', 'suradnje_trazi' );
+$or = rest_do_request( $os );
+ok( 400 === $or->get_status() && 'olr_potvrda' === $or->get_data()['code'], 'rest: web pretraga iz ploče traži potvrdu troška' );
+$os = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$os->set_param( 'dio', 'suradnje_gsc' );
+$os->set_param( 'csv', "Site,Linking pages,Target pages\nwaze.com,4,1\n24sata.hr,2,1\nnovi-portal.hr,1,1\n" );
+$or = rest_do_request( $os )->get_data();
+ok( true === $or['ok'] && 3 === $or['rezultat']['ishod']['domena'] && 3 === $or['rezultat']['suradnje']['gsc']['domena'], 'rest: uvoz poveznica iz Search Consolea iz ploče' );
+if ( $reader ) {
+	wp_set_current_user( $reader[0]->ID );
+	$ms = wp_get_ability( 'ol-radar/radar-suradnje' )->execute( array() );
+	$m2 = wp_get_ability( 'ol-radar/radar-suradnje' )->execute( array( 'svi' => true, 'limit' => 100 ) );
+	$m3 = wp_get_ability( 'ol-radar/radar-suradnje' )->execute( array( 'stanje' => 'dobiveno' ) );
+	$mt = wp_get_ability( 'ol-radar/radar-stanje' )->execute( array() );
+	ok( $ms['prikazano'] === $ms['s_prijedlogom'] && $m2['prikazano'] === $m2['ukupno'] && 1 === $m3['prikazano'] && '24sata.hr' === $m3['kandidati'][0]['domena'] && isset( $ms['dr']['nas'] ) && strlen( wp_json_encode( $ms ) ) < 40000, 'mcp: radar-suradnje (zadano kandidati s prijedlogom; svi i po stanju)' );
+	ok( $mt['suradnje']['kandidata'] === $m2['ukupno'] && 3 === $mt['suradnje']['google_vidi_domena'] && isset( $mt['stanje']['ai']['trosak']['danas']['usd'] ) && ! isset( $mt['stanje']['ai']['potrosnja'] ), 'mcp: radar-stanje ima sažetak suradnji i Claudeov trošak' );
+	wp_set_current_user( $admin[0]->ID );
+}
+
+// 17) Claude trošak: iz stvarnih tokena svakog poziva, po cjeniku modela.
+ok( 24.02 === round( OLR_AI::cost( 'claude-opus-5-5', 1000000, 1000000, 2 ), 4 ) && 12.0 === round( OLR_AI::cost( 'claude-sonnet-5-5-20260929', 1000000, 1000000 ), 4 ) && 0.015 === round( OLR_AI::cost( 'claude-haiku-5-5', 100000, 10000 ), 6 ) && 0.125 === round( OLR_AI::cost( 'claude-haiku-5-5', 200000, 10000 ), 6 ) && null === OLR_AI::cost( 'nepoznat-model', 10, 10 ), 'trošak: cjenik po modelu (Opus 4/20, Sonnet 2/10, Haiku 0,10/0,50 i skuplje iznad 100.000 tokena, pretraga 0,01); nepoznat model nema cijenu' );
+$mon = gmdate( 'Y-m' );
+update_option( 'olr_ai_usage', array( 'dani' => array(), 'mjeseci' => array( '2026-01' => array( 'pozivi' => 3, 'ulaz' => 500000, 'izlaz' => 100000 ), $mon => array( 'pozivi' => 10, 'ulaz' => 100000, 'izlaz' => 20000 ) ) ) );
+OLR_Settings::update( array( 'ai_model' => 'claude-opus-5-5' ) );
+OLR_AI::test();
+$cs = OLR_AI::cost_summary();
+// Prije: 100.000 × 4 + 20.000 × 20 = 0,80 $ (procjena). Novi poziv: 80 × 4 + 12 × 20 = 0,00056 $.
+ok( $mon === $cs['mjeseci'][0]['mjesec'] && 11 === $cs['mjeseci'][0]['pozivi'] && 0.8006 === $cs['mjeseci'][0]['usd'] && true === $cs['mjeseci'][0]['procjena'] && 0.0006 === $cs['danas']['usd'] && 1 === $cs['danas']['pozivi'] && 4.0 === (float) $cs['cijena']['ulaz'], 'trošak: mjesec s pozivima prije 2.4.0 je procjena kojoj se dodaju točni iznosi novih poziva' );
+ok( '2026-01' === $cs['mjeseci'][1]['mjesec'] && 4.0 === $cs['mjeseci'][1]['usd'] && true === $cs['mjeseci'][1]['procjena'] && false !== strpos( OLR_Settings::status()['ai_poziv']['msg'], '0,0006 $' ), 'trošak: stariji mjeseci procijenjeni po sadašnjem modelu; iznos zadnjeg poziva je u stanju izvora' );
+OLR_Settings::update( array( 'ai_model' => 'claude-sonnet-5-5', 'ai_daily_limit' => 150 ) );
+delete_option( 'olr_ai_usage' );
 
 // Vrati osnovne Google podatke (ostali testovi računaju s njima); prijedlozi ostaju za test ploče.
 delete_option( 'olr_test_gsc_extra' );

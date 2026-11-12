@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, društvene mreže, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba i mreže samo čita, ne mijenja ih.
- * Version:           2.3.0
+ * Version:           2.4.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.3.0' );
+define( 'OLR_VERSION', '2.4.0' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -37,6 +37,7 @@ require_once OLR_DIR . 'includes/class-olr-prijedlozi.php';
 require_once OLR_DIR . 'includes/class-olr-ucinak.php';
 require_once OLR_DIR . 'includes/class-olr-indeks.php';
 require_once OLR_DIR . 'includes/class-olr-social.php';
+require_once OLR_DIR . 'includes/class-olr-suradnje.php';
 require_once OLR_DIR . 'includes/class-olr-rest.php';
 require_once OLR_DIR . 'includes/class-olr-radar-admin.php';
 
@@ -154,8 +155,12 @@ add_action(
 			OLR_Indeks::tick();
 		}
 		if ( time() - $t0 < 30 ) {
-			// Društvene mreže idu zadnje i samo ako je prolaz dosad bio kratak; inače u sljedećem satu.
+			// Društvene mreže samo ako je prolaz dosad bio kratak; inače u sljedećem satu.
 			OLR_Social::tick();
+		}
+		if ( time() - $t0 < 30 ) {
+			// Suradnje i poveznice: jednom tjedno prijedlozi, po želji nove tvrtke i DR.
+			OLR_Suradnje::tick();
 		}
 	}
 );
