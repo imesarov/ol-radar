@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.0.2)
+# OL Radar – most za Claudea (v2.1.0)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -19,6 +19,25 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Podaci:** u tablici `{prefix}ol_radar_docs` (zbirka + id + JSON), u istom obliku kao baza Radara na claude.ai.
 - **Claude u ploči:** Anthropic Messages API preko servera; ključ ne napušta server. Alate (podatke Radara) izvršava preglednik.
 - **Društvene mreže** (Instagram, YouTube) na hostingu dolaze u sljedećoj fazi, preko Metinog API-ja.
+
+### Dnevni prijedlozi izmjena (od 2.1.0)
+- **Što radi:** kad stignu novi Google podaci, server sam prođe upite, pozicije i crawl weba (`OLR_Analiza`) i za najvažnije nalaze pripremi gotov prijedlog izmjene (`OLR_Prijedlozi`). Modul **Prijedlozi** u ploči.
+- **Vrste nalaza:**
+  - naslov i opis ne privlače klik (visoka pozicija, nizak CTR);
+  - upiti blizu vrha (pozicija 4–15);
+  - kanibalizacija (isti upit, dvije stranice u zadnjih 7 dana);
+  - tjedni pad upita;
+  - ciljana riječ pala, ispala ili u rezultatu stoji kriva stranica;
+  - tehnički nalazi crawla s konkretnim popravkom;
+  - upiti bez prave stranice (novi sadržaj).
+- **Brojke** u prijedlogu uvijek su iz podataka (Search Console, mjerenje pozicija, crawl). „Sada” (sadašnji naslov, opis, H1) dolazi iz crawla, ne iz odgovora Claudea.
+- **Tekst izmjene** (novi SEO naslov, meta opis, odlomak, tekst internog linka) piše Claude jednim pozivom dnevno preko Anthropic API ključa. Odgovor se provjerava: nepoznata polja i linkovi sa stranica kojih nema u popisu se odbacuju, HTML se uklanja, predug naslov ili opis dobiva upozorenje.
+- **Bez ključa ili ako poziv ne uspije:** prijedlog svejedno nastaje, s koracima složenim iz podataka. Tekst se dopuni pri sljedećoj analizi.
+- **Bez ponavljanja:** nalaz s otvorenim prijedlogom se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Neobrađeni prijedlog stariji od 21 dan čiji nalaz više ne postoji označava se kao istekao.
+- **Procjena učinka** je namjerno oprezna (80 % opće krivulje CTR-a ili prosjek s vlastitom) i uvijek označena kao procjena.
+- **Stanja:** novo → prihvaćeno → provedeno, ili odbijeno. Sprema ih ploča (`prijedlozi_stanje`); same prijedloge piše samo server.
+- **Web se ne mijenja.** Prijedlozi su za odluku vlasnika.
+- **Postavke:** automatska analiza (uključeno), najviše novih dnevno (5), riječi brenda (upiti s njima ne ulaze u analizu). Gumb „Analiziraj sada” u ploči i u Postavkama, najviše 6 ručnih pokretanja dnevno.
 
 ### Izvori i trošak
 
@@ -57,13 +76,26 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   define( 'OLR_DFS_PASSWORD', '...' );
   define( 'OLR_ANTHROPIC_KEY', '...' );
   ```
-- **Promjena soli:** ako se promijene WordPress soli, ključe iz baze treba ponovno upisati.
+- **Promjena soli:** ako se promijene WordPress soli, ključe iz baze treba ponovno upisati. Zapis koji se ne može dešifrirati ne briše se sam; Postavke ga jasno označe.
+
+### Ključevi i nadogradnja (pravilo od 2.1.0)
+- **Nadogradnja nikad ne dira ključeve.** Ključ se mijenja samo izričitim unosom ili gumbom „obriši” u Postavkama.
+- **Brisanje dodatka** (pa ponovna instalacija) također čuva postavke, šifrirane ključeve i podatke Radara. Uklanjaju se samo ako je u `wp-config.php` definirano `OLR_DELETE_DATA`.
+- **Provjera nakon nadogradnje:** dodatak vodi popis spremljenih ključeva (`olr_keys_seen`). Ako nakon promjene verzije neki nedostaje ili je nečitljiv, Postavke pokažu crveno upozorenje, a isto vidi i Claude (`stanje.nadogradnja` u `ol-radar/radar-sazetak`).
+- **Test prije svakog izdanja:** `tests/wordpress/upgrade_test.sh` instalira svaku izdanu verziju 2.x (iz git oznaka), spremi ključeve njezinim kodom, zamijeni mapu dodatka novom i provjeri da su ključevi, postavke i podaci isti; zatim deaktivacija/aktivacija te brisanje i ponovna instalacija. Zip se gradi samo preko `tools/release.sh`, koji bez tog testa ne prolazi.
+
+### Veza prema Googleu (od 2.1.0)
+- Pozivi idu kao HTTP/1.1 (WordPress zadano šalje 1.0), s čekanjem do 30 s.
+- Ako poziv ostane bez odgovora, ponavlja se prisilno preko IPv4, a zatim na rezervnoj Googleovoj adresi (`searchconsole.googleapis.com`). Kombinacija koja radi se zapamti.
+- Kad ništa ne prođe, poruka navodi svaki pokušaj i gdje je zapelo (spajanje, TLS, čekanje odgovora). Ista dijagnostika, bez ključeva i tokena, vidljiva je Claudeu u `stanje.izvori.gsc.dijagnostika`.
+- Nakon neuspjeha cron pokušava ponovno tek za 3 sata. Neuspjelo preuzimanje ne briše postojeće podatke.
 
 ### Cron
 - **Jednom na sat** (`olr_radar_tick`):
   - Google podaci, ako su stariji od 12 sati;
   - rezultati mjerenja u tijeku;
-  - tjedno mjerenje, ako je uključeno.
+  - tjedno mjerenje, ako je uključeno;
+  - dnevna analiza s prijedlozima, kad ima novih Google podataka.
 - **Pouzdanije od WordPressovog crona** je cron na hostingu, svakih 15 minuta:
   `wget -q -O - https://www.optikaljiljana.hr/wp-cron.php?doing_wp_cron >/dev/null 2>&1`
 
@@ -92,6 +124,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/radar-sazetak` (novo) | sažetak Radara s hostinga (`export/radar`) i stanje izvora |
 | `ol-radar/radar-gsc` (novo) | upiti iz Search Consolea za 28 ili 7 dana, s filtrom |
 | `ol-radar/radar-pozicije` (novo) | pozicije, povijest i top 10 konkurenata po riječi |
+| `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem |
 
 ### Crawl
 - Radi iznutra: dodatak dohvaća vlastite stranice s potpisanim parametrom, pa WP Rocket i LiteSpeed taj prikaz ne spremaju.
@@ -105,7 +138,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 
 ## Instalacija i nadogradnja
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.0.2.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.1.0.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
 3. U izborniku se pojavljuje **OL Radar** s podstranicama Nadzorna ploča i Postavke. Stara stranica Alati → OL Radar (crawl) ostaje.
 
 ## Spajanje s Claudeom (claude.ai, desktop, mobitel)
@@ -125,12 +158,16 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
 
 ## Uklanjanje
 - **Deaktivacija** gasi cron.
-- **Brisanje dodatka** uklanja tablicu crawla, postavke, ključeve, ulogu i pravo.
-- **Podaci Radara** (`ol_radar_docs`: povijest, arhiva, plan) ostaju, osim ako je u `wp-config.php` definirano `OLR_DELETE_DATA`.
+- **Brisanje dodatka** uklanja tablicu crawla (cache), ulogu i pravo.
+- **Postavke, šifrirani ključevi i podaci Radara** (`ol_radar_docs`: povijest, arhiva, plan, prijedlozi) ostaju, da ponovna instalacija ništa ne izgubi. Za potpuno čišćenje definiraj `OLR_DELETE_DATA` u `wp-config.php` prije brisanja; pojedini ključ briše gumb „obriši” u Postavkama.
 
 ## Testirano (lokalno: WordPress 6.9, SQLite, MCP Adapter 0.7.1, PHP 8.3)
 - **Postojeći testovi:** MCP spajanje, prava (anonimno 401, pretplatnik odbijen, čitač dopušten), crawl i audit na 311 stranica.
-- **Radar na hostingu (`tests/wordpress/radar_test.php`, 58 provjera)** s lažnim Google, DataForSEO i Anthropic odgovorima:
+- **Nadogradnja (`tests/wordpress/upgrade_test.sh`):** sa svake izdane verzije 2.x na trenutni kod, deaktivacija/aktivacija, brisanje i ponovna instalacija; ključevi, postavke i podaci moraju ostati isti.
+- **Radar na hostingu (`tests/wordpress/radar_test.php`, 105 provjera)** s lažnim Google, DataForSEO i Anthropic odgovorima:
+  - veza prema Googleu: rezervni način, rezervna adresa, dijagnostika, cron nakon neuspjeha;
+  - provjera ključeva nakon nadogradnje i nečitljiv zapis;
+  - dnevna analiza (sva pravila) i prijedlozi: čišćenje odgovora Claudea, rad bez Claudea, naknadna dopuna teksta, stanja, bez ponavljanja, limiti;
   - JWT potpis provjeren javnim ključem;
   - keširanje tokena;
   - poruke za 403 i neuključen API;
@@ -146,8 +183,10 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
   - spremanje stanja nalaza;
   - AI chat s alatom;
   - `export/radar`;
-  - Postavke ne otkrivaju ključeve.
+  - modul Prijedlozi: kartice, prihvaćanje, filtri, „Analiziraj sada”;
+  - Postavke ne otkrivaju ključeve; spremanje, Enter i „obriši” ne diraju druge ključeve.
 
 ## Plan
+Cijeli plan s prioritetima, troškovima i izvorima: `docs/Plan-razvoja.md`.
 - Instagram i YouTube na hostingu (Meta Graph API).
 - Faza 2 upisa: Rank Math naslovi, opisi i fokus riječi, uz dnevnik promjena, vraćanje i odobrenje za svaki upis.

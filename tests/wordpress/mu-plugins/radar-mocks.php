@@ -23,6 +23,17 @@ add_filter(
 			);
 		};
 
+		// Simulacija veze koja ne odgovara: auto = zadani način pada, v4h1 prolazi; www = prva adresa pada, rezervna prolazi; sve = ništa ne prolazi.
+		$nf        = get_option( 'olr_test_net_fail' );
+		$is_google = false !== strpos( $url, 'googleapis.com/' );
+		$is_sc     = false !== strpos( $url, '/webmasters/v3/sites/' );
+		if ( $nf && $is_google ) {
+			$mode = class_exists( 'OLR_Net' ) ? OLR_Net::mode() : 'auto';
+			if ( ( 'auto' === $nf && 'auto' === $mode ) || ( 'www' === $nf && $is_sc && false !== strpos( $url, 'https://www.googleapis.com/' ) ) || ( 'sve' === $nf && $is_sc ) ) {
+				return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received' );
+			}
+		}
+
 		// Google OAuth token: provjera JWT potpisa.
 		if ( 0 === strpos( $url, 'https://oauth2.googleapis.com/token' ) ) {
 			$a     = isset( $args['body']['assertion'] ) ? $args['body']['assertion'] : '';
@@ -43,7 +54,8 @@ add_filter(
 		}
 
 		// Search Console Search Analytics.
-		if ( false !== strpos( $url, 'https://www.googleapis.com/webmasters/v3/sites/' ) ) {
+		if ( false !== strpos( $url, 'https://www.googleapis.com/webmasters/v3/sites/' ) || false !== strpos( $url, 'https://searchconsole.googleapis.com/webmasters/v3/sites/' ) ) {
+			$extra = (bool) get_option( 'olr_test_gsc_extra' );
 			if ( get_option( 'olr_test_gsc_disabled' ) ) {
 				return $json( 403, array( 'error' => array( 'code' => 403, 'message' => 'Google Search Console API has not been used in project 885 before or it is disabled.', 'status' => 'PERMISSION_DENIED', 'details' => array( array( 'reason' => 'SERVICE_DISABLED' ) ) ) ) );
 			}
@@ -69,6 +81,22 @@ add_filter(
 					array( 'optika sesvete', 'https://www.optikaljiljana.hr/', 3, 139, 11.6 ),
 					array( 'stellest stakla', 'https://www.optikaljiljana.hr/stellest-lece-za-djecu/', 1, 29, 3.5 ),
 				);
+				if ( $extra ) {
+					// Bogatiji skup za test dnevne analize (putanje postoje u testnom webu).
+					$h    = 'https://www.optikaljiljana.hr';
+					$base = array_merge(
+						$base,
+						array(
+							array( 'progresivne naočale', $h . '/progresivne-naocale/', 2, 400, 2.4 ),          // nizak CTR na visokoj poziciji
+							array( 'naočale sesvete', $h . '/kontakt/', 3, 260, 7.8 ),                         // blizu vrha (izvori linka: stranice o naočalama)
+							array( 'naočale za čitanje', $h . '/dioptrijske-naocale/', 1, 60, 9.0 ),            // kanibalizacija
+							array( 'naočale za čitanje', $h . '/progresivne-naocale/', 0, 45, 12.0 ),
+							array( 'mrena na oku simptomi', $h . '/', 0, 180, 18.0 ),                           // nema prave stranice
+							array( 'optika ljiljana sesvete', $h . '/', 40, 90, 1.2 ),                          // brend: ne ulazi
+							array( 'privatno nešto', $h . '/privatno/', 0, 300, 3.0 ),                          // noindex: ne ulazi
+						)
+					);
+				}
 				foreach ( $base as $b ) {
 					$rows[] = array( 'keys' => array( $b[0], $b[1] ), 'clicks' => $b[2], 'impressions' => $b[3], 'ctr' => $b[2] / $b[3], 'position' => $b[4] );
 				}
@@ -78,6 +106,13 @@ add_filter(
 			} elseif ( 'query' === $dims ) {
 				$rows[] = array( 'keys' => array( 'progresivne naočale cijena' ), 'clicks' => 2, 'impressions' => 53, 'ctr' => 0.04, 'position' => 2.8 );
 				$rows[] = array( 'keys' => array( 'optika sesvete' ), 'clicks' => 1, 'impressions' => 35, 'ctr' => 0.03, 'position' => 11.6 );
+				if ( $extra ) {
+					// Prethodni tjedan (stariji kraj razdoblja) bolji je od zadnjeg: pad.
+					$prev   = $q['endDate'] < gmdate( 'Y-m-d', time() - 7 * DAY_IN_SECONDS );
+					$rows[] = $prev
+						? array( 'keys' => array( 'progresivne naočale' ), 'clicks' => 9, 'impressions' => 120, 'ctr' => 0.075, 'position' => 2.1 )
+						: array( 'keys' => array( 'progresivne naočale' ), 'clicks' => 2, 'impressions' => 95, 'ctr' => 0.021, 'position' => 2.6 );
+				}
 			}
 			return $json( 200, array( 'rows' => $rows, 'responseAggregationType' => 'byProperty' ) );
 		}
@@ -151,6 +186,30 @@ add_filter(
 			$req = json_decode( $args['body'], true );
 			update_option( 'olr_test_ai_last', $req, false );
 			$last = end( $req['messages'] );
+			// Dnevni prijedlozi: za svaki nalaz vrati izmjene (jedan predug naslov i jedan link na nepostojeći izvor, za provjeru čišćenja).
+			if ( isset( $req['system'] ) && false !== strpos( $req['system'], '[zadatak: dnevni prijedlozi]' ) ) {
+				if ( get_option( 'olr_test_ai_bad_json' ) ) {
+					return $json( 200, array( 'id' => 'msg_p', 'model' => $req['model'], 'stop_reason' => 'end_turn', 'usage' => array( 'input_tokens' => 900, 'output_tokens' => 5 ), 'content' => array( array( 'type' => 'text', 'text' => 'Ne mogu.' ) ) ) );
+				}
+				$in  = json_decode( $last['content'], true );
+				$out = array();
+				foreach ( $in['nalazi'] as $n ) {
+					$ch = array();
+					if ( 'ctr' === $n['vrsta'] ) {
+						$ch[] = array( 'polje' => 'seo_naslov', 'gdje' => 'Rank Math → SEO naslov', 'novo' => 'Progresivne naočale u Sesvetama: pregled vida, Varilux leće i prilagodba' );
+						$ch[] = array( 'polje' => 'meta_opis', 'gdje' => 'Rank Math → opis', 'novo' => 'Progresivne naočale po mjeri u Sesvetama. Pregled vida od 60 minuta, Varilux leće i besplatna prilagodba. Rezervirajte termin.' );
+					} elseif ( ! empty( $n['izvori_linka'] ) ) {
+						$ch[] = array( 'polje' => 'odlomak', 'gdje' => 'ispod uvoda', 'novo' => 'H2: Odgovor na upit. Dvije do tri rečenice o temi.' );
+						$ch[] = array( 'polje' => 'interni_link', 'gdje' => $n['izvori_linka'][0]['put'], 'novo' => 'tekst sidra' );
+						$ch[] = array( 'polje' => 'interni_link', 'gdje' => '/nepostojeca-stranica/', 'novo' => 'ne smije proći' );
+					} else {
+						$ch[] = array( 'polje' => 'tehnicki', 'gdje' => isset( $n['stranica']['put'] ) ? $n['stranica']['put'] : '', 'novo' => 'Konkretna izmjena <b>bez</b> HTML-a.' );
+						$ch[] = array( 'polje' => 'nepoznato_polje', 'novo' => 'ne smije proći' );
+					}
+					$out[] = array( 'id' => $n['id'], 'naslov' => 'AI: ' . $n['opis_vrste'], 'zasto' => 'Objašnjenje iz ulaza.', 'izmjene' => $ch, 'koraci' => array( 'Prvi korak', 'Drugi korak' ) );
+				}
+				return $json( 200, array( 'id' => 'msg_p', 'model' => $req['model'], 'stop_reason' => 'end_turn', 'usage' => array( 'input_tokens' => 2400, 'output_tokens' => 800 ), 'content' => array( array( 'type' => 'text', 'text' => "Evo:\n" . wp_json_encode( array( 'prijedlozi' => $out ) ) ) ) ) );
+			}
 			// Ako su ponuđeni alati, a zadnja poruka nije rezultat alata: traži alat "pregled".
 			if ( ! empty( $req['tools'] ) && is_string( $last['content'] ) ) {
 				return $json( 200, array( 'id' => 'msg_1', 'model' => $req['model'], 'stop_reason' => 'tool_use', 'usage' => array( 'input_tokens' => 120, 'output_tokens' => 20 ), 'content' => array( array( 'type' => 'text', 'text' => 'Gledam podatke.' ), array( 'type' => 'tool_use', 'id' => 'tu_1', 'name' => $req['tools'][0]['name'], 'input' => new stdClass() ) ) ) );

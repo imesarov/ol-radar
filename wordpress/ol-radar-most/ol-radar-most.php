@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba samo čita, ne mijenja ga.
- * Version:           2.0.2
+ * Version:           2.1.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.0.2' );
+define( 'OLR_VERSION', '2.1.0' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -28,9 +28,12 @@ require_once OLR_DIR . 'includes/class-olr-abilities.php';
 require_once OLR_DIR . 'includes/class-olr-admin.php';
 require_once OLR_DIR . 'includes/class-olr-store.php';
 require_once OLR_DIR . 'includes/class-olr-settings.php';
+require_once OLR_DIR . 'includes/class-olr-net.php';
 require_once OLR_DIR . 'includes/class-olr-gsc.php';
 require_once OLR_DIR . 'includes/class-olr-dfs.php';
 require_once OLR_DIR . 'includes/class-olr-ai.php';
+require_once OLR_DIR . 'includes/class-olr-analiza.php';
+require_once OLR_DIR . 'includes/class-olr-prijedlozi.php';
 require_once OLR_DIR . 'includes/class-olr-rest.php';
 require_once OLR_DIR . 'includes/class-olr-radar-admin.php';
 
@@ -84,6 +87,8 @@ add_action(
 		if ( get_option( 'olr_store_version' ) !== OLR_Store::DB_VERSION ) {
 			OLR_Store::install();
 		}
+		// Nakon nadogradnje: spremljeni ključevi moraju ostati čitljivi (samo provjera, ništa se ne briše).
+		OLR_Settings::check_upgrade();
 		// Nadogradnja s 1.x preko „Zamijeni postojeći” ne pokreće aktivaciju, pa se raspored dodaje ovdje.
 		if ( ! wp_next_scheduled( OLR_RADAR_CRON ) ) {
 			wp_schedule_event( time() + 300, 'hourly', OLR_RADAR_CRON );
@@ -107,20 +112,26 @@ add_action(
 );
 
 /**
- * Radar na hostingu, svaki sat: Google podaci ako su stariji od 12 sati, rezultati mjerenja u tijeku
- * i tjedno mjerenje pozicija ako je uključeno u postavkama.
+ * Radar na hostingu, svaki sat: Google podaci ako su stariji od 12 sati (nakon neuspjeha novi pokušaj
+ * tek za 3 sata), rezultati mjerenja u tijeku, tjedno mjerenje pozicija ako je uključeno u postavkama
+ * i dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci.
  */
 add_action(
 	OLR_RADAR_CRON,
 	static function () {
 		$meta = OLR_Store::data( 'gsc', 'meta' );
 		$age  = $meta && ! empty( $meta['at'] ) ? time() - (int) ( $meta['at'] / 1000 ) : PHP_INT_MAX;
-		if ( OLR_Settings::secret( 'gsc_sa' ) && $age > 12 * HOUR_IN_SECONDS ) {
+		$st   = OLR_Settings::status();
+		$fail = isset( $st['gsc'] ) && empty( $st['gsc']['ok'] ) ? time() - (int) $st['gsc']['at'] : PHP_INT_MAX;
+		if ( OLR_Settings::secret( 'gsc_sa' ) && $age > 12 * HOUR_IN_SECONDS && $fail > 3 * HOUR_IN_SECONDS ) {
 			OLR_GSC::collect();
 		}
 		if ( OLR_DFS::has_credentials() ) {
 			OLR_DFS::poll();
 			OLR_DFS::maybe_weekly();
+		}
+		if ( OLR_Prijedlozi::due() ) {
+			OLR_Prijedlozi::run( 'auto' );
 		}
 	}
 );
@@ -156,6 +167,8 @@ add_action(
 add_action( 'wp_abilities_api_categories_init', array( 'OLR_Abilities', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'OLR_Abilities', 'register' ) );
 
+OLR_Net::init();
+OLR_Prijedlozi::init();
 OLR_REST::init();
 
 if ( is_admin() ) {

@@ -62,6 +62,13 @@ async def main():
                 srcs:Object.fromEntries(Object.entries(S.src).map(([k,v])=>[k,v.state+': '+v.msg]))}})()""")
             print("NAČIN", mode or "uživo", "| export polja:", exp, "| greške:", errs or "nema")
             print("  stanje:", st)
+            # Prijedlozi postoje samo na hostingu: na claude.ai stavka je skrivena, a brojevi modula idu 01–13 bez rupe.
+            nav = await pg.evaluate("(()=>{const a=[...document.querySelectorAll('.nav a')].filter(x=>!x.hidden); return {n:a.length, prvi:a[0].textContent.trim(), drugi:a[1].textContent.trim(), zadnji:a[a.length-1].querySelector('span').textContent, skriven:document.querySelector('#nav-prijedlozi').hidden}})()")
+            await pg.evaluate("location.hash='#prijedlozi'"); await pg.wait_for_timeout(200)
+            v = await pg.evaluate("S.view")
+            okn = nav["n"] == 13 and nav["skriven"] and nav["drugi"].startswith("02") and "Tjedno" in nav["drugi"] and nav["zadnji"] == "13" and v == "pregled"
+            print(("  OK   " if okn else "  FAIL ") + "izbornik bez Prijedloga na claude.ai:", nav, v)
+            if not okn: errs.append("nav")
             if mode == "":
                 await pg.evaluate("location.hash='#arhiva'"); await pg.wait_for_timeout(300)
                 await pg.click("#btn-export-host"); await pg.wait_for_timeout(1500)

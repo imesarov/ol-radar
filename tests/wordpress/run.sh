@@ -10,11 +10,12 @@ export WPTEST_DIR
 sleep 2
 trap 'pkill -f "php -S 127.0.0.1:$PORT" || true' EXIT
 
+bash "$HERE/upgrade_test.sh"                 # nadogradnja sa svake izdane verzije 2.x ne smije dirati ključeve, postavke ni podatke
 php "$HERE/setup2.php"                       # dupli naslovi + korisnik bez prava
 python3 "$HERE/mcp_test.py" "$WPTEST_DIR/reader.pass"
 python3 "$HERE/test_abilities.py"
 php "$HERE/scale.php" && php "$HERE/runcron.php"   # 300 stranica: crawl, audit, admin
-php "$HERE/radar_test.php"                   # Radar na hostingu: pohrana, ključevi, Google, DataForSEO, Claude API, REST, MCP
+php "$HERE/radar_test.php"                   # Radar na hostingu: pohrana, ključevi, Google, DataForSEO, Claude API, REST, MCP, veza, nadogradnja, dnevni prijedlozi
 php -r '$_SERVER["HTTP_HOST"]="127.0.0.1:8089"; require getenv("WPTEST_DIR")."/site/wp-load.php"; update_option("olr_test_mocks", 1);'
 python3 "$HERE/hosted_e2e.py"                # nadzorna ploča u wp-adminu (headless Chrome)
 echo "--- debug.log (bez očekivanih odbijanja anonimnih zahtjeva):"

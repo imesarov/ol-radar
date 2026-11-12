@@ -1,5 +1,13 @@
 # Promjene
 
+## 2026-11-12 (navečer)
+- **Dodatak 2.1.0.**
+  - **Dnevni prijedlozi izmjena.** `OLR_Analiza` iz spremljenih podataka izdvaja nalaze (nizak CTR na visokoj poziciji, upiti blizu vrha, kanibalizacija, tjedni pad, ciljane riječi, tehnički nalazi, upiti bez prave stranice). `OLR_Prijedlozi` bira najvažnije koji nemaju otvoren prijedlog, sprema ih i jednim pozivom Claudea dopunjava gotovim tekstom izmjene. Pokreće se sam nakon novih Google podataka, ručno gumbom „Analiziraj sada”. Modul Prijedlozi u ploči (stanja: novo, prihvaćeno, provedeno, odbijeno), traka na Pregledu, alat `prijedlozi` u chatu, MCP `ol-radar/radar-prijedlozi`.
+  - **Ključevi i nadogradnja (Ivanov zahtjev).** Brisanje dodatka više ne briše postavke i ključeve (osim uz `OLR_DELETE_DATA`). Nakon promjene verzije dodatak provjerava da su svi prije spremljeni ključevi čitljivi i upozorava ako nisu. Nečitljiv zapis se ne briše. Novi test `tests/wordpress/upgrade_test.sh` provjerava nadogradnju sa svake izdane verzije (git oznake `v2.*`), a `tools/release.sh` gradi zip samo ako prođe.
+  - **Veza prema Googleu.** Na webu je 12. 11. u 16:26 upit prema Search Consoleu ostao 60 s bez odgovora (`cURL error 28`), iako je token izdan. Pozivi sada idu kao HTTP/1.1 s čekanjem do 30 s, uz ponovni pokušaj preko IPv4 i rezervne adrese `searchconsole.googleapis.com`, pamćenje kombinacije koja radi i dijagnostiku po pokušaju. Cron nakon neuspjeha čeka 3 sata.
+  - Claude API pozivi također idu kao HTTP/1.1.
+- **Plan razvoja:** `docs/Plan-razvoja.md` (istraženo što još vrijedi dodati, s cijenama i izvorima).
+
 ## 2026-11-12 (popodne)
 - **Dodatak 2.0.2:** ploča je u radnom dijelu wp-admina (okvir), a WP izbornik ostaje lijevo. Odabrani modul ostaje u adresi glavnog prozora. Svijetla tema je zadana (kontrast teksta ≥ 4,5:1), tamna je na prekidaču. U okviru wp-admina izbornik ploče je uži, a tablice gušće, pa sve stane od 1280 px naviše. Kod je zajednički, pa Radar na claude.ai dobiva temu pri sljedećoj objavi.
 - **Dodatak 2.0.1:** gumbi za provjeru, preuzimanje i mjerenje na stranici Postavke sada najprije spremaju upisano (prije su se ključevi gubili ako se kliknula provjera prije „Spremi postavke”). Dodano je upozorenje na nespremljene promjene i potvrda troška prije mjerenja.

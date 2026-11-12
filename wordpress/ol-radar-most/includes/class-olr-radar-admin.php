@@ -181,6 +181,15 @@ class OLR_Radar_Admin {
 		if ( $lim > 0 ) {
 			$vals['ai_daily_limit'] = min( 2000, $lim );
 		}
+		$vals['prijedlozi_auto'] = '1' === self::post( 'prijedlozi_auto' );
+		$pmax                    = (int) self::post( 'prijedlozi_max' );
+		if ( $pmax > 0 ) {
+			$vals['prijedlozi_max'] = min( 10, $pmax );
+		}
+		$brand = sanitize_text_field( (string) self::post( 'brand' ) );
+		if ( '' !== $brand ) {
+			$vals['brand'] = $brand;
+		}
 		OLR_Settings::update( $vals );
 		$msgs[] = 'Postavke spremljene.';
 		$then   = self::run_then( sanitize_key( (string) self::post( 'olr_then' ) ) );
@@ -239,6 +248,12 @@ class OLR_Radar_Admin {
 				break;
 			case 'test_ai':
 				$r = OLR_AI::test();
+				break;
+			case 'run_prijedlozi':
+				$r = OLR_Prijedlozi::run( 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$r = sprintf( 'Analiza gotova: %d nalaza, %d novih prijedloga.%s Otvori nadzornu ploču → Prijedlozi.', $r['kandidata'], $r['novih'], $r['novih'] && ! $r['ai_ok'] ? ' Tekst Claudea nije napisan: ' . $r['ai_poruka'] : '' );
+				}
 				break;
 			default:
 				return null;
@@ -369,15 +384,24 @@ class OLR_Radar_Admin {
 			<?php if ( $notice ) : ?>
 				<div class="notice <?php echo $notice['ok'] ? 'notice-success' : 'notice-error'; ?>"><p><?php echo esc_html( $notice['msg'] ); ?></p></div>
 			<?php endif; ?>
-			<p>Ključevi se spremaju šifrirano i nikad se ne prikazuju u pregledniku. Sigurnije je definirati ih u <code>wp-config.php</code> (konstante <code>OLR_GSC_SA_FILE</code>, <code>OLR_DFS_LOGIN</code>, <code>OLR_DFS_PASSWORD</code>, <code>OLR_ANTHROPIC_KEY</code>); tada imaju prednost.</p>
+			<?php
+			$warn = OLR_Settings::upgrade_warning();
+			if ( $warn ) :
+				?>
+				<div class="notice notice-error"><p><strong>Nakon nadogradnje (<?php echo esc_html( $warn['s'] . ' → ' . $warn['na'] ); ?>) nedostaje ključ:</strong>
+					<?php echo esc_html( implode( ', ', array_map( array( 'OLR_Settings', 'label' ), (array) $warn['nedostaju'] ) ) ); ?>.
+					Upiši ga ponovno i javi Claudeu ovu poruku, jer nadogradnja ne smije dirati ključeve.</p></div>
+			<?php endif; ?>
+			<p>Ključevi se spremaju šifrirano i nikad se ne prikazuju u pregledniku. Nadogradnja dodatka ih ne dira, a ostaju i ako se dodatak obriše pa ponovno instalira; pojedini ključ briše se samo gumbom „obriši”. Sigurnije je definirati ih u <code>wp-config.php</code> (konstante <code>OLR_GSC_SA_FILE</code>, <code>OLR_DFS_LOGIN</code>, <code>OLR_DFS_PASSWORD</code>, <code>OLR_ANTHROPIC_KEY</code>); tada imaju prednost.</p>
 
 			<h2>Stanje izvora</h2>
 			<table class="widefat striped" style="max-width:900px">
 				<tbody>
 				<?php
 				$labels = array(
-					'gsc'  => 'Google Search Console',
-					'rank' => 'Pozicije (DataForSEO)',
+					'gsc'        => 'Google Search Console',
+					'rank'       => 'Pozicije (DataForSEO)',
+					'prijedlozi' => 'Dnevni prijedlozi izmjena',
 				);
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;
@@ -458,6 +482,23 @@ class OLR_Radar_Admin {
 					</td></tr>
 				</table>
 				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="test_ai">Spremi i provjeri Claude ključ</button></p>
+
+				<h2>Dnevni prijedlozi izmjena</h2>
+				<table class="form-table" role="presentation">
+					<tr><th scope="row">Automatska analiza</th><td>
+						<label><input type="checkbox" name="prijedlozi_auto" value="1" <?php checked( ! empty( $s['prijedlozi_auto'] ) ); ?>> Svaki dan, kad stignu novi Google podaci, analiziraj i pripremi prijedloge izmjena</label>
+						<p class="description">Analizu radi server iz spremljenih podataka. Tekst prijedloga (novi naslov, opis, odlomak) piše Claude jednim pozivom dnevno preko Anthropic API ključa; brojke u prijedlogu uvijek su iz Search Consolea. Bez ključa prijedlozi nastaju bez napisanog teksta. Web se ne mijenja.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="prijedlozi_max">Najviše novih dnevno</label></th><td>
+						<input type="number" id="prijedlozi_max" name="prijedlozi_max" class="small-text" min="1" max="10" value="<?php echo (int) $s['prijedlozi_max']; ?>">
+						<p class="description">Nalaz koji već ima otvoren prijedlog ne ponavlja se. Odbijeni se ne vraća 45 dana, provedeni 28 dana.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="brand">Riječi brenda</label></th><td>
+						<input type="text" id="brand" name="brand" class="regular-text" value="<?php echo esc_attr( $s['brand'] ); ?>">
+						<p class="description">Odvojene zarezom. Upiti s tim riječima (npr. „optika ljiljana”) ne ulaze u analizu, jer za njih ionako rangiramo.</p>
+					</td></tr>
+				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="run_prijedlozi">Spremi i izradi prijedloge sada</button></p>
 				<?php submit_button( 'Spremi postavke' ); ?>
 			</form>
 			<script>

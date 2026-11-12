@@ -35,7 +35,8 @@
 }
 #banner:not(:empty){margin-bottom:22px}
 /* U okviru wp-admina (lijevo je i WP izbornik): uži izbornik ploče i gušće tablice da sve stane i na 1280–1440 px. */
-.ugradeno .app{grid-template-columns:200px minmax(0,1fr)}
+.ugradeno .app{grid-template-columns:212px minmax(0,1fr)}
+.ugradeno .nav a{gap:8px;padding:8px 8px}
 .ugradeno .rail{padding:24px 16px}
 .ugradeno main{padding:28px 24px 64px}
 .ugradeno .logo{font-size:21px}
@@ -182,6 +183,26 @@ td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-
 .banner{background:var(--surface);border:1px solid var(--crit);padding:12px 16px;font-size:14px}
 details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
 .thumb{width:44px;height:56px;object-fit:cover;background:var(--surface-2);display:block}
+/* prijedlozi izmjena */
+.props{display:flex;flex-direction:column;gap:16px}
+.prop{background:var(--surface);border:1px solid var(--line-soft);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.prop.st-prihvaceno{border-left:3px solid var(--gold)}
+.prop.st-provedeno{border-left:3px solid var(--good)}
+.prop.st-odbijeno,.prop.isteklo{opacity:.6}
+.prop > header{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline;justify-content:space-between}
+.prop h3{font-family:var(--sans);font-size:17px;font-weight:600;line-height:1.35}
+.prop .meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12.5px;color:var(--muted)}
+.prop .why{color:var(--lead)}
+.prop .gain{font-weight:600;color:var(--good);white-space:nowrap}
+.prop table{font-size:13px}
+.chg{background:var(--bg);border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.chg .lab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:center;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.chg .lab small{letter-spacing:0;text-transform:none;color:var(--muted);font-size:12px}
+.chg .old{font-size:13px;color:var(--muted)}
+.chg .old s{text-decoration-color:var(--line)}
+.chg .new{margin:0;white-space:pre-wrap;font:14.5px/1.5 var(--sans);color:var(--text)}
+.chg .len{font-size:12px;color:var(--muted)}
+.propbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
 @media (max-width:960px){
   .app{grid-template-columns:1fr}
@@ -206,6 +227,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
     <button type="button" class="tema" id="btn-tema" aria-label="Promijeni temu"></button>
     <nav class="nav" aria-label="Moduli">
       <a href="#pregled" data-v="pregled"><span>01</span>Pregled</a>
+      <a href="#prijedlozi" data-v="prijedlozi" id="nav-prijedlozi" hidden><span>02</span>Prijedlozi <em class="cnt" id="cnt-prijedlozi" hidden></em></a>
       <a href="#tjedno" data-v="tjedno"><span>02</span>Tjedno</a>
       <a href="#google" data-v="google"><span>03</span>Google <em class="cnt" id="cnt-google" hidden></em></a>
       <a href="#pozicije" data-v="pozicije"><span>04</span>Pozicije <em class="cnt" id="cnt-rank" hidden></em></a>
@@ -239,6 +261,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         </div>
       </div>
       <div id="arch-banner"></div>
+      <div id="ov-prop"></div>
       <div class="tiles" id="kpis"></div>
       <div class="panel">
         <header><h2>Najvažnije <em>sada</em></h2><p>Nalazi iz svih izvora, poredani po učinku. Klik otvara dijagnozu i AI prijedlog popravka.</p></header>
@@ -255,6 +278,22 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
     </section>
 
     <!-- 02 TJEDNO -->
+    <section class="view" id="v-prijedlozi">
+      <div class="vhead">
+        <div class="t">
+          <div class="eb">Dnevna analiza</div>
+          <h1>Gotovi prijedlozi <em>izmjena</em></h1>
+          <p>Server svaki dan, kad stignu novi Google podaci, sam prođe upite, pozicije i crawl weba i izdvoji što vrijedi promijeniti. Brojke su iz Search Consolea, a tekst izmjene piše Claude. Ništa se ne mijenja na webu dok to ne odlučiš.</p>
+        </div>
+        <button class="btn btn-g" type="button" id="btn-prop-run">Analiziraj sada</button>
+      </div>
+      <p class="small muted" id="prop-meta"></p>
+      <div class="row"><span class="seg" role="group" aria-label="Stanje prijedloga" id="prop-seg">
+        <button type="button" data-pf2="otvoreni" aria-pressed="true">Otvoreni</button><button type="button" data-pf2="novo">Novi</button><button type="button" data-pf2="prihvaceno">Prihvaćeni</button><button type="button" data-pf2="provedeno">Provedeni</button><button type="button" data-pf2="odbijeno">Odbijeni</button><button type="button" data-pf2="svi">Svi</button>
+      </span></div>
+      <div class="props" id="prop-list"><p class="loading">Učitavam…</p></div>
+    </section>
+
     <section class="view" id="v-tjedno">
       <div class="vhead">
         <div class="t">
@@ -737,6 +776,7 @@ const OPTIC_RE = /optik|optic|naocal|naočal|lece|leće|eye|vision|vid|lens|okul
 /* ---------- stanje ---------- */
 let MCP = null, DB = null, SAMPLE = null;
 const S = {
+  prop: { items: [], meta: null, auto: true, claude: false, filter: "otvoreni", busy: false, loaded: false },
   units: { limit: null, used: null, reset: null, session: 0 },
   src: {},
   acc: { ig: IG_FALLBACK, yt: YT_FALLBACK, list: null },
@@ -1103,16 +1143,16 @@ const pill = (sev, txt) => `<span class="pill ${sev}">${esc(txt)}</span>`;
 const SEV_TXT = { crit: "Kritično", warn: "Upozorenje", info: "Napomena", good: "Radi dobro" };
 
 /* ---------- usmjeravanje ---------- */
-const VIEWS = ["pregled", "tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "arhiva", "metodologija"];
+const VIEWS = ["pregled", "prijedlozi", "tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "arhiva", "metodologija"];
 function route() {
-  let v = (location.hash || "").replace("#", ""); if (!VIEWS.includes(v)) v = "pregled";
+  let v = (location.hash || "").replace("#", ""); if (!VIEWS.includes(v) || (v === "prijedlozi" && !HOSTED)) v = "pregled";
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $$(".nav a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   S.view = v; renderView(v);
 }
 function renderView(v) {
   try {
-    ({ pregled: renderOverview, tjedno: renderWeek, pozicije: renderRank, google: renderGoogle, "kljucne-rijeci": () => { renderKw(); renderArchKw(); }, planer: renderPlan, arhiva: renderArchive, konkurencija: renderComp, trendovi: renderTrends, audit: renderAudit, "drustvene-mreze": renderSocial, popravci: renderFixes, metodologija: () => { } })[v]?.();
+    ({ pregled: renderOverview, prijedlozi: renderProp, tjedno: renderWeek, pozicije: renderRank, google: renderGoogle, "kljucne-rijeci": () => { renderKw(); renderArchKw(); }, planer: renderPlan, arhiva: renderArchive, konkurencija: renderComp, trendovi: renderTrends, audit: renderAudit, "drustvene-mreze": renderSocial, popravci: renderFixes, metodologija: () => { } })[v]?.();
   } catch (e) { console.error(e); }
 }
 function rerender() { recompute(); renderView(S.view); renderBadges(); }
@@ -1251,8 +1291,101 @@ async function loadHosted() {
   /* društvene mreže: u sljedećoj fazi preko Meta API-ja */
   if (P.ig && P.ig.media) { S.ig = P.ig; setSrc("ig", "ok", "snimka " + ago(P.ig.at || Date.now()), P.ig.at); }
   else { setSrc("ig", "off", "Instagram na hostingu dolazi u sljedećoj fazi (Meta API)"); setSrc("yt", "off", "YouTube na hostingu dolazi u sljedećoj fazi"); }
+  if (P.prijedlozi) setProp(P.prijedlozi);
   S.done = { gsc: true, wp: true, rank: true, social: true };
   rerender(); maybeSnapshot(); maybeExport();
+}
+
+/* ---------- 02 prijedlozi izmjena (samo na hostingu: analizu i tekst priprema server) ---------- */
+const PROP_VRSTA = { ctr: ["gold", "Naslov i opis"], prilika: ["gold", "Blizu vrha"], kanibal: ["warn", "Kanibalizacija"], pad: ["crit", "Pad"], pozicije: ["warn", "Pozicije"], tehnicki: ["info", "Tehnički"], novo: ["good", "Novi sadržaj"] };
+const PROP_POLJE = { seo_naslov: "SEO naslov", meta_opis: "Meta opis", h1: "Naslov na stranici (H1)", odlomak: "Novi odlomak", interni_link: "Interni link", novi_clanak: "Novi članak", tehnicki: "Tehnička izmjena" };
+const PROP_STANJE = { novo: "novo", prihvaceno: "prihvaćeno", provedeno: "provedeno", odbijeno: "odbijeno" };
+function setProp(d) {
+  S.prop.items = d.stavke || []; S.prop.meta = d.zadnje || null; S.prop.auto = !!d.auto; S.prop.claude = !!d.claude; S.prop.loaded = true;
+}
+const propOpen = p => !p.isteklo && (p.stanje === "novo" || p.stanje === "prihvaceno");
+function propRows(p) {
+  const d = p.dokazi || {}, n = v => v == null ? "–" : String(v).replace(".", ",");
+  const yes = v => v === true ? "da" : v === false ? '<span class="down">ne</span>' : "–";
+  if (Array.isArray(d.upiti)) {
+    const ctr = p.vrsta === "ctr", has = d.upiti.some(u => "u_naslovu" in u);
+    return tableHtml(["Upit", "Pozicija", "Prikazivanja", "Klikovi"].concat(ctr ? ["CTR", "Uobičajeno"] : []).concat(has ? ["U naslovu", "U H1"] : []),
+      d.upiti.map(u => [esc(u.upit), r(n(u.pozicija)), r(fmt(u.prikazivanja)), r(fmt(u.klikovi))].concat(ctr ? [r(n(u.ctr_posto) + " %"), r(n(u.ocekivano_posto) + " %")] : []).concat(has ? [yes(u.u_naslovu), yes(u.u_h1)] : [])));
+  }
+  if (Array.isArray(d.stranice) && d.upit) return tableHtml(["Stranica", "Prikazivanja", "Klikovi", "Pozicija"], d.stranice.map(x => [esc(x.put) + (x.put === d.glavna_stranica ? ' <span class="chip">glavna</span>' : ""), r(fmt(x.prikazivanja)), r(fmt(x.klikovi)), r(n(x.pozicija))]));
+  if (d.ovaj_tjedan && d.prosli_tjedan) return tableHtml(["", "Klikovi", "Prikazivanja", "Pozicija"], [["Prethodnih 7 dana", r(fmt(d.prosli_tjedan.klikovi)), r(fmt(d.prosli_tjedan.prikazivanja)), r(n(d.prosli_tjedan.pozicija))], ["Zadnjih 7 dana", r(fmt(d.ovaj_tjedan.klikovi)), r(fmt(d.ovaj_tjedan.prikazivanja)), r(n(d.ovaj_tjedan.pozicija))]]);
+  if (d.rijec) return `<dl class="kv"><dt>Pozicija</dt><dd>${d.pozicija == null ? "nije pronađena" : d.pozicija + ". mjesto"} (prije: ${d.prethodna_pozicija == null ? "nije mjerena" : d.prethodna_pozicija + ". mjesto"})</dd><dt>U rezultatu</dt><dd>${esc(d.stranica_u_rezultatu || "–")}</dd><dt>Search Console, 7 dana</dt><dd>${esc(d.gsc_stranica_7_dana || "–")} · ${fmt(d.gsc_prikazivanja_7_dana)} prikazivanja</dd><dt>Mjereno</dt><dd>${esc(d.mjereno ? hrDate(d.mjereno) : "–")}</dd></dl>`;
+  if (d.sada_rangira) return `<dl class="kv"><dt>Upit</dt><dd>${esc(d.upit)}</dd><dt>28 dana</dt><dd>${fmt(d.prikazivanja)} prikazivanja · ${fmt(d.klikovi)} klikova · pozicija ${n(d.pozicija)}</dd><dt>Sada rangira</dt><dd>${esc(d.sada_rangira)}</dd></dl>`;
+  if (d.kod) {
+    const list = Array.isArray(d.stranice) ? `<p class="small muted">Stranice s najviše klikova (od ${fmt(d.broj)}): ${d.stranice.map(x => esc(x.put) + (x.klikovi_28_dana ? " (" + fmt(x.klikovi_28_dana) + ")" : "")).join(", ")}</p>` : "";
+    const det = d.detalj == null || d.detalj === "" ? "" : `<p class="small muted">${esc(typeof d.detalj === "string" ? d.detalj : JSON.stringify(d.detalj))}</p>`;
+    return list + det;
+  }
+  return "";
+}
+function propChange(c, p, i) {
+  const lab = PROP_POLJE[c.polje] || c.polje, len = (c.polje === "seo_naslov" || c.polje === "meta_opis") ? `<span class="len">${[...c.novo].length} znakova</span>` : "";
+  const where = c.polje === "interni_link" ? "na stranici " + esc(c.gdje) + " → link na " + esc(p.put || "novu stranicu") : esc(c.gdje || "");
+  return `<div class="chg"><div class="lab"><span>${esc(lab)}${where ? " <small>· " + where + "</small>" : ""}</span><button type="button" class="btn btn-g btn-s" data-prop-copy="${esc(p.id)}|${i}">Kopiraj</button></div>`
+    + (c.sada ? `<div class="old">Sada: <s>${esc(c.sada)}</s> <span class="len">(${[...c.sada].length} znakova)</span></div>` : (c.polje === "seo_naslov" || c.polje === "meta_opis" || c.polje === "h1") ? '<div class="old">Sada: nije postavljeno</div>' : "")
+    + `<pre class="new">${esc(c.polje === "interni_link" ? "Tekst linka: " + c.novo : c.novo)}</pre>${len}`
+    + (c.upozorenje ? `<p class="note">${esc(c.upozorenje)}</p>` : "") + "</div>";
+}
+function propCard(p) {
+  const [sev, name] = PROP_VRSTA[p.vrsta] || ["info", p.vrsta];
+  const gain = ["ctr", "prilika", "novo", "pad"].includes(p.vrsta) && p.ucinak > 0 ? `<span class="gain" title="${esc(p.ucinak_opis || "")}">${p.vrsta === "pad" ? "u igri oko " : "procjena +"}${fmt(p.ucinak)} klikova / 28 d</span>` : "";
+  const st = p.isteklo ? "isteklo" : PROP_STANJE[p.stanje] || p.stanje;
+  const b = (stanje, txt, primary) => `<button type="button" class="btn ${primary ? "" : "btn-g "}btn-s" data-prop-set="${esc(p.id)}|${stanje}">${txt}</button>`;
+  const btns = p.isteklo ? "" : p.stanje === "novo" ? b("prihvaceno", "Prihvati", true) + b("odbijeno", "Odbij")
+    : p.stanje === "prihvaceno" ? b("provedeno", "Označi provedeno", true) + b("novo", "Vrati u nove") + b("odbijeno", "Odbij")
+    : p.stanje === "provedeno" ? b("prihvaceno", "Nije još provedeno") : b("novo", "Vrati u nove");
+  const page = p.put ? (p.url ? `<a href="${esc(HOSTED ? OLR_HOSTED.web.replace(/\/$/, "") + p.put : p.url)}" target="_blank" rel="noopener">${esc(p.put)}</a>` : esc(p.put)) : "";
+  return `<article class="prop st-${esc(p.stanje)}${p.isteklo ? " isteklo" : ""}" data-prop="${esc(p.id)}">
+    <header><h3>${esc(p.naslov)}</h3>${gain}</header>
+    <div class="meta">${pill(sev, name)}${page ? "<span>" + page + "</span>" : ""}<span>${esc(hrDate(new Date(p.izradjeno).toISOString().slice(0, 10)))}</span><span>stanje: ${esc(st)}</span>${p.ai ? "" : '<span>bez teksta Claudea</span>'}</div>
+    <p class="why">${esc(p.zasto)}${p.objasnjenje ? " " + esc(p.objasnjenje) : ""}</p>
+    ${propRows(p)}
+    ${(p.izmjene || []).map((c, i) => propChange(c, p, i)).join("")}
+    ${(p.koraci || []).length ? '<ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--lead)">' + p.koraci.map(k => "<li>" + esc(k) + "</li>").join("") + "</ol>" : ""}
+    <div class="propbar">${btns}${p.stanje === "provedeno" && p.stanje_at ? `<span class="small muted">provedeno ${esc(hrDate(new Date(p.stanje_at).toISOString().slice(0, 10)))}; učinak provjeri u Search Consoleu za 2–4 tjedna</span>` : ""}</div>
+  </article>`;
+}
+function renderProp() {
+  if (!HOSTED) return;
+  const m = S.prop.meta || {}, f = S.prop.filter;
+  const meta = [];
+  if (m.at) meta.push("Zadnja analiza " + ago(m.at * 1000) + (m.gsc_do ? " (Google podaci do " + hrDate(m.gsc_do) + ")" : "") + ": " + fmt(m.kandidata) + " nalaza, " + fmt(m.novih) + " novih prijedloga");
+  else meta.push(S.done.gsc ? "Analiza još nije pokrenuta." : "Učitavam…");
+  if (m.at && m.novih && !m.ai_ok && m.ai_poruka) meta.push("Tekst nije napisan: " + m.ai_poruka);
+  meta.push(S.prop.auto ? "Automatski svaki dan nakon novih Google podataka." : "Automatska analiza je isključena (Postavke).");
+  if (!S.prop.claude) meta.push("Anthropic ključ nije postavljen, pa prijedlozi nastaju bez napisanog teksta.");
+  $("#prop-meta").textContent = meta.join(" · ");
+  $$("#prop-seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.pf2 === f)));
+  const list = S.prop.items.filter(p => f === "svi" ? true : f === "otvoreni" ? propOpen(p) : (!p.isteklo && p.stanje === f));
+  const order = { prihvaceno: 0, novo: 1, provedeno: 2, odbijeno: 3 };
+  list.sort((a, b) => (order[a.stanje] - order[b.stanje]) || (b.izradjeno - a.izradjeno) || (b.ucinak - a.ucinak));
+  $("#prop-list").innerHTML = list.length ? list.map(propCard).join("")
+    : `<p class="note">${!S.prop.loaded ? "Učitavam…" : f === "otvoreni" ? (S.prop.items.length ? "Nema otvorenih prijedloga. Sljedeća analiza ide s novim Google podacima." : "Još nema prijedloga. Čim server preuzme Google podatke, analiza kreće sama; možeš je pokrenuti i gumbom „Analiziraj sada”.") : "Nema prijedloga u ovom stanju."}</p>`;
+  $("#btn-prop-run").disabled = !!S.prop.busy; $("#btn-prop-run").textContent = S.prop.busy ? "Analiziram…" : "Analiziraj sada";
+}
+async function propSet(id, stanje) {
+  const p = S.prop.items.find(x => x.id === id); if (!p) return;
+  const prev = [p.stanje, p.stanje_at]; p.stanje = stanje; p.stanje_at = Date.now(); rerender();
+  try { await OLR_HOSTED.api("doc/prijedlozi_stanje/" + encodeURIComponent(id), { method: "PUT", body: { data: { stanje, at: p.stanje_at } } }); }
+  catch (e) { [p.stanje, p.stanje_at] = prev; rerender(); note("Stanje nije spremljeno", e.message || "Server ne odgovara."); }
+}
+async function propRun() {
+  if (S.prop.busy) return; S.prop.busy = true; renderProp();
+  try { const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "prijedlozi" } }); if (res && res.rezultat) setProp(res.rezultat); }
+  catch (e) { note("Analiza nije uspjela", e.message || "Server ne odgovara."); }
+  S.prop.busy = false; rerender();
+}
+async function propCopy(key, btn) {
+  const [id, i] = key.split("|"); const p = S.prop.items.find(x => x.id === id); const c = p && p.izmjene[+i]; if (!c) return;
+  let ok = false;
+  try { await navigator.clipboard.writeText(c.novo); ok = true; }
+  catch (e) { const t = document.createElement("textarea"); t.value = c.novo; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } t.remove(); }
+  btn.textContent = ok ? "Kopirano" : "Označi i kopiraj ručno"; setTimeout(() => { btn.textContent = "Kopiraj"; }, 1800);
 }
 
 /* tjedni prozori poravnati na zadnji dan s GSC podacima */
@@ -1679,6 +1812,7 @@ function renderBadges() {
   const open = openIssues().filter(i => i.sev === "crit" || i.sev === "warn");
   const n = a => open.filter(i => a.includes(i.area)).length;
   const set = (id, v) => { const el = $(id); if (!el) return; el.hidden = !v; el.textContent = v; };
+  set("#cnt-prijedlozi", S.prop.items.filter(p => !p.isteklo && p.stanje === "novo").length);
   set("#cnt-google", n(["google"])); set("#cnt-rank", n(["pozicije"])); set("#cnt-audit", n(["audit", "web"])); set("#cnt-social", n(["instagram", "youtube"]));
 }
 
@@ -1690,6 +1824,13 @@ function deltaHtml(cur, prev, invert) {
 }
 function tile(k, v, d, s) { return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="d">${d || ""}</div><div class="s">${esc(s || "")}</div></div>`; }
 function renderOverview() {
+  if (HOSTED && S.prop.loaded) {
+    const nov = S.prop.items.filter(p => !p.isteklo && p.stanje === "novo"), acc = S.prop.items.filter(p => !p.isteklo && p.stanje === "prihvaceno");
+    const top = nov.concat(acc)[0];
+    $("#ov-prop").innerHTML = (nov.length || acc.length)
+      ? `<div class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;border-color:var(--gold-dk)"><div style="min-width:0;flex:1 1 320px"><b>${nov.length ? fmt(nov.length) + (nov.length === 1 ? " novi prijedlog izmjene" : " novih prijedloga izmjena") : "Nema novih prijedloga"}</b>${acc.length ? " · " + fmt(acc.length) + " prihvaćenih čeka provedbu" : ""}<br><span class="small muted">${top ? "Na vrhu: " + esc(top.naslov) : ""}</span></div><a class="btn" href="#prijedlozi">Otvori prijedloge</a></div>`
+      : "";
+  }
   const k = kpis(); const t = gscTotals(); const last = S.snaps[0];
   const fb = (v, key) => v != null ? v : (last && last[key] != null ? last[key] : null);
   const ratio = calibRatio();
@@ -2437,6 +2578,7 @@ function chatTools() {
     { name: "gsc_upiti", description: "Vraća upite iz Google Search Consolea za 28 dana (upit, klikovi, prikazivanja, CTR, pozicija, glavna stranica). Opcionalni filtar po tekstu i limit.", inputSchema: { type: "object", properties: { filtar: { type: "string" }, limit: { type: "number" } } }, execute: (a) => { const Q = queries(); if (!Q) throw new Error("GSC nije učitan"); const f = String(a.filtar || "").toLowerCase(); return Q.list.filter(q => !f || q.query.includes(f)).slice(0, Math.min(60, Number(a.limit) || 30)).map(q => ({ q: q.query, c: q.clicks, i: q.impressions, ctr: +q.ctr.toFixed(3), p: +(q.position || 0).toFixed(1), url: path(q.top) })); } },
     { name: "nalazi", description: "Vraća trenutne nalaze Radara (područje, ozbiljnost, naslov, opis), poredane po važnosti.", execute: () => S.issues.slice(0, 30).map(i => ({ a: i.area, s: i.sev, t: i.title, d: i.detail })) },
     { name: "pozicije", description: "Pozicije iz OpenSEO trackera (ciljane riječi, mobitel, Zagreb, tjedno): sadašnja i prethodna pozicija, stranica koja rangira, povijest i GSC prosjek za isti upit. Bez kredita.", execute: () => { const RR = rankRows(); if (!RR) throw new Error(S.rank.err || "Pozicije još nisu učitane"); return { mjereno: S.rank.last, redovi: RR.map(x => ({ k: x.kw, p: x.pos, prije: x.prev, url: x.url ? path(x.url) : null, gsc_p: x.g?.position != null ? +x.g.position.toFixed(1) : null, gsc_prik: x.g?.impressions ?? null, gsc_url: x.gTop ? path(x.gTop) : null, povijest: x.hist ? x.hist.slice(0, 6) : null })) }; } },
+    ...(HOSTED ? [{ name: "prijedlozi", description: "Gotovi prijedlozi izmjena iz dnevne analize na serveru: vrsta, stranica, dokazi s brojkama, predložene izmjene (sadašnji i novi tekst) i stanje (novo, prihvaceno, provedeno, odbijeno).", execute: () => ({ zadnja_analiza: S.prop.meta, prijedlozi: S.prop.items.filter(p => !p.isteklo).slice(0, 20).map(p => ({ id: p.id, vrsta: p.vrsta, stranica: p.put, naslov: p.naslov, zasto: p.zasto, dokazi: p.dokazi, izmjene: p.izmjene, koraci: p.koraci, stanje: p.stanje, procjena_klikova_28d: p.ucinak })) }) }] : []),
     { name: "tjedno", description: "Tjedni sažetak: Google 7 dana prema prethodnih 7, upiti koji rastu i padaju, novi upiti, promjene pozicija, stranice promijenjene ovaj tjedan i Instagram objave tjedna.", execute: () => { const w = weekExport(); if (!w) throw new Error("Google podaci još nisu učitani"); return w; } },
     { name: "onpage", description: "Naslov, H1, meta opis, canonical, robots, broj riječi i Rank Math fokus za stranice weba (WordPress most; rezerva Search Console), s Google klikovima i prikazivanjima za 28 dana.", execute: () => (S.onpage || []).map(p => ({ url: path(p.page), naslov: p.title, meta: p.meta, h1: p.h1, canonical: p.canonical, robots: p.robots, c: p.clicks, i: p.impressions, rijeci: p.words ?? null, fokus: p.focus || null })) },
     { name: "planer", description: "Vraća teme iz planera sadržaja poredane po prilici (potražnja, vaš udio, radnja: nova stranica, dorada, spoji, zaštiti) i stavke koje su već u planu.", execute: () => ({ teme: planClusters().slice(0, 25).map(c => ({ tema: c.head, potraznja: c.demand, udio: +c.share.toFixed(2), najbolja_poz: c.best == null ? null : +c.best.toFixed(1), radnja: c.action, vrhunac: c.peak == null ? null : MONTHS[c.peak], stranice: c.pages.map(path), rijeci: c.kws.slice(0, 8).map(x => x.k) })), plan: S.plan.items.map(x => ({ tema: x.title, radnja: x.action, mjesec: x.month, stanje: x.status })) }) },
@@ -2887,6 +3029,13 @@ function bindStatic() {
     aiInto($("#tr-ai"), $("#btn-trends-ai"), AI_RULES + "\n\nZADATAK: Protumači trendove potražnje za Optiku Ljiljana. Što raste ili pada u Hrvatskoj, koji svjetski trend (SAD) vjerojatno stiže i u Hrvatsku, i kako to iskoristiti: 5 konkretnih tema za web ili Journal i 3 za Instagram reelove, s mjesecom kad ih objaviti prema sezonalnosti. Kratko, u popisima.\n\nPODACI:\n" + JSON.stringify(data));
   };
   $("#chat-form").addEventListener("submit", sendChat);
+  // prijedlozi izmjena
+  $("#btn-prop-run").onclick = propRun;
+  $$("[data-pf2]").forEach(b => b.onclick = () => { S.prop.filter = b.dataset.pf2; renderProp(); });
+  $("#prop-list").addEventListener("click", e => {
+    const st = e.target.closest("[data-prop-set]"); if (st) { const [id, stanje] = st.dataset.propSet.split("|"); propSet(id, stanje); return; }
+    const cp = e.target.closest("[data-prop-copy]"); if (cp) propCopy(cp.dataset.propCopy, cp);
+  });
   // arhiva Ahrefsa
   $("#btn-arch-run").onclick = runArchive;
   $("#btn-export-host").onclick = exportForHosting;
@@ -2914,6 +3063,9 @@ function initTema() {
 }
 async function boot() {
   initTema(); bindStatic(); renderSources(); route(); renderChat();
+  // redni brojevi modula: samo za vidljive stavke (Prijedlozi postoje samo na hostingu)
+  $("#nav-prijedlozi").hidden = !HOSTED;
+  $$(".nav a").filter(a => !a.hidden).forEach((a, i) => { a.querySelector("span").textContent = String(i + 1).padStart(2, "0"); });
   if (HOSTED) {
     SRC_LABEL.rank = "Pozicije (DataForSEO)"; SRC_LABEL.gsc = "Google Search Console (API)";
     const eb = $("#v-pozicije .eb"); if (eb) eb.textContent = "DataForSEO · mobitel · Zagreb";

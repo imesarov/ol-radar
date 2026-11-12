@@ -16,6 +16,11 @@ class OLR_Settings {
 	const OPT     = 'olr_settings';
 	const SECRETS = 'olr_secrets';
 	const STATUS  = 'olr_status';
+	/** Imena ključeva koji su bili spremljeni i čitljivi; služi za provjeru nakon nadogradnje. */
+	const SEEN    = 'olr_keys_seen';
+	const WARNING = 'olr_upgrade_warning';
+	const VERSION = 'olr_version';
+	const NAMES   = array( 'gsc_sa', 'dfs_login', 'dfs_password', 'anthropic_key' );
 
 	/** Ciljane riječi trackera (isti popis kao u OpenSEO-u, 11. 11. 2026.). */
 	public static function default_keywords() {
@@ -42,6 +47,10 @@ class OLR_Settings {
 			'rank_weekly'    => false,
 			'ai_model'       => 'claude-sonnet-5-5',
 			'ai_daily_limit' => 150,
+			// Dnevni prijedlozi izmjena: analiza nakon novih Google podataka, tekst piše Claude (Anthropic API).
+			'prijedlozi_auto' => true,
+			'prijedlozi_max'  => 5,
+			'brand'           => 'ljiljana',
 		);
 	}
 
@@ -122,6 +131,31 @@ class OLR_Settings {
 		return ( is_array( $all ) && ! empty( $all[ $name ] ) ) ? 'baza (šifrirano)' : '';
 	}
 
+	/**
+	 * Stanje ključa u bazi: nema, ok ili necitljiv (šifrirani zapis postoji, ali se ne može
+	 * dešifrirati, npr. nakon promjene sigurnosnih soli u wp-config.php). Nečitljiv zapis se nikad
+	 * ne briše sam od sebe.
+	 */
+	public static function stored_state( $name ) {
+		$all = get_option( self::SECRETS, array() );
+		if ( ! is_array( $all ) || empty( $all[ $name ] ) ) {
+			return 'nema';
+		}
+		return null === self::decrypt( $all[ $name ] ) ? 'necitljiv' : 'ok';
+	}
+
+	/** Imena ključeva koji su u bazi i čitljivi. */
+	public static function readable_names() {
+		$out = array();
+		foreach ( self::NAMES as $n ) {
+			if ( 'ok' === self::stored_state( $n ) ) {
+				$out[] = $n;
+			}
+		}
+		return $out;
+	}
+
+	/** Mijenja se samo na izričit unos ili izričito brisanje u Postavkama; nadogradnja to nikad ne zove. */
 	public static function set_secret( $name, $value ) {
 		$all = get_option( self::SECRETS, array() );
 		$all = is_array( $all ) ? $all : array();
@@ -131,6 +165,71 @@ class OLR_Settings {
 			$all[ $name ] = self::encrypt( $value );
 		}
 		update_option( self::SECRETS, $all, false );
+		update_option( self::SEEN, self::readable_names(), false );
+		$w = get_option( self::WARNING );
+		if ( is_array( $w ) && ! empty( $w['nedostaju'] ) ) {
+			$left = array_values( array_diff( (array) $w['nedostaju'], self::readable_names() ) );
+			if ( $left ) {
+				$w['nedostaju'] = $left;
+				update_option( self::WARNING, $w, false );
+			} else {
+				delete_option( self::WARNING );
+			}
+		}
+	}
+
+	/**
+	 * Provjera nakon promjene verzije: svi ključevi koji su prije bili spremljeni moraju i dalje
+	 * biti čitljivi. Ako neki nedostaje, ostaje upozorenje za Postavke i za Claudea. Ništa se ne briše.
+	 *
+	 * @return array|null Upozorenje ili null.
+	 */
+	public static function check_upgrade() {
+		$prev = get_option( self::VERSION );
+		if ( OLR_VERSION === $prev ) {
+			return null;
+		}
+		$now  = self::readable_names();
+		$seen = get_option( self::SEEN );
+		$warn = null;
+		if ( is_array( $seen ) ) {
+			$missing = array_values( array_diff( $seen, $now ) );
+			if ( $missing ) {
+				$warn = array(
+					's'         => $prev ? (string) $prev : 'starije',
+					'na'        => OLR_VERSION,
+					'nedostaju' => $missing,
+					'at'        => time(),
+				);
+				update_option( self::WARNING, $warn, false );
+			}
+		} else {
+			// Prva verzija koja vodi ovaj popis: polazište je ono što je sada spremljeno.
+			update_option( self::SEEN, $now, false );
+		}
+		// Stara greška veze ne smije odgađati prvi pokušaj s novom verzijom.
+		$st = self::status();
+		if ( isset( $st['gsc'] ) && empty( $st['gsc']['ok'] ) ) {
+			unset( $st['gsc'] );
+			update_option( self::STATUS, $st, false );
+		}
+		update_option( self::VERSION, OLR_VERSION, false );
+		return $warn;
+	}
+
+	public static function upgrade_warning() {
+		$w = get_option( self::WARNING );
+		return is_array( $w ) && ! empty( $w['nedostaju'] ) ? $w : null;
+	}
+
+	public static function label( $name ) {
+		$l = array(
+			'gsc_sa'        => 'Google servisni račun',
+			'dfs_login'     => 'DataForSEO login',
+			'dfs_password'  => 'DataForSEO lozinka',
+			'anthropic_key' => 'Anthropic API ključ',
+		);
+		return isset( $l[ $name ] ) ? $l[ $name ] : $name;
 	}
 
 	/* ---------- stanje izvora (za ploču i Claudea) ---------- */
@@ -158,6 +257,9 @@ class OLR_Settings {
 	public static function describe_secret( $name ) {
 		$v = self::secret( $name );
 		if ( ! $v ) {
+			if ( 'necitljiv' === self::stored_state( $name ) ) {
+				return 'spremljen, ali se ne može pročitati (promijenjene su sigurnosne soli u wp-config.php); upiši ga ponovno';
+			}
 			return '';
 		}
 		if ( 'gsc_sa' === $name ) {

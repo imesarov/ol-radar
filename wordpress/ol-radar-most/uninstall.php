@@ -1,8 +1,11 @@
 <?php
 /**
- * Brisanje dodatka: uklanja tablicu crawla, postavke, ključeve, ulogu i pravo. Sadržaj weba se ne dira.
- * Podaci Radara (tablica ol_radar_docs: povijest, arhiva, plan) brišu se samo ako je u wp-config.php
- * definirano OLR_DELETE_DATA, da se slučajnim brisanjem dodatka ne izgubi povijest.
+ * Brisanje dodatka: uklanja tablicu crawla (cache), stanje, ulogu i pravo. Sadržaj weba se ne dira.
+ *
+ * Postavke, šifrirani ključevi i podaci Radara (tablica ol_radar_docs: povijest, arhiva, plan, prijedlozi)
+ * OSTAJU, da se brisanjem i ponovnom instalacijom dodatka (npr. pri prelasku na novu verziju) ništa ne
+ * izgubi. Brišu se samo ako je u wp-config.php definirano OLR_DELETE_DATA. Pojedini ključ briše se
+ * gumbom „obriši” u OL Radar → Postavke.
  */
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
@@ -13,12 +16,15 @@ $wpdb->query( "DROP TABLE IF EXISTS {$olr_table}" ); // phpcs:ignore WordPress.D
 
 delete_option( 'olr_db_version' );
 delete_option( 'olr_state' );
-foreach ( array( 'olr_settings', 'olr_secrets', 'olr_status', 'olr_dfs_cost', 'olr_ai_usage', 'olr_rank_pending', 'olr_parser_version' ) as $olr_opt ) {
+foreach ( array( 'olr_status', 'olr_rank_pending', 'olr_parser_version', 'olr_net_ok' ) as $olr_opt ) {
 	delete_option( $olr_opt );
 }
 delete_transient( 'olr_gsc_token' );
 wp_clear_scheduled_hook( 'olr_radar_tick' );
 if ( defined( 'OLR_DELETE_DATA' ) && OLR_DELETE_DATA ) {
+	foreach ( array( 'olr_settings', 'olr_secrets', 'olr_keys_seen', 'olr_upgrade_warning', 'olr_version', 'olr_dfs_cost', 'olr_ai_usage', 'olr_prijedlozi_run' ) as $olr_opt ) {
+		delete_option( $olr_opt );
+	}
 	$olr_docs = $wpdb->prefix . 'ol_radar_docs';
 	$wpdb->query( "DROP TABLE IF EXISTS {$olr_docs}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	delete_option( 'olr_store_version' );

@@ -10,7 +10,7 @@ class OLR_REST {
 	const NS = 'ol-radar/v1';
 
 	/** Zbirke koje nadzorna ploča smije mijenjati; podatke izvora (gsc, rank, serp…) piše samo server. */
-	const WRITABLE = array( 'issues', 'fixes', 'plan', 'kp', 'snap', 'cfg', 'trends', 'export', 'tjedno' );
+	const WRITABLE = array( 'issues', 'fixes', 'plan', 'kp', 'snap', 'cfg', 'trends', 'export', 'tjedno', 'prijedlozi_stanje' );
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -131,6 +131,7 @@ class OLR_REST {
 					'audit' => OLR_Abilities::audit( array( 'limit' => 1000 ) ),
 				),
 				'ig'     => OLR_Store::data( 'ig', 'zadnje' ),
+				'prijedlozi' => OLR_Prijedlozi::summary( 'svi', 300 ),
 				'stanje' => self::state_array(),
 			)
 		);
@@ -154,6 +155,12 @@ class OLR_REST {
 				'procjena_mjerenja'   => OLR_DFS::estimate(),
 				'tjedno'              => (bool) OLR_Settings::get( 'rank_weekly' ),
 			),
+			'prijedlozi' => array(
+				'auto'   => (bool) OLR_Settings::get( 'prijedlozi_auto' ),
+				'zadnje' => array_diff_key( OLR_Prijedlozi::last_run(), array( 'rucno' => 1 ) ),
+			),
+			// Upozorenje ako je nakon nadogradnje neki prije spremljeni ključ postao nečitljiv ili nestao.
+			'nadogradnja' => OLR_Settings::upgrade_warning(),
 			'postavke' => admin_url( 'admin.php?page=ol-radar-postavke' ),
 			'verzija'  => OLR_VERSION,
 		);
@@ -213,7 +220,8 @@ class OLR_REST {
 	}
 
 	/**
-	 * Osvježavanje bez troška: gsc (Search Console), rank (pokupi gotove rezultate mjerenja), crawl (serija stranica).
+	 * Osvježavanje: gsc (Search Console), rank (pokupi gotove rezultate mjerenja), crawl (serija stranica)
+	 * i prijedlozi (analiza + jedan poziv Claudea, najviše nekoliko puta dnevno).
 	 * Novo plaćeno mjerenje pozicija pokreće se samo na stranici Postavke.
 	 */
 	public static function osvjezi( WP_REST_Request $r ) {
@@ -224,8 +232,13 @@ class OLR_REST {
 			$res = OLR_DFS::poll();
 		} elseif ( 'crawl' === $dio ) {
 			$res = OLR_Crawler::run_batch( 15, 25 );
+		} elseif ( 'prijedlozi' === $dio ) {
+			$res = OLR_Prijedlozi::run( 'rucno' );
+			if ( ! is_wp_error( $res ) ) {
+				$res = OLR_Prijedlozi::summary( 'svi', 300 );
+			}
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

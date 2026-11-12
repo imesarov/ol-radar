@@ -264,6 +264,38 @@ class OLR_Abilities {
 				'meta'                => self::meta(),
 			)
 		);
+		wp_register_ability(
+			'ol-radar/radar-prijedlozi',
+			array(
+				'label'               => 'Radar: prijedlozi izmjena',
+				'description'         => 'Gotovi prijedlozi izmjena iz dnevne analize na hostingu (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj). Svaki ima dokaze s brojkama iz Search Consolea, sadašnji i predloženi tekst, korake i stanje (novo, prihvaceno, provedeno, odbijeno). Samo čitanje; web se mijenja tek nakon vlasnikova odobrenja.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'stanje' => array( 'type' => 'string', 'enum' => array( 'otvoreni', 'svi', 'novo', 'prihvaceno', 'provedeno', 'odbijeno' ), 'description' => 'Zadano: otvoreni (novo i prihvaceno).' ),
+						'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 50, 'description' => 'Najviše prijedloga (zadano 20).' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_proposals' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+	}
+
+	public static function radar_proposals( $input = array() ) {
+		$f = isset( $input['stanje'] ) && in_array( $input['stanje'], array( 'otvoreni', 'svi', 'novo', 'prihvaceno', 'provedeno', 'odbijeno' ), true ) ? $input['stanje'] : 'otvoreni';
+		$n = isset( $input['limit'] ) ? max( 1, min( 50, (int) $input['limit'] ) ) : 20;
+		$s = OLR_Prijedlozi::summary( $f, $n );
+		return array(
+			'otvorenih'  => $s['otvorenih'],
+			'ukupno'     => $s['ukupno'],
+			'zadnja_analiza' => $s['zadnje'],
+			'automatski' => $s['auto'],
+			'prijedlozi' => $s['stavke'],
+			'napomena'   => 'Prijedlozi su za odluku vlasnika. Izmjenu na webu radi tek nakon izričitog odobrenja.',
+		);
 	}
 
 	public static function radar_summary( $input = array() ) {
@@ -276,6 +308,10 @@ class OLR_Abilities {
 			'starost_sati'    => $age,
 			'napomena'        => $ex ? ( $age > 168 ? 'Sažetak je stariji od 7 dana: otvori nadzornu ploču (wp-admin → OL Radar) da se osvježi.' : null ) : 'Sažetak još ne postoji: otvori nadzornu ploču jednom (wp-admin → OL Radar).',
 			'gsc'             => OLR_Store::data( 'gsc', 'meta' ),
+			'prijedlozi'      => array(
+				'otvorenih' => OLR_Prijedlozi::summary( 'otvoreni', 1 )['otvorenih'],
+				'napomena'  => 'Detalji: ol-radar/radar-prijedlozi.',
+			),
 			'stanje'          => $st,
 		);
 	}

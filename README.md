@@ -53,6 +53,9 @@ python3 tests/app/run_e2e.py
 WPTEST_DIR=/tmp/wptest bash tests/wordpress/setup.sh
 WPTEST_DIR=/tmp/wptest bash tests/wordpress/run.sh
 
+# izdavanje dodatka: svježe okruženje, svi testovi (i test nadogradnje), zip
+bash tools/release.sh
+
 # sintaksa novija od PHP 7.4
 php tools/php74-compat.php wordpress/ol-radar-most
 ```
@@ -66,8 +69,10 @@ php tools/php74-compat.php wordpress/ol-radar-most
 - Samo provjereni podaci. Kad izvor ne radi, aplikacija to jasno pokaže i ne izmišlja brojke.
 - WordPress dodatak ostaje samo za čitanje. Svako buduće upisivanje (faza 2: Rank Math meta) ide kao zasebna sposobnost s dnevnikom, vraćanjem i odobrenjem.
 - Prije objave obavezno: `node --check` na skripti iz `app/index.html`, `tests/app/run_e2e.py` i, za dodatak, `tests/wordpress`.
+- **Nova verzija dodatka ne smije dirati spremljene ključeve, postavke ni podatke.** Zip se gradi samo s `tools/release.sh`; on pokreće i `tests/wordpress/upgrade_test.sh` (nadogradnja sa svake izdane verzije). Nakon izdanja: `git tag v<verzija>`, da sljedeći test pokrije i ovo izdanje. Promjena načina šifriranja ili imena opcija traži migraciju koja čita stari oblik.
 
 ## Plan
+Cijeli plan s prioritetima, troškovima i izvorima: `docs/Plan-razvoja.md`.
 - **v3:**
   - prikaz WP audita i tjednih zapisa u aplikaciji;
   - vlastito praćenje pozicija (OpenSEO);

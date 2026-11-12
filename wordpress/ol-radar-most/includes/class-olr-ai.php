@@ -135,8 +135,9 @@ class OLR_AI {
 		$res = wp_remote_post(
 			self::URL,
 			array(
-				'timeout' => 150,
-				'headers' => array(
+				'timeout'     => 150,
+				'httpversion' => '1.1',
+				'headers'     => array(
 					'x-api-key'         => $key,
 					'anthropic-version' => self::VERSION,
 					'content-type'      => 'application/json',

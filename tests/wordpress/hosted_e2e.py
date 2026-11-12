@@ -97,6 +97,36 @@ async def main():
         await pg.wait_for_timeout(800)
         await pg.screenshot(path=f"{OUT}/hosted_pregled.png")
 
+        # prijedlozi izmjena: modul, dokazi i izmjene, stanje, ručna analiza
+        await fr.evaluate("location.hash='#prijedlozi'")
+        await pg.wait_for_timeout(500)
+        pi = await fr.evaluate("""(()=>({n:document.querySelectorAll('#prop-list .prop').length, nav:document.querySelector('#nav-prijedlozi span').textContent,
+            zadnji:[...document.querySelectorAll('.nav a')].filter(a=>!a.hidden).pop().querySelector('span').textContent,
+            cnt:+document.querySelector('#cnt-prijedlozi').textContent, chg:document.querySelectorAll('#prop-list .chg').length, tbl:document.querySelectorAll('#prop-list table').length,
+            meta:document.querySelector('#prop-meta').textContent, on:document.querySelector('#v-prijedlozi').classList.contains('on')}))()""")
+        okp = pi["on"] and pi["n"] >= 4 and pi["nav"] == "02" and pi["zadnji"] == "14" and pi["cnt"] >= 4 and pi["chg"] >= 4 and pi["tbl"] >= 2 and "Zadnja analiza" in pi["meta"]
+        print(("OK  " if okp else "FAIL") + " prijedlozi: modul s karticama, dokazima i izmjenama:", {k: pi[k] for k in ("n", "nav", "zadnji", "cnt", "chg", "tbl")}); bad += 0 if okp else 1
+        await pg.screenshot(path=f"{OUT}/hosted_prijedlozi.png")
+        pid = await fr.evaluate("document.querySelector('#prop-list [data-prop-set$=\"|prihvaceno\"]').dataset.propSet.split('|')[0]")
+        await fr.click(f'[data-prop-set="{pid}|prihvaceno"]')
+        await pg.wait_for_timeout(900)
+        sv = await fr.evaluate(f"OLR_HOSTED.api('doc/prijedlozi_stanje/{pid}').then(d=>d.data.stanje)")
+        cls = await fr.evaluate(f"document.querySelector('[data-prop=\"{pid}\"]').className")
+        okp2 = sv == "prihvaceno" and "st-prihvaceno" in cls
+        print(("OK  " if okp2 else "FAIL") + f" prijedlozi: prihvaćanje spremljeno na serveru ({sv})"); bad += 0 if okp2 else 1
+        await fr.click('[data-pf2="odbijeno"]')
+        nrej = await fr.evaluate("document.querySelectorAll('#prop-list .prop').length")
+        await fr.click('[data-pf2="otvoreni"]')
+        print(("OK  " if nrej == 1 else "FAIL") + f" prijedlozi: filtar po stanju (odbijenih {nrej})"); bad += 0 if nrej == 1 else 1
+        await fr.click("#btn-prop-run")
+        await fr.wait_for_function("!S.prop.busy", timeout=30000)
+        okp3 = not await fr.evaluate("document.querySelector('#modal').classList.contains('on')") and await fr.evaluate("S.prop.meta && S.prop.meta.nacin") == "rucno"
+        print(("OK  " if okp3 else "FAIL") + " prijedlozi: „Analiziraj sada” pokreće analizu na serveru"); bad += 0 if okp3 else 1
+        await fr.evaluate("location.hash='#pregled'")
+        await pg.wait_for_timeout(500)
+        okp4 = await fr.evaluate("!!document.querySelector('#ov-prop a[href=\"#prijedlozi\"]')")
+        print(("OK  " if okp4 else "FAIL") + " pregled: traka s novim prijedlozima"); bad += 0 if okp4 else 1
+
         # export za Claudea zapisan u bazu dodatka
         await fr.evaluate("maybeExport(true)")
         await pg.wait_for_timeout(1500)
@@ -127,7 +157,8 @@ async def main():
             await pg.click("#submit")
         msg = await pg.inner_text(".notice")
         poslije = await kljucevi()
-        oks = msg.strip() == "Postavke spremljene." and prije == poslije and "anthropic_key" in poslije and "dfs_login" in poslije
+        auto = await pg.is_checked("input[name=prijedlozi_auto]")
+        oks = msg.strip() == "Postavke spremljene." and prije == poslije and "anthropic_key" in poslije and "dfs_login" in poslije and auto
         print(("OK  " if oks else "FAIL") + f" Spremi postavke čuva ključeve ({poslije}): " + msg[:80]); bad += 0 if oks else 1
         async with pg.expect_navigation():
             await pg.press("#gsc_site", "Enter")

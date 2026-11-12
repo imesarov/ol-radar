@@ -11,7 +11,49 @@ class OLR_GSC {
 	const SCOPE     = 'https://www.googleapis.com/auth/webmasters.readonly';
 	const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 	const API       = 'https://www.googleapis.com/webmasters/v3/sites/';
+	/** Ista usluga na drugoj Googleovoj adresi; rezerva ako prva ne odgovara. */
+	const API_ALT   = 'https://searchconsole.googleapis.com/webmasters/v3/sites/';
 	const TOKEN_TR  = 'olr_gsc_token';
+
+	/** Dijagnostika pokušaja zadnjeg poziva (bez ključeva): za poruku i za Claudea. */
+	public static $attempts = array();
+
+	/**
+	 * Redoslijed pokušaja: [ način, adresa ]. Prvo kombinacija koja je zadnji put radila,
+	 * zatim zadano, pa IPv4 + HTTP/1.1, pa rezervna adresa.
+	 */
+	private static function plan( $with_alt = true ) {
+		$pref = OLR_Net::preferred();
+		$all  = array( array( $pref['nacin'], $pref['host'] ), array( 'auto', 'www' ), array( 'v4h1', 'www' ) );
+		if ( $with_alt ) {
+			$all[] = array( 'v4h1', 'sc' );
+		}
+		$out  = array();
+		$seen = array();
+		foreach ( $all as $p ) {
+			if ( ! $with_alt ) {
+				$p[1] = 'www';
+			}
+			$k = $p[0] . '|' . $p[1];
+			if ( ! isset( $seen[ $k ] ) ) {
+				$seen[ $k ] = 1;
+				$out[]      = $p;
+			}
+		}
+		return $out;
+	}
+
+	/** Čitljiva poruka kad nijedan pokušaj nije dobio odgovor. */
+	private static function network_message( $what ) {
+		$parts = array();
+		foreach ( self::$attempts as $i => $d ) {
+			$parts[] = ( $i + 1 ) . ') ' . OLR_Net::describe( $d );
+		}
+		$last = self::$attempts ? end( self::$attempts ) : array();
+		return $what . ' nije odgovorio. Pokušaji: ' . implode( '; ', $parts ) . '.'
+			. ( ! empty( $last['greska'] ) ? ' Zadnja greška: ' . $last['greska'] : '' )
+			. ' Ključ i postavke su u redu; radi se o vezi hostinga prema Googleu. Pokušaj ponovno za nekoliko minuta, a ako se ponovi, javi ovu poruku.';
+	}
 
 	private static function b64url( $s ) {
 		return rtrim( strtr( base64_encode( $s ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
@@ -83,18 +125,32 @@ class OLR_GSC {
 		if ( ! openssl_sign( $header . '.' . $claims, $sig, $key, OPENSSL_ALGO_SHA256 ) ) {
 			return new WP_Error( 'olr_gsc_potpis', 'Potpisivanje JWT-a nije uspjelo.' );
 		}
-		$res = wp_remote_post(
-			self::TOKEN_URL,
-			array(
-				'timeout' => 20,
-				'body'    => array(
-					'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-					'assertion'  => $header . '.' . $claims . '.' . self::b64url( $sig ),
+		self::$attempts = array();
+		$res            = null;
+		foreach ( self::plan( false ) as $p ) {
+			$res              = OLR_Net::post(
+				self::TOKEN_URL,
+				array(
+					'timeout'     => 15,
+					// WordPress zadano šalje HTTP/1.0; Googleovi API-ji očekuju 1.1.
+					'httpversion' => '1.1',
+					'body'        => array(
+						'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+						'assertion'  => $header . '.' . $claims . '.' . self::b64url( $sig ),
+					),
 				),
-			)
-		);
+				$p[0]
+			);
+			self::$attempts[] = array_merge( OLR_Net::$last, array( 'korak' => 'token' ) );
+			if ( ! is_wp_error( $res ) ) {
+				if ( 'auto' !== $p[0] ) {
+					OLR_Net::remember( $p[0], OLR_Net::preferred()['host'] );
+				}
+				break;
+			}
+		}
 		if ( is_wp_error( $res ) ) {
-			return new WP_Error( 'olr_gsc_mreza', 'Google token: ' . $res->get_error_message() );
+			return new WP_Error( 'olr_gsc_mreza', self::network_message( 'Google (izdavanje tokena)' ) );
 		}
 		$body = json_decode( wp_remote_retrieve_body( $res ), true );
 		if ( 200 !== wp_remote_retrieve_response_code( $res ) || empty( $body['access_token'] ) ) {
@@ -112,20 +168,34 @@ class OLR_GSC {
 		if ( is_wp_error( $token ) ) {
 			return $token;
 		}
-		$site = OLR_Settings::get( 'gsc_site' );
-		$res  = wp_remote_post(
-			self::API . rawurlencode( $site ) . '/searchAnalytics/query',
-			array(
-				'timeout' => 60,
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $token,
-					'Content-Type'  => 'application/json',
+		$site           = OLR_Settings::get( 'gsc_site' );
+		$step           = 'upit ' . implode( '+', isset( $body['dimensions'] ) ? (array) $body['dimensions'] : array() );
+		self::$attempts = array();
+		$res            = null;
+		foreach ( self::plan() as $i => $p ) {
+			$res              = OLR_Net::post(
+				( 'sc' === $p[1] ? self::API_ALT : self::API ) . rawurlencode( $site ) . '/searchAnalytics/query',
+				array(
+					// Uobičajen odgovor stiže za 1–5 s; dulje čekanje samo produžuje zastoj.
+					'timeout'     => 0 === $i ? 30 : 20,
+					'httpversion' => '1.1',
+					'headers'     => array(
+						'Authorization' => 'Bearer ' . $token,
+						'Content-Type'  => 'application/json',
+					),
+					'body'    => wp_json_encode( $body ),
 				),
-				'body'    => wp_json_encode( $body ),
-			)
-		);
+				$p[0]
+			);
+			self::$attempts[] = array_merge( OLR_Net::$last, array( 'korak' => $step ) );
+			if ( ! is_wp_error( $res ) ) {
+				// Zapamti kombinaciju koja radi, da sljedeći upiti ne čekaju na onu koja ne radi.
+				OLR_Net::remember( $p[0], $p[1] );
+				break;
+			}
+		}
 		if ( is_wp_error( $res ) ) {
-			return new WP_Error( 'olr_gsc_mreza', 'Search Console: ' . $res->get_error_message() );
+			return new WP_Error( 'olr_gsc_mreza', self::network_message( 'Search Console' ), array( 'dijagnostika' => self::$attempts ) );
 		}
 		$code = wp_remote_retrieve_response_code( $res );
 		$json = json_decode( wp_remote_retrieve_body( $res ), true );
@@ -206,16 +276,17 @@ class OLR_GSC {
 		if ( function_exists( 'set_time_limit' ) ) {
 			@set_time_limit( 240 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
-		$today = ( new DateTime( 'now', wp_timezone() ) )->format( 'Y-m-d' );
-		$end   = self::day( $today, -3 );
-		$s28   = self::day( $end, -27 );
+		$t_start = time();
+		$today   = ( new DateTime( 'now', wp_timezone() ) )->format( 'Y-m-d' );
+		$end     = self::day( $today, -3 );
+		$s28     = self::day( $end, -27 );
 		$pe    = self::day( $end, -28 );
 		$ps    = self::day( $end, -55 );
 		$s90   = self::day( $end, -89 );
 
 		$daily = self::rows( array( 'date' ), $s90, $end, 2000 );
 		if ( is_wp_error( $daily ) ) {
-			OLR_Settings::set_status( 'gsc', false, $daily->get_error_message() );
+			OLR_Settings::set_status( 'gsc', false, $daily->get_error_message(), self::fail_extra( 'dnevno' ) );
 			return $daily;
 		}
 		if ( ! $daily ) {
@@ -249,7 +320,7 @@ class OLR_GSC {
 		foreach ( $blocks as $name => $b ) {
 			$rows = self::rows( $b[0], $b[1], $b[2], $b[3] );
 			if ( is_wp_error( $rows ) ) {
-				OLR_Settings::set_status( 'gsc', false, $rows->get_error_message() );
+				OLR_Settings::set_status( 'gsc', false, $rows->get_error_message(), self::fail_extra( $name ) );
 				return $rows;
 			}
 			$data[ $name ] = $rows;
@@ -287,8 +358,32 @@ class OLR_GSC {
 			),
 		);
 		OLR_Store::set( 'gsc', 'meta', $meta );
-		OLR_Settings::set_status( 'gsc', true, 'podaci do ' . $last, array( 'do' => $last ) );
+		$ok = self::$attempts ? end( self::$attempts ) : array();
+		OLR_Settings::set_status(
+			'gsc',
+			true,
+			'podaci do ' . $last,
+			array(
+				'do'      => $last,
+				'trajalo' => time() - $t_start,
+				'veza'    => $ok ? OLR_Net::describe( $ok ) : '',
+			)
+		);
+		/**
+		 * Novi Google podaci su spremljeni (koristi ih dnevna analiza).
+		 *
+		 * @param array $meta Opis preuzetih podataka.
+		 */
+		do_action( 'olr_gsc_collected', $meta );
 		return $meta;
+	}
+
+	/** Dodatak statusu pri grešci: koji dio je pao i dijagnostika pokušaja. */
+	private static function fail_extra( $part ) {
+		return array(
+			'dio'          => $part,
+			'dijagnostika' => array_slice( self::$attempts, -4 ),
+		);
 	}
 
 	/** Mali test veze: jedan dan, bez spremanja. */
@@ -311,6 +406,7 @@ class OLR_GSC {
 			$c += (int) $r['clicks'];
 			$i += (int) $r['impressions'];
 		}
-		return sprintf( 'Veza radi: zadnjih 7 dana %d klikova i %d prikazivanja.', $c, $i );
+		$d = self::$attempts ? end( self::$attempts ) : array();
+		return sprintf( 'Veza radi: zadnjih 7 dana %d klikova i %d prikazivanja.', $c, $i ) . ( $d ? ' (' . OLR_Net::describe( $d ) . ')' : '' );
 	}
 }
