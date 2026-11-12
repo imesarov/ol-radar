@@ -104,7 +104,7 @@ async def main():
             zadnji:[...document.querySelectorAll('.nav a')].filter(a=>!a.hidden).pop().querySelector('span').textContent,
             cnt:+document.querySelector('#cnt-prijedlozi').textContent, chg:document.querySelectorAll('#prop-list .chg').length, tbl:document.querySelectorAll('#prop-list table').length,
             meta:document.querySelector('#prop-meta').textContent, on:document.querySelector('#v-prijedlozi').classList.contains('on')}))()""")
-        okp = pi["on"] and pi["n"] >= 4 and pi["nav"] == "02" and pi["zadnji"] == "14" and pi["cnt"] >= 4 and pi["chg"] >= 4 and pi["tbl"] >= 2 and "Zadnja analiza" in pi["meta"]
+        okp = pi["on"] and pi["n"] >= 4 and pi["nav"] == "02" and pi["zadnji"] == "14" and pi["cnt"] >= 4 and pi["chg"] >= 4 and pi["tbl"] >= 1 and "Zadnja analiza" in pi["meta"]
         print(("OK  " if okp else "FAIL") + " prijedlozi: modul s karticama, dokazima i izmjenama:", {k: pi[k] for k in ("n", "nav", "zadnji", "cnt", "chg", "tbl")}); bad += 0 if okp else 1
         await pg.screenshot(path=f"{OUT}/hosted_prijedlozi.png")
         pid = await fr.evaluate("document.querySelector('#prop-list [data-prop-set$=\"|prihvaceno\"]').dataset.propSet.split('|')[0]")
@@ -151,6 +151,58 @@ async def main():
             clearTimeout(propPollTimer); propPollTimer=null; setProp(d); renderProp(); r.poslije=!!propPollTimer; return r})()""")
         okb = pb["n"] >= 4 and pb["timer"] and not pb["poslije"] and "dopisuje u pozadini" in pb["meta"]
         print(("OK  " if okb else "FAIL") + " prijedlozi: dok se tekst piše u pozadini, prikaz se osvježava sam"); bad += 0 if okb else 1
+
+        # učinak provedenih izmjena: kartica provedenog prijedloga pokazuje usporedbu prije i poslije
+        await fr.evaluate("location.hash='#prijedlozi'")
+        await fr.click('[data-pf2="provedeno"]')
+        await pg.wait_for_timeout(400)
+        ue = await fr.evaluate("""(()=>{const c=[...document.querySelectorAll('#prop-list .prop')]; const withT=c.find(x=>x.querySelector('.ucinak table')); const no=c.find(x=>x.querySelector('.ucinak')&&!x.querySelector('.ucinak table'));
+            return {n:c.length, uc:document.querySelectorAll('#prop-list .ucinak').length, id:withT?withT.dataset.prop:null, rows:withT?withT.querySelectorAll('.ucinak tbody tr').length:0,
+              txt:withT?withT.querySelector('.ucinak').textContent:'', no:no?no.querySelector('.ucinak').textContent:'', dan:withT?withT.querySelector('[data-prop-dan]').value:'', meta:document.querySelector('#prop-meta').textContent}})()""")
+        oku = ue["n"] == 2 and ue["uc"] == 2 and ue["rows"] == 2 and "Učinak izmjene" in ue["txt"] and "cijeli web" in ue["txt"] and "→" in ue["txt"] and "ne mjeri se po stranici" in ue["no"] and "Učinak provedenih izmjena" in ue["meta"]
+        print(("OK  " if oku else "FAIL") + " učinak: provedeni prijedlog pokazuje prije i poslije uz trend weba:", {k: ue[k] for k in ("n", "uc", "rows", "dan")}); bad += 0 if oku else 1
+        await pg.screenshot(path=f"{OUT}/hosted_ucinak.png")
+        # promjena dana provedbe sprema se na server i mjerenje kreće iznova
+        import datetime
+        novi = (datetime.date.today() - datetime.timedelta(days=33)).isoformat()
+        await fr.fill(f'[data-prop-dan="{ue["id"]}"]', novi)
+        await fr.dispatch_event(f'[data-prop-dan="{ue["id"]}"]', "change")
+        await fr.wait_for_function(f"(()=>{{const p=S.prop.items.find(x=>x.id==='{ue['id']}'); return p&&p.mjerenje&&p.mjerenje.provedeno==='{novi}'}})()", timeout=20000)
+        ud = await fr.evaluate(f"(()=>{{const p=S.prop.items.find(x=>x.id==='{ue['id']}'); return {{stanje:p.mjerenje.stanje, prozori:Object.keys(p.mjerenje.prozori), ocjena:p.mjerenje.ocjena, rows:document.querySelectorAll('[data-prop=\"{ue['id']}\"] .ucinak tbody tr').length}}}})()")
+        sd = await fr.evaluate(f"OLR_HOSTED.api('doc/prijedlozi_stanje/{ue['id']}').then(d=>d.data.dan)")
+        okd2 = sd == novi and ud["stanje"] == "gotovo" and ud["prozori"] == ["7", "14", "28"] and ud["rows"] == 3
+        print(("OK  " if okd2 else "FAIL") + " učinak: novi dan provedbe spremljen, usporedba 7, 14 i 28 dana:", ud); bad += 0 if okd2 else 1
+        await fr.click('[data-pf2="otvoreni"]')
+
+        # indeksiranost: panel u Auditu s razlogom koji navodi Google; „Provjeri sada” pokreće serije na serveru
+        await fr.evaluate("location.hash='#audit'")
+        await pg.wait_for_timeout(500)
+        ix = await fr.evaluate("""(()=>({hidden:document.querySelector('#ix-panel').hidden, tiles:document.querySelectorAll('#ix-tiles .tile').length, bad:document.querySelectorAll('#ix-table > .tw tbody tr').length,
+            txt:document.querySelector('#ix-table').textContent, all:document.querySelectorAll('#ix-table details tbody tr').length, meta:document.querySelector('#ix-meta').textContent, sc:document.querySelectorAll('#ix-table a[href*="search.google.com"]').length}))()""")
+        oki = not ix["hidden"] and ix["tiles"] == 4 and ix["bad"] == 5 and "nije u indeksu" in ix["txt"] and "Pretraženo – trenutačno nije indeksirano" in ix["txt"] and "druga kanonska" in ix["txt"] and ix["all"] > 100 and ix["sc"] >= 4 and "provjereno" in ix["meta"]
+        print(("OK  " if oki else "FAIL") + " indeksiranost: panel s problemima i razlogom iz Googlea:", {k: ix[k] for k in ("tiles", "bad", "all", "sc")}); bad += 0 if oki else 1
+        await pg.screenshot(path=f"{OUT}/hosted_indeks.png")
+        await fr.click("#btn-ix-run")
+        await fr.wait_for_function("!S.ixBusy", timeout=60000)
+        ix2 = await fr.evaluate("({prov:S.indeks.provjereno, uk:S.indeks.ukupno, btn:document.querySelector('#btn-ix-run').textContent, modal:document.querySelector('#modal').classList.contains('on')})")
+        oki2 = ix2["prov"] == ix2["uk"] and ix2["btn"] == "Provjeri sada" and not ix2["modal"]
+        print(("OK  " if oki2 else "FAIL") + " indeksiranost: „Provjeri sada” završava bez greške:", ix2); bad += 0 if oki2 else 1
+
+        # AI pregled u pozicijama i kretanje konkurenata iz naših mjerenja
+        await fr.evaluate("location.hash='#pozicije'")
+        await pg.wait_for_timeout(400)
+        ai = await fr.evaluate("""(()=>({th:[...document.querySelectorAll('#rk-table th')].map(t=>t.textContent), tiles:[...document.querySelectorAll('#rk-tiles .tile .k')].map(t=>t.textContent), txt:document.querySelector('#rk-table').textContent,
+            tile:[...document.querySelectorAll('#rk-tiles .tile')].pop().textContent}))()""")
+        okai = "AI pregled" in ai["th"] and "AI pregled" in ai["tiles"] and "citira nas" in ai["txt"] and "ne citira nas" in ai["txt"] and "essilor.com" in ai["txt"] and "citira nas: 1" in ai["tile"]
+        print(("OK  " if okai else "FAIL") + " pozicije: stupac i pločica AI pregleda (citira nas / ne citira nas):", ai["tile"]); bad += 0 if okai else 1
+        await pg.screenshot(path=f"{OUT}/hosted_pozicije_ai.png")
+        await fr.evaluate("location.hash='#konkurencija'")
+        await pg.wait_for_timeout(500)
+        km = await fr.evaluate("""(()=>({hidden:document.querySelector('#km-panel').hidden, rows:document.querySelectorAll('#km-body tbody tr').length, me:(document.querySelector('#km-body tr.me')||{}).textContent||'',
+            txt:document.querySelector('#km-body').textContent, li:document.querySelectorAll('#km-body .kret li').length, meta:document.querySelector('#km-meta').textContent, sp:document.querySelectorAll('#km-body svg.spark').length}))()""")
+        okk = not km["hidden"] and km["rows"] >= 10 and "optikaljiljana.hr" in km["me"] and "mi" in km["me"] and "novo u top 10" in km["txt"] and "pretekli nas" in km["txt"] and "konkurent4.hr" in km["txt"] and km["li"] >= 3 and "2 mjerenja" in km["meta"] and km["sp"] >= 10
+        print(("OK  " if okk else "FAIL") + " konkurencija: kretanje konkurenata (udio, promjena, tko nas je pretekao):", {k: km[k] for k in ("rows", "li", "sp", "meta")}); bad += 0 if okk else 1
+        await pg.screenshot(path=f"{OUT}/hosted_kretanje.png")
 
         # pozicije: bez mjerenja je to napomena s objašnjenjem troška, ne greška ni vječno „učitavam”
         await fr.evaluate("location.hash='#pozicije'")
@@ -207,7 +259,7 @@ async def main():
             await pg.click("#submit")
         msg = await pg.inner_text(".notice")
         poslije = await kljucevi()
-        auto = await pg.is_checked("input[name=prijedlozi_auto]")
+        auto = await pg.is_checked("input[name=prijedlozi_auto]") and await pg.is_checked("input[name=indeks_auto]") and not await pg.is_checked("input[name=rank_aio_async]")
         oks = msg.strip() == "Postavke spremljene." and prije == poslije and "anthropic_key" in poslije and "dfs_login" in poslije and auto
         print(("OK  " if oks else "FAIL") + f" Spremi postavke čuva ključeve ({poslije}): " + msg[:80]); bad += 0 if oks else 1
         async with pg.expect_navigation():

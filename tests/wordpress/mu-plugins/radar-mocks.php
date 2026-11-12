@@ -53,6 +53,53 @@ add_filter(
 			return $json( 200, array( 'access_token' => 'tok-' . wp_generate_password( 8, false ), 'expires_in' => 3599, 'token_type' => 'Bearer' ) );
 		}
 
+		// Search Console URL Inspection (indeksiranost). Rezultat ovisi o putanji stranice.
+		if ( 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect' === $url ) {
+			$q = json_decode( $args['body'], true );
+			update_option( 'olr_test_indeks_calls', (int) get_option( 'olr_test_indeks_calls', 0 ) + 1, false );
+			update_option( 'olr_test_indeks_last', $q, false );
+			if ( 0 !== strpos( isset( $args['headers']['Authorization'] ) ? $args['headers']['Authorization'] : '', 'Bearer tok-' ) ) {
+				return $json( 401, array( 'error' => array( 'message' => 'Invalid Credentials' ) ) );
+			}
+			if ( get_option( 'olr_test_indeks_403' ) ) {
+				return $json( 403, array( 'error' => array( 'code' => 403, 'message' => 'You do not own this site, or the inspected URL is not part of this property.' ) ) );
+			}
+			$u    = $q['inspectionUrl'];
+			$path = (string) wp_parse_url( $u, PHP_URL_PATH );
+			if ( '/sample-page/' === $path ) {
+				return $json( 400, array( 'error' => array( 'code' => 400, 'message' => 'Invalid inspection URL.' ) ) );
+			}
+			$is = array(
+				'verdict'         => 'PASS',
+				'coverageState'   => 'Poslano i indeksirano',
+				'robotsTxtState'  => 'ALLOWED',
+				'indexingState'   => 'INDEXING_ALLOWED',
+				'lastCrawlTime'   => gmdate( 'Y-m-d\TH:i:s\Z', time() - 3 * DAY_IN_SECONDS ),
+				'pageFetchState'  => 'SUCCESSFUL',
+				'googleCanonical' => $u,
+				'userCanonical'   => $u,
+				'crawledAs'       => 'MOBILE',
+				'sitemap'         => array( 'https://www.optikaljiljana.hr/sitemap_index.xml' ),
+			);
+			if ( '/kontakt/' === $path ) {
+				$is['verdict']       = 'NEUTRAL';
+				$is['coverageState'] = 'Pretraženo – trenutačno nije indeksirano';
+				$is['lastCrawlTime'] = gmdate( 'Y-m-d\TH:i:s\Z', time() - 20 * DAY_IN_SECONDS );
+				unset( $is['googleCanonical'] );
+			} elseif ( '/dioptrijske-naocale/' === $path ) {
+				$is['googleCanonical'] = str_replace( '/dioptrijske-naocale/', '/progresivne-naocale/', $u );
+			} elseif ( '/usluge-a/' === $path ) {
+				$is['verdict']       = 'NEUTRAL';
+				$is['coverageState'] = 'Isključeno oznakom "noindex"';
+				$is['indexingState'] = 'BLOCKED_BY_META_TAG';
+			} elseif ( '/usluge-b/' === $path ) {
+				$is['verdict']        = 'FAIL';
+				$is['coverageState']  = 'Greška poslužitelja (5xx)';
+				$is['pageFetchState'] = 'SERVER_ERROR';
+			}
+			return $json( 200, array( 'inspectionResult' => array( 'inspectionResultLink' => 'https://search.google.com/search-console/inspect?resource_id=test&id=' . md5( $u ), 'indexStatusResult' => $is ) ) );
+		}
+
 		// Search Console Search Analytics.
 		if ( false !== strpos( $url, 'https://www.googleapis.com/webmasters/v3/sites/' ) || false !== strpos( $url, 'https://searchconsole.googleapis.com/webmasters/v3/sites/' ) ) {
 			$extra = (bool) get_option( 'olr_test_gsc_extra' );
@@ -65,7 +112,45 @@ add_filter(
 			$q    = json_decode( $args['body'], true );
 			$dims = implode( ',', $q['dimensions'] );
 			$rows = array();
-			if ( 'date' === $dims ) {
+			if ( 'date' === $dims && ( ! empty( $q['dimensionFilterGroups'] ) || ( isset( $q['dataState'] ) && 'final' === $q['dataState'] ) ) ) {
+				// Mjerenje učinka: konačni podaci kasne 3 dana. Uz filtar stranice brojke ovise o danu provedbe iz
+				// opcije olr_test_ucinak (putanja => dan): poslije tog dana stranica ima više klikova i bolju poziciju.
+				$last  = gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS );
+				$path  = null;
+				$query = null;
+				$map   = (array) get_option( 'olr_test_ucinak', array() );
+				foreach ( ! empty( $q['dimensionFilterGroups'][0]['filters'] ) ? $q['dimensionFilterGroups'][0]['filters'] : array() as $f ) {
+					if ( 'page' === $f['dimension'] ) {
+						$path = '?';
+						foreach ( array_merge( array_keys( $map ), array( '/', '/kontakt/', '/progresivne-naocale/', '/dioptrijske-naocale/', '/progresivne-naocalne-lece/' ) ) as $cand ) {
+							if ( 'includingRegex' === $f['operator'] && preg_match( '~' . $f['expression'] . '~', 'https://www.optikaljiljana.hr' . $cand ) ) {
+								$path = $cand;
+							}
+						}
+					} elseif ( 'query' === $f['dimension'] ) {
+						$query = $f['expression'];
+					}
+				}
+				$d = new DateTime( min( $q['endDate'], $last ) );
+				$s = new DateTime( $q['startDate'] );
+				while ( $d >= $s ) {
+					$day = $d->format( 'Y-m-d' );
+					if ( null === $path ) {
+						$row = array( 12, 400, 6.2 );                       // cijeli web: ravno
+					} elseif ( isset( $map[ $path ] ) && $day > $map[ $path ] ) {
+						$row = $query ? array( 2, 20, 5.0 ) : array( 3, 45, 4.0 ); // poslije izmjene
+					} elseif ( '?' === $path ) {
+						$row = null;                                        // nepoznata stranica: nema podataka
+					} else {
+						$row = $query ? array( 1, 20, 7.0 ) : array( 1, 40, 6.0 ); // prije izmjene (ili stranica bez izmjene)
+					}
+					if ( $row ) {
+						$rows[] = array( 'keys' => array( $day ), 'clicks' => $row[0], 'impressions' => $row[1], 'ctr' => $row[0] / $row[1], 'position' => $row[2] );
+					}
+					$d->modify( '-1 day' );
+				}
+				update_option( 'olr_test_gsc_last_filter', isset( $q['dimensionFilterGroups'] ) ? $q['dimensionFilterGroups'] : null, false );
+			} elseif ( 'date' === $dims ) {
 				$d = new DateTime( $q['endDate'] );
 				$s = new DateTime( $q['startDate'] );
 				$i = 0;
@@ -167,17 +252,48 @@ add_filter(
 				);
 				$our   = array_key_exists( $t['keyword'], $ranks ) ? $ranks[ $t['keyword'] ] : 8;
 				$items = array( array( 'type' => 'local_pack', 'rank_group' => 1, 'domain' => 'maps' ) );
+				$types = array( 'local_pack', 'organic' );
+				// AI pregled: za jednu riječ citira nas, za drugu ne; za treću postoji, ali se učitava naknadno
+				// (stiže samo ako zadatak ima load_async_ai_overview).
+				$ref = static function ( $domain, $url ) {
+					return array( 'type' => 'ai_overview_reference', 'source' => $domain, 'domain' => $domain, 'url' => $url, 'title' => 'Izvor', 'text' => 'Tekst izvora' );
+				};
+				if ( 'cijena progresivnih naočala' === $t['keyword'] ) {
+					$types[] = 'ai_overview';
+					$items[] = array(
+						'type'       => 'ai_overview',
+						'rank_group' => 1,
+						'markdown'   => 'Cijena ovisi o lećama.',
+						'items'      => array( array( 'type' => 'ai_overview_element', 'title' => 'Cijena', 'text' => 'Ovisi o lećama.', 'references' => array( $ref( 'www.optikaljiljana.hr', 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/' ) ) ) ),
+						'references' => array( $ref( 'konkurent1.hr', 'https://konkurent1.hr/1/' ), $ref( 'hr.wikipedia.org', 'https://hr.wikipedia.org/wiki/Leća' ) ),
+					);
+				} elseif ( 'optika sesvete' === $t['keyword'] ) {
+					$types[] = 'ai_overview';
+					$items[] = array( 'type' => 'ai_overview', 'rank_group' => 1, 'markdown' => 'Optike u Sesvetama.', 'references' => array( $ref( 'www.konkurent2.hr', 'https://www.konkurent2.hr/2/' ), $ref( 'konkurent4.hr', 'https://konkurent4.hr/4/' ) ) );
+				} elseif ( 'stellest stakla' === $t['keyword'] ) {
+					$types[] = 'ai_overview';
+					if ( ! empty( $t['load_async_ai_overview'] ) ) {
+						$items[] = array( 'type' => 'ai_overview', 'rank_group' => 1, 'asynchronous_ai_overview' => true, 'markdown' => 'Stellest leće.', 'references' => array( $ref( 'essilor.com', 'https://www.essilor.com/stellest' ) ) );
+					}
+				}
 				for ( $p = 1; $p <= 12; $p++ ) {
-					$is   = $our === $p;
+					$is  = $our === $p;
+					// Od drugog mjerenja: na 10. mjesto ulazi nova domena, a dotadašnja pada na 11.
+					$dom = 'konkurent' . $p . '.hr';
+					if ( $run >= 2 && 10 === $p ) {
+						$dom = 'novi-igrac.hr';
+					} elseif ( $run >= 2 && 11 === $p ) {
+						$dom = 'konkurent10.hr';
+					}
 					$items[] = array(
 						'type'       => 'organic',
 						'rank_group' => $p,
-						'domain'     => $is ? 'www.optikaljiljana.hr' : 'konkurent' . $p . '.hr',
-						'url'        => $is ? ( 'stellest stakla' === $t['keyword'] ? 'https://www.optikaljiljana.hr/journal/' : 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/' ) : 'https://konkurent' . $p . '.hr/' . $p . '/',
+						'domain'     => $is ? 'www.optikaljiljana.hr' : $dom,
+						'url'        => $is ? ( 'stellest stakla' === $t['keyword'] ? 'https://www.optikaljiljana.hr/journal/' : 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/' ) : 'https://' . $dom . '/' . $p . '/',
 						'title'      => 'Rezultat ' . $p,
 					);
 				}
-				return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 20000, 'status_message' => 'Ok.', 'result' => array( array( 'keyword' => $t['keyword'], 'datetime' => gmdate( 'Y-m-d H:i:s +00:00' ), 'items' => $items ) ) ) ) ) );
+				return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 20000, 'status_message' => 'Ok.', 'result' => array( array( 'keyword' => $t['keyword'], 'datetime' => gmdate( 'Y-m-d H:i:s +00:00' ), 'item_types' => $types, 'items' => $items ) ) ) ) ) );
 			}
 			return $json( 404, array( 'status_code' => 40400 ) );
 		}

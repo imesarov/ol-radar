@@ -203,6 +203,13 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
 .chg .new{margin:0;white-space:pre-wrap;font:14.5px/1.5 var(--sans);color:var(--text)}
 .chg .len{font-size:12px;color:var(--muted)}
 .propbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ucinak{background:var(--bg);border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ucinak .lab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:center;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.ucinak .lab label{letter-spacing:0;text-transform:none;color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}
+.ucinak input[type=date]{font:inherit;font-size:12px;padding:3px 6px;background:var(--panel);color:var(--text);border:1px solid var(--line)}
+#rk-table.aio .spark{width:84px}
+@media (max-width:1140px){ .ugradeno #rk-table.aio th:nth-child(4),.ugradeno #rk-table.aio td:nth-child(4){display:none} }
+.kret{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--lead)}
 
 @media (max-width:960px){
   .app{grid-template-columns:1fr}
@@ -422,6 +429,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         </div>
         <div class="row"><button class="btn btn-g" type="button" id="btn-discover">Otkrij konkurente</button><button class="btn" type="button" id="btn-compare">Usporedi</button></div>
       </div>
+      <div class="panel" id="km-panel" hidden><header><h3>Kretanje konkurenata: <em>naša mjerenja</em></h3><p id="km-meta"></p></header><div id="km-body"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>Udio u Googleu: <em>vlastiti model</em></h3><p id="cm-meta">procjena klikova iz arhiviranih SERP-ova × volumen × vaša krivulja CTR-a</p></header><div id="comp-model"><p class="loading">Učitavam arhivu…</p></div></div>
       <div class="panel">
         <header><h3>Praćeni konkurenti</h3><p class="cost" id="comp-cost"></p></header>
@@ -462,6 +470,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         <button class="btn btn-g" type="button" data-refresh="audit">Osvježi audit</button>
       </div>
       <div class="panel"><header><h3>Audit iznutra: <em>WordPress most</em></h3><p id="wp-audit-meta">svaka objavljena stranica i Rank Math podaci</p></header><div id="wp-audit"><p class="loading">Učitavam…</p></div></div>
+      <div class="panel" id="ix-panel" hidden><header><h3>Indeksiranost u <em>Googleu</em></h3><button class="btn btn-g btn-s" type="button" id="btn-ix-run">Provjeri sada</button></header><p class="small muted" id="ix-meta" style="margin:0"></p><div class="tiles" id="ix-tiles"></div><div id="ix-table"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>On-page: naslov, opis, H1, fokus</h3><p id="onpage-meta">sve objavljene stranice, s Google klikovima i prikazivanjima</p></header><div id="onpage"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>Ahrefs Site Audit</h3><p id="audit-meta"></p></header><div id="audit-list"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>Profil poveznica</h3><p>50 najjačih domena koje upućuju na vas, prema Ahrefsu</p></header><div id="links"><p class="loading">Učitavam…</p></div></div>
@@ -565,6 +574,21 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
           </tbody>
         </table>
       </div>
+      <div class="panel" id="meth-host" hidden>
+        <header><h3>Što Radar na hostingu radi <em>sam</em></h3></header>
+        <div class="tw"><table>
+          <thead><tr><th>Što</th><th>Kako</th><th>Koliko često</th><th>Trošak</th></tr></thead>
+          <tbody>
+            <tr><td>Google podaci</td><td>Search Console API preko servisnog računa: upiti, stranice, dnevni niz; adrese s parametrima pribrajaju se pravoj stranici</td><td>svakih 12 sati</td><td>0</td></tr>
+            <tr><td>Prijedlozi izmjena</td><td>Server iz podataka izdvoji nalaze (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj); tekst izmjene piše Claude, brojke su uvijek iz podataka</td><td>svaki dan nakon novih Google podataka</td><td>nekoliko centi API kredita dnevno</td></tr>
+            <tr><td>Učinak provedenih izmjena</td><td>Za prijedlog označen „provedeno” uspoređuje Search Console za tu stranicu jednak broj dana prije i poslije (7, 14, 28), samo konačne podatke, i uz to trend klikova cijelog weba. Ocjena gleda CTR (naslov i opis), poziciju (upiti blizu vrha) ili klikove u odnosu na web. Ispod 30 prikazivanja piše „premalo podataka”</td><td>nakon svakih novih Google podataka</td><td>0</td></tr>
+            <tr><td>Indeksiranost</td><td>Googleov URL Inspection API za svaku stranicu koja treba biti u indeksu: je li u indeksu, razlog ako nije, kanonska adresa koju je Google odabrao, zadnji posjet Googlebota</td><td>svaka stranica jednom tjedno, problematične svaka 2 dana</td><td>0 (do 600 provjera dnevno, Google dopušta 2.000)</td></tr>
+            <tr><td>Pozicije i AI pregled</td><td>DataForSEO: stvarni Google rezultat za ciljane riječi (mobitel, Zagreb). Iz istog rezultata bilježi se i Googleov AI pregled: pojavljuje li se i citira li nas</td><td>na gumb ili tjedno, ako je uključeno</td><td>oko 0,07 $ po mjerenju; naknadno učitani AI pregledi po izboru +0,0006 $ po riječi</td></tr>
+            <tr><td>Kretanje konkurenata</td><td>Iz prvih 20 rezultata svakog mjerenja: po domeni broj riječi u top 3 i top 10 i udio vidljivosti (pozicija × opća krivulja CTR-a, bez volumena), te tko je ušao, ispao ili nas pretekao</td><td>nakon svakog mjerenja</td><td>0</td></tr>
+          </tbody>
+        </table></div>
+        <p class="small muted" style="margin:0">Ništa od ovoga ne mijenja web. Prijedlozi su za odluku vlasnika, a provjere samo čitaju.</p>
+      </div>
       <div class="panel">
         <header><h3>Nakon <em>Ahrefsa</em>: odakle dolaze podaci</h3></header>
         <div class="tw"><table>
@@ -648,7 +672,8 @@ const OPTIC_RE = /optik|optic|naocal|naočal|lece|leće|eye|vision|vid|lens|okul
 /* ---------- stanje ---------- */
 let MCP = null, DB = null, SAMPLE = null;
 const S = {
-  prop: { items: [], meta: null, auto: true, claude: false, filter: "otvoreni", busy: false, loaded: false },
+  prop: { items: [], meta: null, auto: true, claude: false, filter: "otvoreni", busy: false, loaded: false, uc: null },
+  indeks: null, ixBusy: false,
   units: { limit: null, used: null, reset: null, session: 0 },
   src: {},
   acc: { ig: IG_FALLBACK, yt: YT_FALLBACK, list: null },
@@ -1147,7 +1172,7 @@ async function loadHosted() {
   /* pozicije (DataForSEO) */
   const L = P.rank?.latest;
   if (L && Array.isArray(L.rows)) {
-    Object.assign(S.rank, { rows: L.rows.map(x => ({ id: x.id, kw: x.kw, pos: x.pos, prev: x.prev, url: x.url, pinned: false })), last: L.last, sched: L.sched, at: Date.parse(L.last) || Date.now(), err: null });
+    Object.assign(S.rank, { rows: L.rows.map(x => ({ id: x.id, kw: x.kw, pos: x.pos, prev: x.prev, url: x.url, pinned: false, aio: x.aio })), last: L.last, sched: L.sched, at: Date.parse(L.last) || Date.now(), err: null });
     const Hh = P.rank.hist; S.rank.hist = Hh && Hh.runs ? { runs: Hh.runs, by: new Map(Object.entries(Hh.by || {})) } : null;
     setSrc("rank", "ok", L.rows.length + " riječi · mjereno " + hrDate(L.last) + (P.rank.u_tijeku ? " · novo mjerenje u tijeku" : ""), S.rank.at);
   } else {
@@ -1158,6 +1183,8 @@ async function loadHosted() {
       !keys.dataforseo ? "DataForSEO pristup nije postavljen (Postavke)" : bad ? bad : "još nije mjereno · modul Pozicije → Izmjeri pozicije sada");
   }
   Object.assign(S.rank, { hosted: { key: !!keys.dataforseo, pending: !!P.rank?.u_tijeku, cost: st.dfs?.procjena_mjerenja || null, weekly: !!st.dfs?.tjedno, error: iz.rank && !iz.rank.ok ? iz.rank.msg : null, progress: iz.rank && iz.rank.ok ? iz.rank.msg : null } });
+  S.rank.komp = P.rank?.konkurenti || null;
+  S.indeks = P.indeks || null;
   if (S.rank.hosted.pending) rankPoll();
   /* svježi SERP-ovi iz mjerenja, za model konkurencije */
   S.serpLive = new Map((P.serp || []).filter(x => x && x.keyword).map(x => [(x.country || "hr") + "|" + x.keyword, x]));
@@ -1198,7 +1225,7 @@ const PROP_VRSTA = { ctr: ["gold", "Naslov i opis"], prilika: ["gold", "Blizu vr
 const PROP_POLJE = { seo_naslov: "SEO naslov", meta_opis: "Meta opis", h1: "Naslov na stranici (H1)", odlomak: "Novi odlomak", interni_link: "Interni link", novi_clanak: "Novi članak", tehnicki: "Tehnička izmjena" };
 const PROP_STANJE = { novo: "novo", prihvaceno: "prihvaćeno", provedeno: "provedeno", odbijeno: "odbijeno" };
 function setProp(d) {
-  S.prop.items = d.stavke || []; S.prop.meta = d.zadnje || null; S.prop.auto = !!d.auto; S.prop.claude = !!d.claude; S.prop.wait = d.ceka_tekst || 0; S.prop.bg = !!d.pise_se; S.prop.loaded = true;
+  S.prop.items = d.stavke || []; S.prop.meta = d.zadnje || null; S.prop.auto = !!d.auto; S.prop.claude = !!d.claude; S.prop.wait = d.ceka_tekst || 0; S.prop.bg = !!d.pise_se; S.prop.uc = d.ucinak || null; S.prop.loaded = true;
   if (S.prop.bg) propPoll(); else propPollN = 0;
 }
 /* dok server u pozadini dopisuje tekst izmjena, prikaz se sam osvježava (lagani poziv, samo prijedlozi) */
@@ -1238,6 +1265,31 @@ function propChange(c, p, i) {
     + `<pre class="new">${esc(c.polje === "interni_link" ? "Tekst linka: " + c.novo : c.novo)}</pre>${len}`
     + (c.upozorenje ? `<p class="note">${esc(c.upozorenje)}</p>` : "") + "</div>";
 }
+/* učinak provedene izmjene: Search Console prije i poslije (računa server), uz trend cijelog weba */
+const UC_OCJENA = { bolje: ["good", "bolje"], isto: ["info", "bez jasne promjene"], losije: ["crit", "lošije"], premalo: ["info", "premalo podataka"] };
+const ucPct = v => v == null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + dec(Math.abs(v), 0) + " %";
+function ucSummary(u) {
+  if (!u) return "";
+  const b = [];
+  if (u.bolje) b.push(u.bolje + " bolje"); if (u.isto) b.push(u.isto + " bez jasne promjene"); if (u.losije) b.push(u.losije + " lošije");
+  if (u.premalo) b.push(u.premalo + " s premalo podataka"); if (u.mjeri_se) b.push(u.mjeri_se + (u.mjeri_se === 1 ? " se još mjeri" : " se još mjere"));
+  return b.length ? "Učinak provedenih izmjena: " + b.join(", ") + "." : "";
+}
+function propEffect(p) {
+  if (p.stanje !== "provedeno" || p.isteklo) return "";
+  const m = p.mjerenje, day = p.provedeno_dana || (p.stanje_at ? new Date(p.stanje_at).toISOString().slice(0, 10) : "");
+  const dateIn = `<label>provedeno <input type="date" data-prop-dan="${esc(p.id)}" value="${esc(day)}" max="${iso(new Date())}" aria-label="Dan kad je izmjena provedena"></label>`;
+  if (!m) return `<div class="ucinak"><div class="lab"><span>Učinak izmjene</span>${dateIn}</div><p class="small muted" style="margin:0">Mjerenje se priprema; server ga pokreće u pozadini nakon oznake „provedeno”.</p></div>`;
+  if (m.stanje === "nemjerljivo") return `<div class="ucinak"><div class="lab"><span>Učinak izmjene</span>${pill("info", "ne mjeri se po stranici")}</div><p class="small muted" style="margin:0">${esc(m.razlog || "")}</p></div>`;
+  const oc = m.ocjena && UC_OCJENA[m.ocjena] ? pill(UC_OCJENA[m.ocjena][0], UC_OCJENA[m.ocjena][1] + (m.stanje !== "gotovo" ? " · privremeno" : "")) : pill("info", "mjeri se");
+  const W = Object.values(m.prozori || {}).sort((a, b) => a.dana - b.dana);
+  const ar = (a, b, f) => f(a) + " → " + f(b);
+  const tbl = W.length ? tableHtml(["Prije i poslije", "Klikovi", "Prikazivanja", "CTR", "Pozicija", "Cijeli web"], W.map(w => [
+    w.dana + " dana", r(ar(w.prije.klikovi, w.poslije.klikovi, fmt)), r(ar(w.prije.prikazivanja, w.poslije.prikazivanja, fmt)),
+    r(ar(w.prije.ctr_posto, w.poslije.ctr_posto, v => dec(v, 1) + " %")), r(w.prije.pozicija == null || w.poslije.pozicija == null ? "–" : ar(w.prije.pozicija, w.poslije.pozicija, v => dec(v, 1))),
+    r(ucPct(w.web?.promjena_posto))])) : "";
+  return `<div class="ucinak"><div class="lab"><span>Učinak izmjene ${oc}</span>${dateIn}</div><p class="small" style="margin:0;color:var(--lead)">${esc(m.sazetak || "")}</p>${tbl}${W.length ? '<p class="small muted" style="margin:0">Usporedba jednakih razdoblja prije i poslije dana provedbe (samo konačni Google podaci). Ne dokazuje uzrok, zato je uz stranicu i trend klikova cijelog weba.</p>' : ""}</div>`;
+}
 function propCard(p) {
   const [sev, name] = PROP_VRSTA[p.vrsta] || ["info", p.vrsta];
   const gain = ["ctr", "prilika", "novo", "pad"].includes(p.vrsta) && p.ucinak > 0 ? `<span class="gain" title="${esc(p.ucinak_opis || "")}">${p.vrsta === "pad" ? "u igri oko " : "procjena +"}${fmt(p.ucinak)} klikova / 28 d</span>` : "";
@@ -1254,7 +1306,8 @@ function propCard(p) {
     ${propRows(p)}
     ${(p.izmjene || []).map((c, i) => propChange(c, p, i)).join("")}
     ${(p.koraci || []).length ? '<ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--lead)">' + p.koraci.map(k => "<li>" + esc(k) + "</li>").join("") + "</ol>" : ""}
-    <div class="propbar">${btns}${p.stanje === "provedeno" && p.stanje_at ? `<span class="small muted">provedeno ${esc(hrDate(new Date(p.stanje_at).toISOString().slice(0, 10)))}; učinak provjeri u Search Consoleu za 2–4 tjedna</span>` : ""}</div>
+    ${propEffect(p)}
+    <div class="propbar">${btns}</div>
   </article>`;
 }
 function renderProp() {
@@ -1265,6 +1318,7 @@ function renderProp() {
   else meta.push(S.done.gsc ? "Analiza još nije pokrenuta." : "Učitavam…");
   if (S.prop.claude && S.prop.wait) meta.push("Tekst izmjene još se piše za " + fmt(S.prop.wait) + (S.prop.wait === 1 ? " prijedlog" : " prijedloga") + (S.prop.bg ? " (server ga dopisuje u pozadini, prikaz se osvježava sam)" : " (sljedeći pokušaj unutar sat vremena ili gumbom „Analiziraj sada”)" + (m.ai_poruka ? "; zadnja poruka: " + m.ai_poruka : "")));
   meta.push(S.prop.auto ? "Automatski svaki dan nakon novih Google podataka." : "Automatska analiza je isključena (Postavke).");
+  if (ucSummary(S.prop.uc)) meta.push(ucSummary(S.prop.uc));
   if (!S.prop.claude) meta.push("Anthropic ključ nije postavljen, pa prijedlozi nastaju bez napisanog teksta.");
   $("#prop-meta").textContent = meta.join(" · ");
   $$("#prop-seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.pf2 === f)));
@@ -1279,7 +1333,19 @@ async function propSet(id, stanje) {
   const p = S.prop.items.find(x => x.id === id); if (!p) return;
   const prev = [p.stanje, p.stanje_at]; p.stanje = stanje; p.stanje_at = Date.now(); rerender();
   try { await OLR_HOSTED.api("doc/prijedlozi_stanje/" + encodeURIComponent(id), { method: "PUT", body: { data: { stanje, at: p.stanje_at } } }); }
-  catch (e) { [p.stanje, p.stanje_at] = prev; rerender(); note("Stanje nije spremljeno", e.message || "Server ne odgovara."); }
+  catch (e) { [p.stanje, p.stanje_at] = prev; rerender(); note("Stanje nije spremljeno", e.message || "Server ne odgovara."); return; }
+  if (stanje === "provedeno" || prev[0] === "provedeno") ucRefresh();
+}
+/* učinak: server usporedi Search Console prije i poslije; ploča samo zatraži svjež izračun */
+async function ucRefresh() {
+  try { const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "ucinak" } }); if (res && res.rezultat) { setProp(res.rezultat); rerender(); } }
+  catch (e) { console.warn("ucinak", e); }
+}
+async function propSetDay(id, dan) {
+  const p = S.prop.items.find(x => x.id === id); if (!p || p.stanje !== "provedeno" || !/^\d{4}-\d{2}-\d{2}$/.test(dan) || dan > iso(new Date())) return;
+  p.provedeno_dana = dan; p.mjerenje = null; renderProp();
+  try { await OLR_HOSTED.api("doc/prijedlozi_stanje/" + encodeURIComponent(id), { method: "PUT", body: { data: { stanje: "provedeno", at: p.stanje_at || Date.now(), dan } } }); await ucRefresh(); }
+  catch (e) { note("Dan provedbe nije spremljen", e.message || "Server ne odgovara."); }
 }
 async function propRun() {
   if (S.prop.busy) return; S.prop.busy = true; renderProp();
@@ -1461,8 +1527,13 @@ async function maybeExport(force) {
       izvori: { gsc: S.gsc.src || null, gsc_do: t?.lastDate || null, onpage: S.onpageSrc || null, wp: S.wp.audit ? "ok" : (S.wp.err || "nema"), pozicije: S.rank.rows ? "ok" : (S.rank.err || "nema"), instagram: S.ig.media ? "ok" : (S.src.ig?.msg || "nema") },
       kpi: kpis(), gsc: t ? { sada: t.cur, prije: t.prev, do: t.lastDate } : null,
       tjedno: weekExport(),
-      pozicije: (rankRows() || []).map(x => ({ k: x.kw, p: nul(x.pos), prije: nul(x.prev), url: x.url ? path(x.url) : null, gsc_p: x.g?.position != null ? +x.g.position.toFixed(1) : null, gsc_prik: x.g ? x.g.impressions : null, gsc_url: x.gTop ? path(x.gTop) : null, povijest: x.hist ? x.hist.slice(0, 8).map(nul) : null })),
+      pozicije: (rankRows() || []).map(x => ({ k: x.kw, p: nul(x.pos), prije: nul(x.prev), url: x.url ? path(x.url) : null, gsc_p: x.g?.position != null ? +x.g.position.toFixed(1) : null, gsc_prik: x.g ? x.g.impressions : null, gsc_url: x.gTop ? path(x.gTop) : null, povijest: x.hist ? x.hist.slice(0, 8).map(nul) : null, ...(x.aio !== undefined ? { ai_pregled: x.aio ? (x.aio.mi ? "citira nas" : x.aio.ucitan ? "ne citira nas" : "postoji") : "nema" } : {}) })),
       pozicije_mjereno: S.rank.last || null,
+      ...(HOSTED ? {
+        indeksiranost: S.indeks && S.indeks.provjereno ? { provjereno: S.indeks.provjereno, ukupno: S.indeks.ukupno, u_indeksu: S.indeks.u_indeksu, nije: S.indeks.nije, druga_kanonska: S.indeks.kanonski, problemi: (S.indeks.stranice || []).filter(p => p.problem).slice(0, 30).map(p => ({ url: p.put, problem: p.problem, razlog: p.razlog })) } : null,
+        kretanje_konkurenata: S.rank.komp ? { mjerenja: S.rank.komp.mjerenja.slice(0, 2), domene: S.rank.komp.domene.slice(0, 12).map(d => ({ d: d.domena, mi: d.nasa, top3: d.top3, top10: d.top10, udio: d.udio, promjena: d.promjena })), promjene: (S.rank.komp.promjene || []).filter(c => c.pretekli.length).slice(0, 10).map(c => ({ k: c.rijec, mi: c.nas, prije: c.nas_prije, pretekli: c.pretekli.map(x => x.domena) })) } : null,
+        ucinak_izmjena: S.prop.uc ? { ...S.prop.uc, izmjene: S.prop.items.filter(p => p.stanje === "provedeno" && p.mjerenje).slice(0, 20).map(p => ({ url: p.put, vrsta: p.vrsta, provedeno: p.mjerenje.provedeno, stanje: p.mjerenje.stanje, ocjena: p.mjerenje.ocjena, sazetak: p.mjerenje.sazetak })) } : null
+      } : {}),
       audit_web: wpGroups().map(g => ({ kod: g.kod, ozbiljnost: g.sev, opis: g.opis, stranice: g.urls.slice(0, 20).map(path) })),
       model_konkurencije: M && !M.empty ? M.list.slice(0, 15).map(o => ({ d: o.d, klikovi: Math.round(o.clicks), udio: +o.share.toFixed(3), top10: o.kw, top3: o.top3 })) : null,
       upiti: Q.list.slice(0, 200).map(q => ({ q: q.query, c: q.clicks, i: q.impressions, ctr: +q.ctr.toFixed(4), p: +(q.position || 0).toFixed(1), url: path(q.top), str: q.pages.length })),
@@ -1741,8 +1812,8 @@ function renderOverview() {
     const nov = S.prop.items.filter(p => !p.isteklo && p.stanje === "novo"), acc = S.prop.items.filter(p => !p.isteklo && p.stanje === "prihvaceno");
     const top = nov.concat(acc)[0];
     $("#ov-prop").innerHTML = (nov.length || acc.length)
-      ? `<div class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;border-color:var(--gold-dk)"><div style="min-width:0;flex:1 1 320px"><b>${nov.length ? fmt(nov.length) + (nov.length === 1 ? " novi prijedlog izmjene" : " novih prijedloga izmjena") : "Nema novih prijedloga"}</b>${acc.length ? " · " + fmt(acc.length) + " prihvaćenih čeka provedbu" : ""}<br><span class="small muted">${top ? "Na vrhu: " + esc(top.naslov) : ""}</span></div><a class="btn" href="#prijedlozi">Otvori prijedloge</a></div>`
-      : "";
+      ? `<div class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;border-color:var(--gold-dk)"><div style="min-width:0;flex:1 1 320px"><b>${nov.length ? fmt(nov.length) + (nov.length === 1 ? " novi prijedlog izmjene" : " novih prijedloga izmjena") : "Nema novih prijedloga"}</b>${acc.length ? " · " + fmt(acc.length) + " prihvaćenih čeka provedbu" : ""}<br><span class="small muted">${top ? "Na vrhu: " + esc(top.naslov) : ""}${ucSummary(S.prop.uc) ? (top ? " · " : "") + esc(ucSummary(S.prop.uc)) : ""}</span></div><a class="btn" href="#prijedlozi">Otvori prijedloge</a></div>`
+      : (ucSummary(S.prop.uc) ? `<div class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px"><span>${esc(ucSummary(S.prop.uc))}</span><a class="btn btn-g" href="#prijedlozi">Otvori prijedloge</a></div>` : "");
   }
   const k = kpis(); const t = gscTotals(); const last = S.snaps[0];
   const fb = (v, key) => v != null ? v : (last && last[key] != null ? last[key] : null);
@@ -1967,7 +2038,45 @@ async function kwAi(kw, country, btn) {
 }
 
 /* ---------- 04 konkurencija ---------- */
+/* kretanje konkurenata iz naših mjerenja pozicija (top 20 po riječi; računa server nakon svakog mjerenja) */
+function renderKretanje() {
+  const panel = $("#km-panel"); if (!panel) return;
+  panel.hidden = !HOSTED; if (!HOSTED) return;
+  const K = S.rank.komp;
+  if (!K || !(K.domene || []).length) {
+    $("#km-meta").textContent = "";
+    $("#km-body").innerHTML = '<p class="note">Kretanje konkurenata računa se iz naših mjerenja pozicija (modul Pozicije): svako mjerenje sprema prvih 20 rezultata po riječi. Nakon prvog mjerenja vidi se tko drži koje riječi, a nakon drugog tko raste, tko pada i tko nas je pretekao.</p>';
+    return;
+  }
+  const two = (K.mjerenja || []).length > 1, pp = v => (v > 0 ? "+" : v < 0 ? "−" : "") + dec(Math.abs(v), 1) + " pp";
+  $("#km-meta").textContent = fmt(K.rijeci) + " riječi · " + K.mjerenja.length + (K.mjerenja.length === 1 ? " mjerenje" : " mjerenja") + " (" + (two ? hrDate(K.mjerenja.at(-1).slice(0, 10)) + " – " : "") + hrDate(K.mjerenja[0].slice(0, 10)) + ") · mobitel, Zagreb";
+  const list = K.domene.filter((d, i) => i < 15 || d.nasa);
+  const rows = list.map(d => {
+    const ch = !two || d.promjena == null ? "–" : d.promjena === 0 ? "0" : `<span class="${d.promjena > 0 ? "up" : "down"}">${pp(d.promjena)}</span>`;
+    const was = two && d.prije ? `<span class="u">prije ${d.prije.top10}</span>` : "";
+    const words = (d.rijeci || []).slice(0, 3).map(w => esc(w.rijec) + " (" + w.pos + "." + (w.prije != null && w.prije !== w.pos ? ", prije " + w.prije + "." : w.prije == null && two ? ", novo" : "") + ")").join(" · ");
+    const row = [`<b>${esc(d.domena)}</b>${d.nasa ? ' <span class="chip">mi</span>' : ""}${two && d.prije && !d.prije.top10 && d.top10 ? " " + pill("warn", "novo u top 10") : ""}${two && d.prije && d.prije.top10 && !d.top10 ? " " + pill("info", "ispala iz top 10") : ""}`,
+      r(fmt(d.top3)), r(fmt(d.top10) + was), r(dec(d.udio, 1) + " %"), r(ch), two ? spark([...d.trend].reverse()) : "", `<span class="u" style="white-space:normal;max-width:46ch;color:var(--lead)">${words}</span>`];
+    row.__me = !!d.nasa;
+    return row;
+  });
+  let html = tableHtml(["Domena", "Top 3", "Top 10", "Udio vidljivosti", "Promjena", "Trend", "Najbolje riječi"], rows);
+  const ch = (K.promjene || []).slice().sort((a, b) => (b.pretekli.length - a.pretekli.length) || (b.usli.length + b.ispali.length - a.usli.length - a.ispali.length));
+  if (two && ch.length) {
+    const dl = (a, f) => a.map(x => esc(x.domena) + " (" + f(x) + ")").join(", ");
+    html += '<h4 style="margin:6px 0 0">Od prošlog mjerenja</h4><ul class="kret">' + ch.slice(0, 12).map(c => {
+      const bits = [];
+      if (c.pretekli.length) bits.push('<span class="down">pretekli nas:</span> ' + dl(c.pretekli, x => x.pos + "." + (x.prije != null ? ", prije " + x.prije + "." : ", prije ih nije bilo")));
+      if (c.usli.length) bits.push("ušli u top 10: " + dl(c.usli, x => x.pos + "."));
+      if (c.ispali.length) bits.push("ispali iz top 10: " + dl(c.ispali, x => "bili " + x.prije + "."));
+      return `<li><b>${esc(c.rijec)}</b> <span class="muted">(mi: ${c.nas == null ? "nismo u top 40" : c.nas + "."}${c.nas_prije != null && c.nas_prije !== c.nas ? ", prije " + c.nas_prije + "." : ""})</span>: ${bits.join("; ")}</li>`;
+    }).join("") + "</ul>" + (ch.length > 12 ? `<p class="small muted">i još ${ch.length - 12} riječi s promjenama</p>` : "");
+  } else if (two) html += '<p class="note">Od prošlog mjerenja nitko nije ušao u top 10 ni ispao iz njega i nitko nas nije pretekao.</p>';
+  else html += '<p class="note">Promjene (tko raste, tko pada, tko nas je pretekao) vidjet će se nakon sljedećeg mjerenja pozicija.</p>';
+  $("#km-body").innerHTML = html + `<p class="small muted">${esc(K.napomena || "")}</p>`;
+}
 function renderComp() {
+  renderKretanje();
   renderCompModel();
   $("#comp-list").innerHTML = S.cfg.competitors.length ? `<div class="row">${S.cfg.competitors.map(d => `<span class="chip">${esc(d)} <button type="button" class="btn-g" style="border:0;background:none;color:var(--muted);cursor:pointer" aria-label="Ukloni ${esc(d)}" data-rm="${esc(d)}">ukloni</button></span>`).join("")}</div>` : '<p class="muted small">Dodaj barem jednog konkurenta.</p>';
   $$("[data-rm]").forEach(b => b.onclick = () => { S.cfg.competitors = S.cfg.competitors.filter(x => x !== b.dataset.rm); saveCfg(); renderComp(); });
@@ -2218,23 +2327,30 @@ function renderRank() {
     return;
   }
   const ranked = RR.filter(x => x.pos != null);
+  // Googleov AI pregled (AI Overview) stiže uz isto mjerenje; polje postoji od verzije 2.2.0 dodatka
+  const aioOn = HOSTED && RR.some(x => x.aio !== undefined), aioN = RR.filter(x => x.aio).length;
+  const aioCell = x => x.aio === undefined ? '<span class="muted small">–</span>' : !x.aio ? '<span class="muted small">nema</span>'
+    : x.aio.mi ? pill("good", "citira nas") + `<span class="u" style="white-space:normal;max-width:15ch;overflow-wrap:anywhere">uz ${esc((x.aio.izvori || []).filter(d => d !== DOMAIN).slice(0, 2).join(", ") || "nas")}</span>`
+    : x.aio.ucitan ? pill("warn", "ne citira nas") + `<span class="u" style="white-space:normal;max-width:15ch;overflow-wrap:anywhere">${esc((x.aio.izvori || []).slice(0, 3).join(", ") || "bez navedenih izvora")}</span>`
+    : pill("info", "postoji") + '<span class="u">izvori nisu učitani</span>';
   $("#rk-tiles").innerHTML = [
     tile("U top 3", fmt(ranked.filter(x => x.pos <= 3).length), "od " + RR.length + " riječi", "mobitel, Zagreb"),
     tile("U top 10", fmt(ranked.filter(x => x.pos <= 10).length), "", "prva stranica"),
     tile("Nije pronađeno", fmt(RR.length - ranked.length), "u prvih 40 rezultata", ""),
-    tile("Zadnje mjerenje", esc(hrDate(S.rank.last)), esc(S.rank.sched ? S.rank.sched.split(",")[0].replace("weekly", "tjedno") : ""), RANK_SRC)
-  ].join("");
+    tile("Zadnje mjerenje", `<span style="font-size:.72em;white-space:nowrap">${esc(hrDate(S.rank.last))}</span>`, esc(S.rank.sched ? S.rank.sched.split(",")[0].replace("weekly", "tjedno") : ""), RANK_SRC)
+  ].concat(aioOn ? [tile("AI pregled", fmt(aioN), "od " + RR.length + " riječi", aioN ? "citira nas: " + RR.filter(x => x.aio && x.aio.mi).length : "Google ga ne prikazuje")] : []).join("");
   $("#rk-meta").textContent = RANK_SRC + " · " + RR.length + " riječi · " + (HOSTED ? "mjerenje pokreće server, prikaz ne troši ništa" : "čitanje rezultata ne troši kredite") + " · " + ago(S.rank.at);
   const runs = S.rank.hist?.runs || [];
   const rows = [...RR].sort((a, b) => (a.pos ?? 99) - (b.pos ?? 99) || (b.g?.impressions || 0) - (a.g?.impressions || 0)).map(x => {
     const hs = x.hist ? [...x.hist].reverse().filter(v => v != null).map(v => -(v === 0 ? 41 : v)) : [];
     const ch = x.delta == null ? (x.prev != null && x.pos == null ? '<span class="down">ispao</span>' : x.prev == null && x.pos != null && runs.length > 1 ? '<span class="up">novo</span>' : "–") : x.delta === 0 ? "0" : `<span class="${x.delta > 0 ? "up" : "down"}">${x.delta > 0 ? "+" : "−"}${Math.abs(x.delta)}</span>`;
-    const page = x.url ? `<span class="u" style="color:var(--text)">${esc(path(x.url))}</span>` + (x.wrongUrl ? `<span class="u">${pill("warn", "GSC: " + path(x.gTop))}</span>` : "") : '<span class="muted small">–</span>';
+    const page = x.url ? `<span class="u" style="color:var(--text)${aioOn ? ";white-space:normal;overflow-wrap:anywhere;max-width:22ch" : ""}">${esc(path(x.url))}</span>` + (x.wrongUrl ? `<span class="u" title="${esc(path(x.gTop))}">${pill("warn", "GSC: " + (aioOn && path(x.gTop).length > 20 ? path(x.gTop).slice(0, 19) + "…" : path(x.gTop)))}</span>` : "") : '<span class="muted small">–</span>';
     const gsc = x.g ? `poz. ${dec(x.g.position)}<span class="u">${fmt(x.g.impressions)} prik. · ${fmt(x.g.clicks)} klik.</span>` : '<span class="muted small">nema prikazivanja</span>';
     const fx = fixBtn("pozicije", "rkdrop|" + x.kw) || fixBtn("pozicije", "rkgone|" + x.kw) || fixBtn("pozicije", "rkurl|" + x.kw);
-    return [`<b>${esc(x.kw)}</b>${x.pinned ? ' <span class="chip">prikvačeno</span>' : ""}`, r(x.pos != null ? x.pos + "." : '<span class="muted">nije u top 40</span>'), r(ch), hs.length > 1 ? spark(hs) : "", page, gsc, fx];
+    return [`<b>${esc(x.kw)}</b>${x.pinned ? ' <span class="chip">prikvačeno</span>' : ""}`, r(x.pos != null ? x.pos + "." : '<span class="muted">nije u top 40</span>'), r(ch), hs.length > 1 ? spark(hs) : "", page].concat(aioOn ? [aioCell(x)] : []).concat([gsc, fx]);
   });
-  $("#rk-table").innerHTML = tableHtml(["Ključna riječ", "Pozicija", "Promjena", "Povijest", "Stranica u Googleu", "GSC · 28 d", ""], rows) + `<p class="small muted">Povijest: ${runs.length} mjerenja (${runs.length ? esc(runs.at(-1)) + " – " + esc(runs[0]) : "–"}); viša linija je bolja pozicija. „Nije u top 40” znači da domena nije pronađena u rezultatima tog mjerenja, što ne dokazuje da je niže.</p>`;
+  $("#rk-table").classList.toggle("aio", aioOn);
+  $("#rk-table").innerHTML = tableHtml(["Ključna riječ", aioOn ? "Poz." : "Pozicija", aioOn ? "Promj." : "Promjena", "Povijest", "Stranica u Googleu"].concat(aioOn ? ["AI pregled"] : []).concat(["GSC · 28 d", ""]), rows) + `<p class="small muted">Povijest: ${runs.length} mjerenja (${runs.length ? esc(runs.at(-1)) + " – " + esc(runs[0]) : "–"}); viša linija je bolja pozicija. „Nije u top 40” znači da domena nije pronađena u rezultatima tog mjerenja, što ne dokazuje da je niže.${aioOn ? " AI pregled je Googleov sažetak iznad rezultata; „postoji” znači da ga Google učitava naknadno, pa izvori stižu samo ako je ta opcija uključena u Postavkama." : ""}</p>`;
   bindFixBtns($("#rk-table"));
 }
 
@@ -2311,8 +2427,50 @@ function renderOnpage() {
     return [`<span class="u" style="color:var(--text)">${esc(path(p.page))}</span>${p.words != null ? `<span class="u">${fmt(p.words)} riječi</span>` : ""}`, r(fmt(p.clicks)), r(fmt(p.impressions)), `${esc(p.title)}<span class="u">${p.title.length} zn.${p.focus ? " · fokus: " + esc(p.focus) : ""}</span>`, `<span class="u" style="white-space:normal;max-width:36ch">${esc(p.meta || "nedostaje")}</span><span class="u">${p.meta.length} zn.</span>`, `<span class="u" style="white-space:normal;max-width:28ch;color:var(--lead)">${esc(p.h1 || "nedostaje")}</span>`, st || pill("good", "u redu")];
   }));
 }
+/* indeksiranost u Googleu (URL Inspection API; provjerava server, svaka stranica jednom tjedno) */
+function renderIndeks() {
+  const panel = $("#ix-panel"); if (!panel) return;
+  panel.hidden = !HOSTED; if (!HOSTED) return;
+  const X = S.indeks, btn = $("#btn-ix-run");
+  btn.disabled = S.ixBusy; btn.textContent = S.ixBusy ? "Provjeravam…" : "Provjeri sada";
+  if (!X) { $("#ix-tiles").innerHTML = ""; $("#ix-meta").textContent = ""; $("#ix-table").innerHTML = '<p class="loading">Učitavam…</p>'; return; }
+  if (!X.provjereno) {
+    $("#ix-tiles").innerHTML = ""; $("#ix-meta").textContent = fmt(X.ukupno) + " stranica čeka provjeru";
+    $("#ix-table").innerHTML = `<p class="note">Indeksiranost još nije provjerena. Server pita Google za svaku stranicu (URL Inspection API, besplatno, isti servisni račun kao Search Console), po 12 stranica svaki sat; gumbom „Provjeri sada” ide odmah.${X.ukljuceno ? "" : " Automatska provjera je isključena u Postavkama."}</p>`;
+    return;
+  }
+  $("#ix-meta").textContent = fmt(X.provjereno) + " od " + fmt(X.ukupno) + " stranica provjereno · svaka jednom tjedno, stranice s problemom svaka 2 dana · Googleov URL Inspection" + (X.preostalo ? " · čeka provjeru: " + fmt(X.preostalo) : "");
+  $("#ix-tiles").innerHTML = [
+    tile("U indeksu", fmt(X.u_indeksu), "od " + fmt(X.provjereno) + " provjerenih", "Google"),
+    tile("Nije u indeksu", fmt(X.nije), X.nije ? "razlog je u tablici" : "sve provjereno je u indeksu", ""),
+    tile("Druga kanonska adresa", fmt(X.kanonski), X.kanonski ? "Google je odabrao drugu adresu" : "", ""),
+    tile("Zadnja provjera", X.zadnja ? esc(ago(X.zadnja)) : "–", X.greske ? fmt(X.greske) + " adresa Google je odbio" : "", X.ukljuceno ? "automatski" : "automatika isključena")
+  ].join("");
+  const all = X.stranice || [], bad = all.filter(p => p.problem);
+  const day = v => v ? esc(hrDate(String(v).slice(0, 10))) : '<span class="muted">nije posjetio</span>';
+  const st = p => p.problem === "nije" ? pill("crit", "nije u indeksu") : p.problem === "kanonski" ? pill("warn", "druga kanonska") : p.problem === "greska" ? pill("info", "adresa odbijena") : pill("good", "u indeksu");
+  const link = p => p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">Search Console</a>` : "";
+  const rowOf = p => [`<span class="u" style="color:var(--text)">${esc(p.put)}</span>`, st(p), `<span class="u" style="white-space:normal;max-width:52ch;color:var(--lead)">${esc(p.razlog || p.stanje_google || "")}</span>`, day(p.zadnji_posjet), r(fmt(p.prikazivanja_28)), link(p)];
+  $("#ix-table").innerHTML = (bad.length
+    ? tableHtml(["Stranica", "Stanje", "Što kaže Google", "Zadnji posjet", "Prik. 28 d", ""], bad.map(rowOf))
+    : '<p class="note">Sve provjerene stranice su u Googleovu indeksu, bez razlike u kanonskoj adresi.</p>')
+    + `<details><summary>Sve provjerene stranice (${fmt(all.length)})</summary>${tableHtml(["Stranica", "Stanje", "Zadnji posjet", "Provjereno", "Prik. 28 d"], all.map(p => [`<span class="u" style="color:var(--text)">${esc(p.put)}</span>`, st(p), day(p.zadnji_posjet), esc(ago(p.provjereno)), r(fmt(p.prikazivanja_28))]))}</details>`
+    + '<p class="small muted">„Zadnji posjet” je dan kad je Googlebot zadnji put dohvatio stranicu. Provjera samo čita stanje u Googleu; ne traži indeksiranje i ne mijenja web. Stranica koja nije u indeksu (a nije mijenjana zadnjih 7 dana) dolazi u Prijedloge.</p>';
+}
+async function ixRun() {
+  if (S.ixBusy) return; S.ixBusy = true; renderIndeks();
+  try {
+    for (let i = 0; i < 40; i++) {
+      const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "indeks" } });
+      const R = res && res.rezultat; if (R && R.indeks) S.indeks = R.indeks;
+      renderIndeks();
+      if (!R || !R.preostalo || !R.provjereno_sada) break;
+    }
+  } catch (e) { note("Provjera indeksiranosti nije uspjela", e.message || "Server ne odgovara."); }
+  S.ixBusy = false; renderIndeks();
+}
 function renderAudit() {
-  renderWpAudit(); renderOnpage();
+  renderWpAudit(); renderIndeks(); renderOnpage();
   const list = S.ah.audit;
   if (!list) { $("#audit-list").innerHTML = S.auditErr ? `<p class="err">${esc(S.auditErr)}</p>` : '<p class="loading">Učitavam…</p>'; }
   else {
@@ -2505,8 +2663,10 @@ function chatTools() {
     { name: "pregled", description: "Vraća ključne brojke: GSC klikovi, prikazivanja i pozicija za 28 dana, Ahrefs DR i domene, Instagram doseg, YouTube. Bez argumenata.", execute: () => ({ kpi: kpis(), calibration: calibRatio() }) },
     { name: "gsc_upiti", description: "Vraća upite iz Google Search Consolea za 28 dana (upit, klikovi, prikazivanja, CTR, pozicija, glavna stranica). Opcionalni filtar po tekstu i limit.", inputSchema: { type: "object", properties: { filtar: { type: "string" }, limit: { type: "number" } } }, execute: (a) => { const Q = queries(); if (!Q) throw new Error("GSC nije učitan"); const f = String(a.filtar || "").toLowerCase(); return Q.list.filter(q => !f || q.query.includes(f)).slice(0, Math.min(60, Number(a.limit) || 30)).map(q => ({ q: q.query, c: q.clicks, i: q.impressions, ctr: +q.ctr.toFixed(3), p: +(q.position || 0).toFixed(1), url: path(q.top) })); } },
     { name: "nalazi", description: "Vraća trenutne nalaze Radara (područje, ozbiljnost, naslov, opis), poredane po važnosti.", execute: () => S.issues.slice(0, 30).map(i => ({ a: i.area, s: i.sev, t: i.title, d: i.detail })) },
-    { name: "pozicije", description: "Pozicije iz OpenSEO trackera (ciljane riječi, mobitel, Zagreb, tjedno): sadašnja i prethodna pozicija, stranica koja rangira, povijest i GSC prosjek za isti upit. Bez kredita.", execute: () => { const RR = rankRows(); if (!RR) throw new Error(S.rank.err || "Pozicije još nisu učitane"); return { mjereno: S.rank.last, redovi: RR.map(x => ({ k: x.kw, p: x.pos, prije: x.prev, url: x.url ? path(x.url) : null, gsc_p: x.g?.position != null ? +x.g.position.toFixed(1) : null, gsc_prik: x.g?.impressions ?? null, gsc_url: x.gTop ? path(x.gTop) : null, povijest: x.hist ? x.hist.slice(0, 6) : null })) }; } },
-    ...(HOSTED ? [{ name: "prijedlozi", description: "Gotovi prijedlozi izmjena iz dnevne analize na serveru: vrsta, stranica, dokazi s brojkama, predložene izmjene (sadašnji i novi tekst) i stanje (novo, prihvaceno, provedeno, odbijeno).", execute: () => ({ zadnja_analiza: S.prop.meta, prijedlozi: S.prop.items.filter(p => !p.isteklo).slice(0, 20).map(p => ({ id: p.id, vrsta: p.vrsta, stranica: p.put, naslov: p.naslov, zasto: p.zasto, dokazi: p.dokazi, izmjene: p.izmjene, koraci: p.koraci, stanje: p.stanje, procjena_klikova_28d: p.ucinak })) }) }] : []),
+    { name: "pozicije", description: "Pozicije iz OpenSEO trackera (ciljane riječi, mobitel, Zagreb, tjedno): sadašnja i prethodna pozicija, stranica koja rangira, povijest i GSC prosjek za isti upit. Bez kredita.", execute: () => { const RR = rankRows(); if (!RR) throw new Error(S.rank.err || "Pozicije još nisu učitane"); return { mjereno: S.rank.last, redovi: RR.map(x => ({ k: x.kw, p: x.pos, prije: x.prev, url: x.url ? path(x.url) : null, gsc_p: x.g?.position != null ? +x.g.position.toFixed(1) : null, gsc_prik: x.g?.impressions ?? null, gsc_url: x.gTop ? path(x.gTop) : null, povijest: x.hist ? x.hist.slice(0, 6) : null, ...(x.aio !== undefined ? { ai_pregled: x.aio ? { citira_nas: !!x.aio.mi, ucitan: !!x.aio.ucitan, izvori: x.aio.izvori || [] } : false } : {}) })) }; } },
+    ...(HOSTED ? [{ name: "prijedlozi", description: "Gotovi prijedlozi izmjena iz dnevne analize na serveru: vrsta, stranica, dokazi s brojkama, predložene izmjene (sadašnji i novi tekst) i stanje (novo, prihvaceno, provedeno, odbijeno).", execute: () => ({ zadnja_analiza: S.prop.meta, prijedlozi: S.prop.items.filter(p => !p.isteklo).slice(0, 20).map(p => ({ id: p.id, vrsta: p.vrsta, stranica: p.put, naslov: p.naslov, zasto: p.zasto, dokazi: p.dokazi, izmjene: p.izmjene, koraci: p.koraci, stanje: p.stanje, procjena_klikova_28d: p.ucinak, ...(p.mjerenje ? { izmjereni_ucinak: { stanje: p.mjerenje.stanje, ocjena: p.mjerenje.ocjena, sazetak: p.mjerenje.sazetak, provedeno: p.mjerenje.provedeno } } : {}) })), ucinak_provedenih: S.prop.uc }) },
+      { name: "indeksiranost", description: "Indeksiranost stranica u Googleu (URL Inspection API, provjera jednom tjedno): koliko je stranica u indeksu, koje nisu i koji razlog navodi Google, gdje je Google odabrao drugu kanonsku adresu, zadnji posjet Googlebota.", execute: () => { const X = S.indeks; if (!X || !X.provjereno) throw new Error("Indeksiranost još nije provjerena (modul Audit weba → Provjeri sada)."); return { provjereno: X.provjereno, ukupno: X.ukupno, u_indeksu: X.u_indeksu, nije: X.nije, druga_kanonska: X.kanonski, zadnja_provjera: X.zadnja ? new Date(X.zadnja).toISOString() : null, problemi: (X.stranice || []).filter(p => p.problem).slice(0, 40).map(p => ({ stranica: p.put, problem: p.problem, razlog: p.razlog, zadnji_posjet: p.zadnji_posjet, prikazivanja_28d: p.prikazivanja_28 })) }; } },
+      { name: "kretanje_konkurenata", description: "Kretanje konkurenata iz naših mjerenja pozicija (top 20 po ciljanoj riječi): po domeni broj riječi u top 3 i top 10, udio vidljivosti sada i u prethodnom mjerenju, te po riječi tko je ušao u top 10, tko je ispao i tko nas je pretekao.", execute: () => { const K = S.rank.komp; if (!K) throw new Error("Još nema mjerenja pozicija."); return { mjerenja: K.mjerenja, rijeci: K.rijeci, domene: K.domene.slice(0, 20).map(d => ({ domena: d.domena, mi: d.nasa, top3: d.top3, top10: d.top10, udio: d.udio, prije: d.prije, promjena: d.promjena, rijeci: d.rijeci })), promjene: (K.promjene || []).slice(0, 15), napomena: K.napomena }; } }] : []),
     { name: "tjedno", description: "Tjedni sažetak: Google 7 dana prema prethodnih 7, upiti koji rastu i padaju, novi upiti, promjene pozicija, stranice promijenjene ovaj tjedan i Instagram objave tjedna.", execute: () => { const w = weekExport(); if (!w) throw new Error("Google podaci još nisu učitani"); return w; } },
     { name: "onpage", description: "Naslov, H1, meta opis, canonical, robots, broj riječi i Rank Math fokus za stranice weba (WordPress most; rezerva Search Console), s Google klikovima i prikazivanjima za 28 dana.", execute: () => (S.onpage || []).map(p => ({ url: path(p.page), naslov: p.title, meta: p.meta, h1: p.h1, canonical: p.canonical, robots: p.robots, c: p.clicks, i: p.impressions, rijeci: p.words ?? null, fokus: p.focus || null })) },
     { name: "planer", description: "Vraća teme iz planera sadržaja poredane po prilici (potražnja, vaš udio, radnja: nova stranica, dorada, spoji, zaštiti) i stavke koje su već u planu.", execute: () => ({ teme: planClusters().slice(0, 25).map(c => ({ tema: c.head, potraznja: c.demand, udio: +c.share.toFixed(2), najbolja_poz: c.best == null ? null : +c.best.toFixed(1), radnja: c.action, vrhunac: c.peak == null ? null : MONTHS[c.peak], stranice: c.pages.map(path), rijeci: c.kws.slice(0, 8).map(x => x.k) })), plan: S.plan.items.map(x => ({ tema: x.title, radnja: x.action, mjesec: x.month, stanje: x.status })) }) },
@@ -2965,6 +3125,8 @@ function bindStatic() {
     const st = e.target.closest("[data-prop-set]"); if (st) { const [id, stanje] = st.dataset.propSet.split("|"); propSet(id, stanje); return; }
     const cp = e.target.closest("[data-prop-copy]"); if (cp) propCopy(cp.dataset.propCopy, cp);
   });
+  $("#prop-list").addEventListener("change", e => { const d = e.target.closest("[data-prop-dan]"); if (d) propSetDay(d.dataset.propDan, d.value); });
+  $("#btn-ix-run").onclick = ixRun;
   // arhiva Ahrefsa
   $("#btn-arch-run").onclick = runArchive;
   $("#btn-export-host").onclick = exportForHosting;
@@ -2994,6 +3156,7 @@ async function boot() {
   initTema(); bindStatic(); renderSources(); route(); renderChat();
   // redni brojevi modula: samo za vidljive stavke (Prijedlozi postoje samo na hostingu)
   $("#nav-prijedlozi").hidden = !HOSTED;
+  $("#meth-host").hidden = !HOSTED;
   $$(".nav a").filter(a => !a.hidden).forEach((a, i) => { a.querySelector("span").textContent = String(i + 1).padStart(2, "0"); });
   if (HOSTED) {
     SRC_LABEL.rank = "Pozicije (DataForSEO)"; SRC_LABEL.gsc = "Google Search Console (API)";

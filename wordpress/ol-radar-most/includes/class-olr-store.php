@@ -119,6 +119,22 @@ class OLR_Store {
 		return array_slice( $items, 0, max( 1, min( 5000, (int) $limit ) ) );
 	}
 
+	/** Zadnjih N dokumenata zbirke po identifikatoru (silazno), za zbirke čiji id počinje datumom. */
+	public static function latest_docs( $coll, $n = 10 ) {
+		global $wpdb;
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT doc_id, data FROM {$table} WHERE coll = %s ORDER BY doc_id DESC LIMIT %d", $coll, max( 1, min( 200, (int) $n ) ) ) );
+		$items = array();
+		foreach ( (array) $rows as $r ) {
+			$items[] = array(
+				'id'   => $r->doc_id,
+				'data' => json_decode( $r->data, true ),
+			);
+		}
+		return $items;
+	}
+
 	public static function count_all() {
 		global $wpdb;
 		$table = self::table();

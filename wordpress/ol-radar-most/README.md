@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.1.1)
+# OL Radar – most za Claudea (v2.2.0)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -46,6 +46,39 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Web se ne mijenja.** Prijedlozi su za odluku vlasnika.
 - **Postavke:** automatska analiza (uključeno), najviše novih dnevno (5), riječi brenda i popis „Zanemari upite” (upiti s njima ne ulaze u analizu). Gumb „Analiziraj sada” u ploči i u Postavkama, najviše 6 ručnih pokretanja dnevno.
 
+### Učinak provedenih izmjena (od 2.2.0)
+- **Što radi:** kad prijedlog u ploči označiš kao „provedeno”, dodatak sam usporedi Search Console za tu stranicu prije i poslije (`OLR_Ucinak`). Ne treba ništa pokretati.
+- **Usporedba:** jednak broj dana prije i poslije dana provedbe, za 7, 14 i 28 dana. Sam dan provedbe se ne računa. Koriste se samo konačni Google podaci (`dataState: final`), pa prvi rezultat stiže oko 10 dana nakon izmjene.
+- **Trend cijelog weba:** uz stranicu stoji i promjena klikova cijelog weba u ista dva razdoblja, da sezona ne izgleda kao učinak izmjene.
+- **Ocjena:**
+  - naslov i opis: sudi se samo po CTR-u (rast od barem 15 % i pola postotnog boda);
+  - upiti blizu vrha, pozicije, kanibalizacija: po poziciji glavnog upita (pomak od barem 1 mjesta), a ako se ona ne miče, po klikovima u odnosu na trend weba;
+  - ostalo: klikovi u odnosu na trend weba (razlika od barem 20 postotnih bodova i 3 klika);
+  - ispod 30 prikazivanja u oba razdoblja piše „premalo podataka”.
+- **Dan provedbe:** zadano je dan kad si kliknuo „provedeno”. Ako je izmjena napravljena ranije, upiši stvarni dan na kartici; mjerenje se tada računa iznova.
+- **Ne mjeri se po stranici:** novi sadržaj i skupni tehnički nalazi (isti nalaz na puno stranica).
+- **Stranica se traži** s parametrima i bez njih (`?utm_…`, `?rwg_token=…`) te sa završnom kosom crtom i bez nje.
+- Usporedba ne dokazuje uzrok; zato su uz ocjenu uvijek i brojke.
+
+### Indeksiranost stranica (od 2.2.0)
+- **Što radi:** za svaku stranicu koja bi trebala biti u indeksu pita Google (Search Console URL Inspection API, isti servisni račun): je li u indeksu, razlog ako nije, koju je adresu Google odabrao kao kanonsku i kad ju je Googlebot zadnji put posjetio (`OLR_Indeks`).
+- **Koje stranice:** objavljene, odgovaraju s 200, nisu noindex i nemaju kanonsku adresu koja pokazuje drugamo. Najprije one s najviše prikazivanja.
+- **Kada:** 12 stranica svaki sat; svaka stranica jednom tjedno, stranice s problemom svaka 2 dana. Gumb „Provjeri sada” u modulu Audit weba provjeri sve odmah.
+- **Kvota:** Google dopušta 2.000 provjera dnevno po svojstvu; dodatak ih troši najviše 600. Besplatno.
+- **Prijedlozi:** stranica koja nije u indeksu ili ima drugu kanonsku adresu ulazi u dnevnu analizu kao tehnički nalaz. Stranice mijenjane u zadnjih 7 dana se preskaču, jer ih Google još obrađuje.
+- **Samo čitanje:** provjera ne traži indeksiranje i ne mijenja web.
+- **Ako servisni račun nema pristup svojstvu,** stanje izvora „Indeksiranost stranica” to jasno kaže, a novi pokušaj ide tek za 6 sati.
+
+### AI pregled i kretanje konkurenata (od 2.2.0)
+- **Googleov AI pregled (AI Overview)** bilježi se iz istog rezultata koji mjerenje pozicija ionako dohvaća, bez doplate: za koje se riječi pojavljuje, citira li nas i koje domene citira. U modulu Pozicije to je stupac „AI pregled” i pločica.
+  - „postoji” znači da ga Google učitava naknadno, pa izvori nisu stigli. Takve preglede DataForSEO isporučuje uz doplatu od 0,0006 $ po riječi, i to samo kad pregled postoji; uključuje se u Postavkama (zadano isključeno).
+  - Povijest po mjerenju: 0 = nema ga, 1 = ima ga, 2 = ima ga i citira nas.
+- **Kretanje konkurenata** računa se nakon svakog mjerenja iz spremljenih prvih 20 rezultata po riječi (zadnjih do 8 mjerenja), bez dodatnog troška:
+  - po domeni: broj riječi u top 3 i top 10 te udio vidljivosti, sada i u prethodnom mjerenju, s trendom;
+  - po riječi: tko je ušao u top 10, tko je ispao i tko nas je pretekao.
+  - Udio vidljivosti je procjena udjela klikova među izmjerenim riječima po poziciji (opća krivulja CTR-a), bez volumena pretraga. Po riječi se računa najbolji rezultat domene.
+  - Panel je u modulu Konkurencija. Za promjene trebaju barem dva mjerenja.
+
 ### Izvori i trošak
 
 | Izvor | Kako | Trošak |
@@ -53,12 +86,14 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | Google Search Console | servisni račun, JWT RS256, opseg `webmasters.readonly`, svakih 12 h | 0 |
 | Pozicije | DataForSEO SERP API, standardni red, mobitel, Zagreb, do 40. mjesta | 0,0006 $ po 10 rezultata po riječi; 27 riječi ≈ 0,065 $ po mjerenju |
 | Audit iznutra | crawl dodatka | 0 |
+| Indeksiranost | Search Console URL Inspection API, isti servisni račun | 0 |
+| Učinak izmjena | Search Console API (dnevni podaci po stranici) | 0 |
 | Claude u ploči | Anthropic API; Ultra plan uključuje mjesečne API kredite | po upotrebi, uz dnevni limit poziva |
 
 - **Mjerenje pozicija** pokreće se samo uz tvoju odluku:
   - gumbom „Izmjeri pozicije sada” u modulu Pozicije (od 2.1.1; prije slanja traži potvrdu troška, a prikaz se sam osvježava dok rezultati ne stignu) ili u Postavkama;
   - uključenim tjednim rasporedom (nedjelja navečer, nadoknada nakon 8 dana).
-- **Svako mjerenje** usput sprema top 20 organskih rezultata po riječi, za model konkurencije.
+- **Svako mjerenje** usput sprema top 20 organskih rezultata po riječi (za model konkurencije i kretanje konkurenata) i Googleov AI pregled kad ga ima.
 - **Stvarni trošak** svakog mjerenja sprema se iz odgovora DataForSEO-a.
 - **Adrese s parametrima** (`?utm_…`, `?rwg_token=…`) u Google podacima pribrajaju se pravoj stranici (od 2.1.1).
 
@@ -103,7 +138,9 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   - Google podaci, ako su stariji od 12 sati;
   - rezultati mjerenja u tijeku;
   - tjedno mjerenje, ako je uključeno;
-  - dnevna analiza s prijedlozima, kad ima novih Google podataka.
+  - dnevna analiza s prijedlozima, kad ima novih Google podataka;
+  - učinak provedenih izmjena (inače ide odmah nakon novih Google podataka);
+  - mala serija provjera indeksiranosti.
 - **Pouzdanije od WordPressovog crona** je cron na hostingu, svakih 15 minuta:
   `wget -q -O - https://www.optikaljiljana.hr/wp-cron.php?doing_wp_cron >/dev/null 2>&1`
 
@@ -115,7 +152,8 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `GET /docs/{zbirka}` | dokumenti zbirke |
 | `GET\|PUT\|DELETE /doc/{zbirka}/{id}` | jedan dokument; pisanje je dopušteno samo u zbirke ploče: issues, fixes, plan, kp, snap, cfg, trends, export, tjedno |
 | `POST /ai` | Claude (Anthropic API) |
-| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate) ili `crawl`; bez troška |
+| `GET /prijedlozi` | samo prijedlozi (ploča ga čita dok se tekst dopisuje u pozadini) |
+| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera); bez troška. `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
 
 ## Most za Claudea (MCP)
 
@@ -131,9 +169,10 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/osvjezi-crawl` | sljedeća serija stranica (mijenja samo cache dodatka) |
 | `ol-radar/radar-sazetak` (novo) | sažetak Radara s hostinga (`export/radar`) i stanje izvora |
 | `ol-radar/radar-gsc` (novo) | upiti iz Search Consolea za 28 ili 7 dana, s filtrom |
-| `ol-radar/radar-pozicije` (novo) | pozicije, povijest i top 10 konkurenata po riječi |
+| `ol-radar/radar-pozicije` (novo) | pozicije, povijest, AI pregled po riječi; uz `konkurenti: true` top 10 po riječi i kretanje konkurenata (2.2.0) |
+| `ol-radar/radar-indeks` (2.2.0) | indeksiranost: brojke i stranice s problemom (razlog iz Googlea, kanonska adresa, zadnji posjet); `sve: true` vraća sve stranice |
 | `ol-radar/radar-stanje` (2.1.1) | kratko stanje bez podataka: verzija, koji su ključevi postavljeni (da/ne), stanje izvora i ishod zadnjih provjera, mjerenje u tijeku, upozorenje nakon nadogradnje |
-| `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem |
+| `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem; uz provedene i izmjereni učinak (2.2.0) |
 
 ### Crawl
 - Radi iznutra: dodatak dohvaća vlastite stranice s potpisanim parametrom, pa WP Rocket i LiteSpeed taj prikaz ne spremaju.
@@ -147,7 +186,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 
 ## Instalacija i nadogradnja
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.1.1.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.2.0.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
 3. U izborniku se pojavljuje **OL Radar** s podstranicama Nadzorna ploča i Postavke. Stara stranica Alati → OL Radar (crawl) ostaje.
 
 ## Spajanje s Claudeom (claude.ai, desktop, mobitel)

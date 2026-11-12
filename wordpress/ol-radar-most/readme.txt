@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.1.1
+Stable tag: 2.2.0
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,13 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.2.0 =
+* Učinak provedenih izmjena: za prijedlog označen „provedeno” dodatak sam usporedi Search Console za tu stranicu prije i poslije (7, 14 i 28 dana), uz trend cijelog weba, i da ocjenu. Dan provedbe može se ispraviti na kartici.
+* Indeksiranost stranica: tjedna provjera svake stranice u Googleovu indeksu (URL Inspection API, isti servisni račun, besplatno). Panel u modulu Audit weba; stranica koja nije u indeksu dolazi u Prijedloge.
+* AI pregled (AI Overview): mjerenje pozicija bilježi za koje se riječi pojavljuje i citira li nas, bez doplate. Po izboru i pregledi koji se učitavaju naknadno (+0,0006 $ po riječi).
+* Kretanje konkurenata iz naših mjerenja: udio vidljivosti po domeni, tko je ušao u top 10, tko je ispao i tko nas je pretekao. Panel u modulu Konkurencija.
+* Nova MCP sposobnost ol-radar/radar-indeks; radar-pozicije i radar-prijedlozi vraćaju i nove podatke.
 
 = 2.1.1 =
 * Prijedlozi: tekst izmjene sada se piše posebno za svaki prijedlog (kratak poziv Claudea s obaveznim oblikom odgovora), pa se odgovor više ne prekida zbog duljine. Ako tekst ne uspije, pokušava se ponovno svaki sat, najviše tri puta; prijedlog do tada vrijedi s koracima iz podataka. „Analiziraj sada” vraća prijedloge odmah, a tekst dopisuje u pozadini.

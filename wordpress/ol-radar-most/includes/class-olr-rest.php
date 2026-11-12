@@ -133,6 +133,8 @@ class OLR_REST {
 					'latest'   => OLR_Store::data( 'rank', 'latest' ),
 					'hist'     => OLR_Store::data( 'rank', 'hist' ),
 					'u_tijeku' => get_option( OLR_DFS::PENDING ) ? true : false,
+					// Kretanje konkurenata iz naših mjerenja (top 20 po riječi, zadnjih do 8 mjerenja).
+					'konkurenti' => OLR_Store::data( 'rank', 'latest' ) ? OLR_DFS::competitors() : null,
 				),
 				'serp'   => $serp,
 				'wp'     => array(
@@ -141,6 +143,7 @@ class OLR_REST {
 				),
 				'ig'     => OLR_Store::data( 'ig', 'zadnje' ),
 				'prijedlozi' => OLR_Prijedlozi::summary( 'svi', 300 ),
+				'indeks' => OLR_Indeks::summary( 400 ),
 				'stanje' => self::state_array(),
 			)
 		);
@@ -163,6 +166,7 @@ class OLR_REST {
 				'trosak_po_mjesecima' => is_array( $cost ) ? $cost : array(),
 				'procjena_mjerenja'   => OLR_DFS::estimate(),
 				'tjedno'              => (bool) OLR_Settings::get( 'rank_weekly' ),
+				'ai_pregled_naknadno' => (bool) OLR_Settings::get( 'rank_aio_async' ),
 			),
 			'prijedlozi' => array(
 				'auto'   => (bool) OLR_Settings::get( 'prijedlozi_auto' ),
@@ -217,6 +221,10 @@ class OLR_REST {
 			$ok->add_data( array( 'status' => 400 ) );
 			return $ok;
 		}
+		if ( 'prijedlozi_stanje' === $r['coll'] ) {
+			// Promjena stanja prijedloga (npr. „provedeno”): mjerenje učinka se uskladi u pozadini.
+			OLR_Ucinak::schedule( 3 );
+		}
 		return rest_ensure_response( array( 'ok' => true ) );
 	}
 
@@ -252,13 +260,25 @@ class OLR_REST {
 				return new WP_Error( 'olr_potvrda', 'Mjerenje pozicija se naplaćuje (DataForSEO); potrebna je potvrda.', array( 'status' => 400 ) );
 			}
 			$res = OLR_DFS::start_run( 'rucno' );
+		} elseif ( 'indeks' === $dio ) {
+			// Jedna serija provjera indeksiranosti; ploča ponavlja dok „preostalo” ne padne na nulu.
+			$res = OLR_Indeks::run_batch( 15, 22, true );
+			if ( ! is_wp_error( $res ) ) {
+				$res['indeks'] = OLR_Indeks::summary( 400 );
+				unset( $res['sazetak'] );
+			}
+		} elseif ( 'ucinak' === $dio ) {
+			$res = OLR_Ucinak::sync();
+			if ( ! is_wp_error( $res ) ) {
+				$res = OLR_Prijedlozi::summary( 'svi', 300 );
+			}
 		} elseif ( 'prijedlozi' === $dio ) {
 			$res = OLR_Prijedlozi::run( 'rucno' );
 			if ( ! is_wp_error( $res ) ) {
 				$res = OLR_Prijedlozi::summary( 'svi', 300 );
 			}
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

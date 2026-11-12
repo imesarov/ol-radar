@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba samo čita, ne mijenja ga.
- * Version:           2.1.1
+ * Version:           2.2.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.1.1' );
+define( 'OLR_VERSION', '2.2.0' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -34,6 +34,8 @@ require_once OLR_DIR . 'includes/class-olr-dfs.php';
 require_once OLR_DIR . 'includes/class-olr-ai.php';
 require_once OLR_DIR . 'includes/class-olr-analiza.php';
 require_once OLR_DIR . 'includes/class-olr-prijedlozi.php';
+require_once OLR_DIR . 'includes/class-olr-ucinak.php';
+require_once OLR_DIR . 'includes/class-olr-indeks.php';
 require_once OLR_DIR . 'includes/class-olr-rest.php';
 require_once OLR_DIR . 'includes/class-olr-radar-admin.php';
 
@@ -74,6 +76,7 @@ function olr_deactivate() {
 	wp_clear_scheduled_hook( OLR_RADAR_CRON );
 	wp_clear_scheduled_hook( 'olr_prijedlozi_event' );
 	wp_clear_scheduled_hook( 'olr_prijedlozi_tekst' );
+	wp_clear_scheduled_hook( 'olr_ucinak_event' );
 }
 register_deactivation_hook( __FILE__, 'olr_deactivate' );
 
@@ -115,12 +118,14 @@ add_action(
 
 /**
  * Radar na hostingu, svaki sat: Google podaci ako su stariji od 12 sati (nakon neuspjeha novi pokušaj
- * tek za 3 sata), rezultati mjerenja u tijeku, tjedno mjerenje pozicija ako je uključeno u postavkama
- * i dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci.
+ * tek za 3 sata), rezultati mjerenja u tijeku, tjedno mjerenje pozicija ako je uključeno u postavkama,
+ * dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci, učinak provedenih izmjena
+ * i mala serija provjera indeksiranosti.
  */
 add_action(
 	OLR_RADAR_CRON,
 	static function () {
+		$t0   = time();
 		$meta = OLR_Store::data( 'gsc', 'meta' );
 		$age  = $meta && ! empty( $meta['at'] ) ? time() - (int) ( $meta['at'] / 1000 ) : PHP_INT_MAX;
 		$st   = OLR_Settings::status();
@@ -137,6 +142,15 @@ add_action(
 		} elseif ( OLR_Prijedlozi::fill_due() ) {
 			// Otvoreni prijedlozi kojima još nije napisan tekst (npr. prekinut poziv): novi pokušaj.
 			OLR_Prijedlozi::run( 'tekst' );
+		}
+		// Ako je prolaz već potrajao (npr. Claude je pisao tekst prijedloga), ostatak ide u sljedećem satu.
+		if ( time() - $t0 < 90 ) {
+			// Učinak provedenih izmjena: Search Console prije i poslije (redovito ide nakon novih Google podataka).
+			OLR_Ucinak::maybe();
+		}
+		if ( time() - $t0 < 60 ) {
+			// Indeksiranost: mala serija stranica po satu (svaka stranica jednom tjedno).
+			OLR_Indeks::tick();
 		}
 	}
 );
@@ -174,6 +188,7 @@ add_action( 'wp_abilities_api_init', array( 'OLR_Abilities', 'register' ) );
 
 OLR_Net::init();
 OLR_Prijedlozi::init();
+OLR_Ucinak::init();
 OLR_REST::init();
 
 if ( is_admin() ) {

@@ -173,6 +173,8 @@ class OLR_Radar_Admin {
 		$depth               = (int) self::post( 'rank_depth' );
 		$vals['rank_depth']  = in_array( $depth, array( 10, 20, 30, 40, 50, 100 ), true ) ? $depth : 40;
 		$vals['rank_weekly'] = '1' === self::post( 'rank_weekly' );
+		$vals['rank_aio_async'] = '1' === self::post( 'rank_aio_async' );
+		$vals['indeks_auto']    = '1' === self::post( 'indeks_auto' );
 		$model               = (string) self::post( 'ai_model' );
 		if ( isset( OLR_AI::models()[ $model ] ) ) {
 			$vals['ai_model'] = $model;
@@ -413,6 +415,8 @@ class OLR_Radar_Admin {
 					'gsc'        => 'Google Search Console',
 					'rank'       => 'Pozicije (DataForSEO)',
 					'prijedlozi' => 'Dnevni prijedlozi izmjena',
+					'ucinak'     => 'Učinak provedenih izmjena',
+					'indeks'     => 'Indeksiranost stranica',
 					'provjera_gsc' => 'Zadnja provjera Google veze',
 					'provjera_dfs' => 'Zadnja provjera DataForSEO prijave',
 					'provjera_ai'  => 'Zadnja provjera Claude ključa',
@@ -478,6 +482,10 @@ class OLR_Radar_Admin {
 						<label><input type="checkbox" name="rank_weekly" value="1" <?php checked( ! empty( $s['rank_weekly'] ) ); ?>> Mjeri automatski jednom tjedno (nedjelja navečer)</label>
 						<p class="description">Procjena: <?php echo esc_html( sprintf( '%.4f $ po mjerenju, oko %.2f $ mjesečno', OLR_DFS::estimate(), OLR_DFS::estimate() * 4.35 ) ); ?>.</p>
 					</td></tr>
+					<tr><th scope="row">Googleov AI pregled</th><td>
+						<label><input type="checkbox" name="rank_aio_async" value="1" <?php checked( ! empty( $s['rank_aio_async'] ) ); ?>> Učitaj i AI preglede koje Google prikazuje naknadno</label>
+						<p class="description">Svako mjerenje bez doplate bilježi AI pregled (AI Overview) kad je odmah u rezultatu: za koje se riječi pojavljuje i citira li nas. Dio pregleda Google učita naknadno; njih DataForSEO isporučuje uz doplatu od 0,0006 $ po riječi, i to samo kad takav pregled postoji (najviše <?php echo esc_html( sprintf( '%.3f', count( OLR_DFS::keywords() ) * OLR_DFS::PRICE_AIO ) ); ?> $ po mjerenju). Procjena iznad već uključuje tu doplatu kad je opcija uključena.</p>
+					</td></tr>
 				</table>
 				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="test_dfs">Spremi i provjeri DataForSEO prijavu (besplatno)</button>
 					<?php if ( $pending ) : ?>
@@ -501,7 +509,7 @@ class OLR_Radar_Admin {
 				<table class="form-table" role="presentation">
 					<tr><th scope="row">Automatska analiza</th><td>
 						<label><input type="checkbox" name="prijedlozi_auto" value="1" <?php checked( ! empty( $s['prijedlozi_auto'] ) ); ?>> Svaki dan, kad stignu novi Google podaci, analiziraj i pripremi prijedloge izmjena</label>
-						<p class="description">Analizu radi server iz spremljenih podataka. Tekst prijedloga (novi naslov, opis, odlomak) piše Claude jednim pozivom dnevno preko Anthropic API ključa; brojke u prijedlogu uvijek su iz Search Consolea. Bez ključa prijedlozi nastaju bez napisanog teksta. Web se ne mijenja.</p>
+						<p class="description">Analizu radi server iz spremljenih podataka. Tekst prijedloga (novi naslov, opis, odlomak) piše Claude preko Anthropic API ključa, jednim kratkim pozivom po prijedlogu; brojke u prijedlogu uvijek su iz Search Consolea. Bez ključa prijedlozi nastaju bez napisanog teksta. Web se ne mijenja.</p>
 					</td></tr>
 					<tr><th scope="row"><label for="prijedlozi_max">Najviše novih dnevno</label></th><td>
 						<input type="number" id="prijedlozi_max" name="prijedlozi_max" class="small-text" min="1" max="10" value="<?php echo (int) $s['prijedlozi_max']; ?>">
@@ -517,6 +525,17 @@ class OLR_Radar_Admin {
 						</td></tr>
 				</table>
 				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="run_prijedlozi">Spremi i izradi prijedloge sada</button></p>
+
+				<h2>Indeksiranost i učinak izmjena</h2>
+				<table class="form-table" role="presentation">
+					<tr><th scope="row">Indeksiranost stranica</th><td>
+						<label><input type="checkbox" name="indeks_auto" value="1" <?php checked( ! empty( $s['indeks_auto'] ) ); ?>> Jednom tjedno provjeri je li svaka stranica u Googleovu indeksu</label>
+						<p class="description">Koristi isti Google servisni račun (URL Inspection API, besplatno; Google dopušta 2.000 provjera dnevno, a Radar ih troši najviše 600). Provjera ide u malim serijama svaki sat. Stranica koja ispadne iz indeksa dolazi u Prijedloge. Rezultati su u modulu Audit weba.</p>
+					</td></tr>
+					<tr><th scope="row">Učinak provedenih izmjena</th><td>
+						<p class="description" style="margin-top:6px">Radi samo od sebe: kad prijedlog u ploči označiš kao „provedeno”, Radar usporedi Search Console za tu stranicu prije i poslije (7, 14 i 28 dana) i uz to pokaže trend cijelog weba. Ako je izmjena provedena ranije nego što si je označio, u ploči upiši stvarni dan.</p>
+					</td></tr>
+				</table>
 				<?php submit_button( 'Spremi postavke' ); ?>
 			</form>
 			<script>

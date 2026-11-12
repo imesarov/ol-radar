@@ -53,6 +53,10 @@ class OLR_Settings {
 			'brand'           => 'ljiljana',
 			// Upiti koji nisu naši (tuđe optike, riječi koje samo zvuče slično): ne ulaze u analizu.
 			'zanemari'        => '',
+			// Tjedna provjera indeksiranosti (URL Inspection API, besplatno, isti servisni račun).
+			'indeks_auto'     => true,
+			// AI pregledi koji se učitavaju naknadno: DataForSEO ih naplaćuje dodatno, pa je isključeno.
+			'rank_aio_async'  => false,
 		);
 	}
 

@@ -264,11 +264,11 @@ class OLR_Abilities {
 			'ol-radar/radar-pozicije',
 			array(
 				'label'               => 'Radar: pozicije',
-				'description'         => 'Pozicije ciljanih riječi iz tjednog mjerenja (DataForSEO, Google, mobitel, Zagreb): sadašnja i prethodna pozicija, stranica koja rangira, povijest do 26 mjerenja (0 = nije pronađen u izmjerenoj dubini, null = nije mjereno) i top 10 konkurenata po riječi.',
+				'description'         => 'Pozicije ciljanih riječi iz tjednog mjerenja (DataForSEO, Google, mobitel, Zagreb): sadašnja i prethodna pozicija, stranica koja rangira, povijest do 26 mjerenja (0 = nije pronađen u izmjerenoj dubini, null = nije mjereno), Googleov AI pregled po riječi (ima li ga, citira li nas i koje domene citira) te, uz konkurenti: true, top 10 po riječi i kretanje konkurenata između mjerenja.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::obj_schema(
 					array(
-						'konkurenti' => array( 'type' => 'boolean', 'description' => 'Uključi top 10 rezultata po riječi.' ),
+						'konkurenti' => array( 'type' => 'boolean', 'description' => 'Uključi top 10 rezultata po riječi i kretanje konkurenata (udio vidljivosti po domeni sada i u prethodnom mjerenju, tko je ušao u top 10, tko je ispao i tko nas je pretekao).' ),
 					)
 				),
 				'output_schema'       => $out,
@@ -278,10 +278,28 @@ class OLR_Abilities {
 			)
 		);
 		wp_register_ability(
+			'ol-radar/radar-indeks',
+			array(
+				'label'               => 'Radar: indeksiranost',
+				'description'         => 'Indeksiranost stranica u Googleu (Search Console URL Inspection API, provjera svake stranice jednom tjedno): koliko je stranica u indeksu, koje nisu i zašto (razlog koji navodi Google), gdje je Google kao kanonsku odabrao drugu adresu, kad je Googlebot zadnji put posjetio stranicu. Zadano vraća samo stranice s problemom; sve: true vraća sve provjerene stranice.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'sve'   => array( 'type' => 'boolean', 'description' => 'Vrati i stranice bez problema.' ),
+						'limit' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 400, 'description' => 'Najviše stranica (zadano 100).' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_index' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
 			'ol-radar/radar-prijedlozi',
 			array(
 				'label'               => 'Radar: prijedlozi izmjena',
-				'description'         => 'Gotovi prijedlozi izmjena iz dnevne analize na hostingu (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj). Svaki ima dokaze s brojkama iz Search Consolea, sadašnji i predloženi tekst, korake i stanje (novo, prihvaceno, provedeno, odbijeno). Samo čitanje; web se mijenja tek nakon vlasnikova odobrenja.',
+				'description'         => 'Gotovi prijedlozi izmjena iz dnevne analize na hostingu (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj). Uz provedene prijedloge stoji i izmjereni učinak (polje mjerenje: Search Console prije i poslije, trend cijelog weba, ocjena). Svaki ima dokaze s brojkama iz Search Consolea, sadašnji i predloženi tekst, korake i stanje (novo, prihvaceno, provedeno, odbijeno). Samo čitanje; web se mijenja tek nakon vlasnikova odobrenja.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::obj_schema(
 					array(
@@ -297,6 +315,30 @@ class OLR_Abilities {
 		);
 	}
 
+	public static function radar_index( $input = array() ) {
+		$s    = OLR_Indeks::summary( 400 );
+		$rows = isset( $s['stranice'] ) ? $s['stranice'] : array();
+		if ( empty( $input['sve'] ) ) {
+			$rows = array_values(
+				array_filter(
+					$rows,
+					static function ( $r ) {
+						return '' !== $r['problem'];
+					}
+				)
+			);
+		}
+		$n = isset( $input['limit'] ) ? max( 1, min( 400, (int) $input['limit'] ) ) : 100;
+		unset( $s['stranice'] );
+		$st = OLR_Settings::status();
+		return array(
+			'sazetak'  => $s,
+			'stanje'   => isset( $st['indeks'] ) ? $st['indeks'] : null,
+			'stranice' => array_slice( $rows, 0, $n ),
+			'napomena' => $s['provjereno'] ? 'problem: nije = stranica nije u indeksu; kanonski = u indeksu je, ali je Google odabrao drugu kanonsku adresu; greska = Google je odbio provjeru adrese.' : 'Indeksiranost još nije provjerena (provjera ide sama, po satu, ili gumbom u modulu Audit weba).',
+		);
+	}
+
 	public static function radar_proposals( $input = array() ) {
 		$f = isset( $input['stanje'] ) && in_array( $input['stanje'], array( 'otvoreni', 'svi', 'novo', 'prihvaceno', 'provedeno', 'odbijeno' ), true ) ? $input['stanje'] : 'otvoreni';
 		$n = isset( $input['limit'] ) ? max( 1, min( 50, (int) $input['limit'] ) ) : 20;
@@ -305,6 +347,8 @@ class OLR_Abilities {
 			'otvorenih'  => $s['otvorenih'],
 			'ceka_tekst' => $s['ceka_tekst'],
 			'ukupno'     => $s['ukupno'],
+			// Učinak provedenih izmjena (Search Console prije i poslije); detalji su uz svaki provedeni prijedlog u polju mjerenje.
+			'ucinak'     => $s['ucinak'],
 			'zadnja_analiza' => $s['zadnje'],
 			'automatski' => $s['auto'],
 			'prijedlozi' => $s['stavke'],
@@ -333,7 +377,9 @@ class OLR_Abilities {
 				'otvorenih'  => $p['otvorenih'],
 				'ceka_tekst' => $p['ceka_tekst'],
 				'ukupno'     => $p['ukupno'],
+				'ucinak'     => $p['ucinak'],
 			),
+			'indeks'     => OLR_Indeks::summary( 0 ),
 		);
 	}
 
@@ -445,6 +491,16 @@ class OLR_Abilities {
 				'stranica' => $r['url'] ? wp_parse_url( $r['url'], PHP_URL_PATH ) : null,
 				'povijest' => isset( $hist['by'][ $r['id'] ] ) ? $hist['by'][ $r['id'] ] : array(),
 			);
+			// Googleov AI pregled za tu riječ: ima li ga, citira li nas i koje domene citira.
+			if ( array_key_exists( 'aio', $r ) ) {
+				$row['ai_pregled'] = $r['aio'] ? array(
+					'ima'         => true,
+					'ucitan'      => ! empty( $r['aio']['ucitan'] ),
+					'citira_nas'  => ! empty( $r['aio']['mi'] ),
+					'nasa_adresa' => isset( $r['aio']['nasa_adresa'] ) ? $r['aio']['nasa_adresa'] : null,
+					'izvori'      => isset( $r['aio']['izvori'] ) ? $r['aio']['izvori'] : array(),
+				) : array( 'ima' => false );
+			}
 			if ( ! empty( $input['konkurenti'] ) ) {
 				$serp            = OLR_Store::data( 'serp', $r['id'] );
 				$row['top10']    = $serp ? array_map(
@@ -456,13 +512,18 @@ class OLR_Abilities {
 			}
 			$rows[] = $row;
 		}
-		return array(
+		$out = array(
 			'mjereno'   => $latest['last'],
 			'postavke'  => $latest['sched'],
 			'mjerenja'  => $hist['runs'],
 			'u_tijeku'  => (bool) get_option( OLR_DFS::PENDING ),
 			'rijeci'    => $rows,
 		);
+		if ( ! empty( $input['konkurenti'] ) ) {
+			// Kretanje konkurenata: udio vidljivosti po domeni sada i prije te tko je ušao, ispao ili nas pretekao.
+			$out['kretanje_konkurenata'] = OLR_DFS::competitors();
+		}
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------------

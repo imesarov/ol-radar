@@ -100,6 +100,16 @@ ok( 'https://www.optikaljiljana.hr/journal/' === $by['stellest stakla']['url'], 
 ok( count( OLR_Store::list_docs( 'serp' ) ) === 5, 'dfs: SERP-ovi spremljeni za model konkurencije' );
 $serp = OLR_Store::data( 'serp', OLR_DFS::kw_id( 'optika sesvete' ) );
 ok( 'organic' === $serp['p'][0]['type'][0] && 12 === count( $serp['p'] ), 'dfs: SERP bez lokalnog paketa, samo organski' );
+// AI pregled (AI Overview) iz istog rezultata: ima li ga, citira li nas, koje domene citira.
+$aA = $by['cijena progresivnih naočala']['aio'];
+$aB = $by['optika sesvete']['aio'];
+$aC = $by['stellest stakla']['aio'];
+ok( $aA && true === $aA['mi'] && true === $aA['ucitan'] && 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/' === $aA['nasa_adresa'] && array( 'konkurent1.hr', 'hr.wikipedia.org', 'optikaljiljana.hr' ) === $aA['izvori'], 'ai pregled: citira nas (izvori iz pregleda i iz odlomaka, bez duplih domena)' );
+ok( $aB && false === $aB['mi'] && array( 'konkurent2.hr', 'konkurent4.hr' ) === $aB['izvori'] && null === $by['optika']['aio'], 'ai pregled: postoji, ali nas ne citira; riječ bez pregleda ima null' );
+ok( $aC && true === $aC['ima'] && false === $aC['ucitan'] && array() === $aC['izvori'], 'ai pregled: Google ga učitava naknadno, pa bez doplate znamo samo da postoji' );
+$e0 = OLR_DFS::estimate();
+OLR_Settings::update( array( 'rank_aio_async' => true ) );
+ok( abs( OLR_DFS::estimate() - $e0 - 5 * OLR_DFS::PRICE_AIO ) < 0.00001, 'ai pregled: naknadno učitavanje ulazi u procjenu troška (0,0006 $ po riječi)' );
 update_option( 'olr_test_dfs_run', 2 );
 OLR_DFS::start_run( 'test' );
 OLR_DFS::poll();
@@ -109,6 +119,29 @@ foreach ( $latest['rows'] as $row ) {
 	$by[ $row['kw'] ] = $row;
 }
 ok( 6 === $by['progresivne naočale cijena']['pos'] && 3 === $by['progresivne naočale cijena']['prev'], 'dfs: prethodna pozicija iz zadnjeg mjerenja' );
+// AI pregled nakon drugog mjerenja: uz uključenu opciju stiže i pregled koji se učitava naknadno.
+$sentt = get_option( 'olr_test_dfs_tasks' );
+$lastt = end( $sentt );
+OLR_Settings::update( array( 'rank_aio_async' => false ) );
+ok( true === $lastt['load_async_ai_overview'] && true === $by['stellest stakla']['aio']['ucitan'] && array( 'essilor.com' ) === $by['stellest stakla']['aio']['izvori'], 'ai pregled: s uključenom opcijom stiže i pregled koji se učitava naknadno' );
+$hh = OLR_Store::data( 'rank', 'hist' );
+ok( array( 2, 2 ) === array_slice( $hh['aio'][ OLR_DFS::kw_id( 'cijena progresivnih naočala' ) ], 0, 2 ) && 1 === $hh['aio'][ OLR_DFS::kw_id( 'optika sesvete' ) ][0] && 0 === $hh['aio'][ OLR_DFS::kw_id( 'optika' ) ][0] && count( $hh['aio'][ OLR_DFS::kw_id( 'optika' ) ] ) === count( $hh['runs'] ), 'ai pregled: povijest po mjerenju (2 = citira nas, 1 = ima, 0 = nema)' );
+// Kretanje konkurenata između dva mjerenja (prvo: zadani raspored; od drugog: nova domena na 10. mjestu).
+$kk = OLR_DFS::competitors();
+$kd = array();
+foreach ( $kk['domene'] as $d ) {
+	$kd[ $d['domena'] ] = $d;
+}
+$ch = array();
+foreach ( $kk['promjene'] as $c ) {
+	$ch[ $c['rijec'] ] = $c;
+}
+ok( count( $kk['mjerenja'] ) >= 2 && 5 === $kk['rijeci'] && true === $kd['optikaljiljana.hr']['nasa'] && 4 === $kd['optikaljiljana.hr']['top10'] && 2 === $kd['optikaljiljana.hr']['top3'] && count( $kk['mjerenja'] ) === count( $kd['optikaljiljana.hr']['trend'] ), 'konkurenti: naša domena u top 3 za 2 i u top 10 za 4 od 5 riječi, s trendom po mjerenjima' );
+ok( 4 === $kd['konkurent1.hr']['top10'] && 4 === $kd['konkurent1.hr']['top3'] && $kd['konkurent1.hr']['udio'] > $kd['optikaljiljana.hr']['udio'] && abs( array_sum( wp_list_pluck( $kk['domene'], 'udio' ) ) - 100 ) < 1.5, 'konkurenti: udio vidljivosti po domeni (zbroj oko 100 %)' );
+ok( isset( $kd['novi-igrac.hr'] ) && 0 === $kd['novi-igrac.hr']['prije']['top10'] && 5 === $kd['novi-igrac.hr']['top10'] && $kd['novi-igrac.hr']['promjena'] > 0 && 0 === $kd['konkurent10.hr']['top10'] && 5 === $kd['konkurent10.hr']['prije']['top10'] && $kd['konkurent10.hr']['promjena'] < 0, 'konkurenti: nova domena ušla u top 10, stara ispala' );
+$c1 = $ch['progresivne naočale cijena'];
+ok( 6 === $c1['nas'] && 3 === $c1['nas_prije'] && array( 'konkurent3.hr', 'konkurent4.hr', 'konkurent5.hr' ) === wp_list_pluck( $c1['pretekli'], 'domena' ) && array( 'konkurent3.hr', 'novi-igrac.hr' ) === wp_list_pluck( $c1['usli'], 'domena' ) && array( 'konkurent6.hr', 'konkurent10.hr' ) === wp_list_pluck( $c1['ispali'], 'domena' ), 'konkurenti: po riječi tko je ušao, tko je ispao i tko nas je pretekao' );
+ok( array() === $ch['optika sesvete']['pretekli'] && $kd['optikaljiljana.hr']['promjena'] < 0, 'konkurenti: bez pomaka nema „pretekli”; naš udio je pao' );
 $hist = OLR_Store::data( 'rank', 'hist' );
 ok( 2 === count( $hist['runs'] ) && array( 6, 3 ) === $hist['by'][ OLR_DFS::kw_id( 'progresivne naočale cijena' ) ] && array( 0, 0 ) === $hist['by'][ OLR_DFS::kw_id( 'optika' ) ], 'dfs: povijest (najnovije prvo, 0 = nije pronađen)' );
 $cost = get_option( 'olr_dfs_cost' );
@@ -443,6 +476,155 @@ if ( $reader ) {
 	ok( $sz['prijedlozi']['otvorenih'] === $s['otvorenih'], 'mcp: radar-sazetak javlja broj otvorenih prijedloga' );
 	wp_set_current_user( $admin[0]->ID );
 }
+// 12) Učinak provedenih izmjena: Search Console prije i poslije, uz trend cijelog weba.
+$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll = 'ucinak'" );
+delete_option( OLR_Ucinak::RUN_OPT );
+wp_clear_scheduled_hook( OLR_Ucinak::EVENT );
+$byk = array();
+foreach ( OLR_Prijedlozi::all() as $p ) {
+	$byk[ $p['kljuc'] ] = $p;
+}
+$uA  = $byk['ctr|/progresivne-naocale/'];
+$uB  = $byk['prilika|/kontakt/'];
+$uC  = $byk['tehnicki|bez_opisa|*'];
+$uD  = $byk['pozicije|pad|progresivne naočale cijena'];
+$ago = static function ( $n ) {
+	return wp_date( 'Y-m-d', time() - $n * DAY_IN_SECONDS );
+};
+update_option( 'olr_test_ucinak', array( '/progresivne-naocale/' => $ago( 35 ), '/kontakt/' => $ago( 12 ) ) );
+$mark = static function ( $id, $stanje, $dan = null ) {
+	$r = new WP_REST_Request( 'PUT', '/ol-radar/v1/doc/prijedlozi_stanje/' . $id );
+	$r->set_header( 'content-type', 'application/json' );
+	$r->set_body( wp_json_encode( array( 'data' => array_filter( array( 'stanje' => $stanje, 'at' => time() * 1000, 'dan' => $dan ) ) ) ) );
+	return rest_do_request( $r )->get_status();
+};
+ok( 200 === $mark( $uA['id'], 'provedeno', $ago( 35 ) ) && (bool) wp_next_scheduled( OLR_Ucinak::EVENT ), 'učinak: oznaka „provedeno” zakazuje mjerenje u pozadini' );
+$mark( $uB['id'], 'provedeno', $ago( 12 ) );
+$mark( $uC['id'], 'provedeno' );
+$mark( $uD['id'], 'provedeno' );
+wp_clear_scheduled_hook( OLR_Ucinak::EVENT );
+$ur = OLR_Ucinak::sync();
+$ud = OLR_Ucinak::docs();
+$w  = isset( $ud[ $uA['id'] ]['prozori']['28'] ) ? $ud[ $uA['id'] ]['prozori']['28'] : null;
+ok( ! is_wp_error( $ur ) && 3 === $ur['mjereno'] && 4 === count( $ud ), 'učinak: izmjereno za tri izmjene, četvrta se ne mjeri po stranici' );
+ok( $w && 'gotovo' === $ud[ $uA['id'] ]['stanje'] && 'bolje' === $ud[ $uA['id'] ]['ocjena'] && 28 === $w['prije']['klikovi'] && 84 === $w['poslije']['klikovi'] && 2.5 === (float) $w['prije']['ctr_posto'] && 6.67 === (float) $w['poslije']['ctr_posto'] && 6.0 === (float) $w['prije']['pozicija'] && 4.0 === (float) $w['poslije']['pozicija'] && 0.0 === (float) $w['web']['promjena_posto'] && 7.0 === (float) $w['upit']['prije']['pozicija'] && isset( $ud[ $uA['id'] ]['prozori']['7'], $ud[ $uA['id'] ]['prozori']['14'] ), 'učinak: 28 dana prije i poslije, CTR 2,5 % → 6,67 %, web bez promjene: bolje' );
+ok( false !== strpos( $ud[ $uA['id'] ]['sazetak'], 'klikovi 28 → 84 (+200 %), cijeli web 0 %' ) && false !== strpos( $ud[ $uA['id'] ]['sazetak'], 'Upit „progresivne naočale”: pozicija 7,0 → 5,0' ) && false === strpos( $ud[ $uA['id'] ]['sazetak'], 'Privremeno' ), 'učinak: sažetak s brojkama (' . $ud[ $uA['id'] ]['sazetak'] . ')' );
+$b = $ud[ $uB['id'] ];
+ok( 'mjeri' === $b['stanje'] && 9 === $b['dana_poslije'] && isset( $b['prozori']['7'] ) && ! isset( $b['prozori']['14'] ) && 'bolje' === $b['ocjena'] && 6.0 === (float) $b['prozori']['7']['prije']['pozicija'] && 4.0 === (float) $b['prozori']['7']['poslije']['pozicija'] && false !== strpos( $b['sazetak'], 'Privremeno' ), 'učinak: nakon 9 dana privremena usporedba 7 dana (pozicija 6,0 → 4,0)' );
+ok( 'nemjerljivo' === $ud[ $uC['id'] ]['stanje'] && false !== strpos( $ud[ $uC['id'] ]['razlog'], 'više stranica' ), 'učinak: izmjena na više stranica se ne mjeri po stranici' );
+ok( 'ceka' === $ud[ $uD['id'] ]['stanje'] && 0 === $ud[ $uD['id'] ]['dana_poslije'] && null === $ud[ $uD['id'] ]['ocjena'] && in_array( $ud[ $uD['id'] ]['polazno']['klikovi'], array( 25, 26 ), true ) && false !== strpos( $ud[ $uD['id'] ]['sazetak'], 'prošlo je 0 od 7 dana' ), 'učinak: tek provedena izmjena čeka, s polaznim stanjem' );
+$lf = get_option( 'olr_test_gsc_last_filter' );
+ok( 'includingRegex' === $lf[0]['filters'][0]['operator'] && 'page' === $lf[0]['filters'][0]['dimension'] && false !== strpos( $lf[0]['filters'][0]['expression'], '/?(\?.*)?' ), 'učinak: stranica se filtrira s parametrima i bez njih (' . $lf[0]['filters'][0]['expression'] . ')' );
+$n0 = count( (array) get_option( 'olr_test_log' ) );
+delete_option( 'olr_test_log' );
+$ur2 = OLR_Ucinak::sync();
+ok( 0 === $ur2['mjereno'] && count( (array) get_option( 'olr_test_log' ) ) <= 2, 'učinak: bez novih Google podataka nema ponovnih upita po stranici' );
+$sm = OLR_Prijedlozi::summary( 'provedeno', 50 );
+ok( 4 === count( $sm['stavke'] ) && 1 === $sm['ucinak']['bolje'] && 2 === $sm['ucinak']['mjeri_se'] && 1 === $sm['ucinak']['nemjerljivo'] && isset( $sm['stavke'][0]['mjerenje']['stanje'], $sm['stavke'][0]['provedeno_dana'] ), 'učinak: uz provedene prijedloge u ploči i MCP-u' );
+// Promjena dana provedbe počinje mjerenje iznova; vraćanje stanja uklanja zapis.
+$mark( $uB['id'], 'provedeno', $ago( 20 ) );
+$mark( $uD['id'], 'novo' );
+$mark( $uA['id'], 'odbijeno' );
+OLR_Ucinak::sync();
+$ud = OLR_Ucinak::docs();
+ok( $ago( 20 ) === $ud[ $uB['id'] ]['provedeno'] && isset( $ud[ $uB['id'] ]['prozori']['14'] ) && ! isset( $ud[ $uD['id'] ] ) && ! isset( $ud[ $uA['id'] ] ) && 2 === count( $ud ), 'učinak: novi dan provedbe mjeri iznova, a zapis nestaje kad prijedlog više nije proveden' );
+ok( 'premalo' === OLR_Ucinak::verdict( 'ctr', array( 'prikazivanja' => 10, 'klikovi' => 1, 'ctr_posto' => 10.0, 'pozicija' => 3.0 ), array( 'prikazivanja' => 12, 'klikovi' => 3, 'ctr_posto' => 25.0, 'pozicija' => 3.0 ), 0.0 )
+	&& 'isto' === OLR_Ucinak::verdict( 'ctr', array( 'prikazivanja' => 500, 'klikovi' => 15, 'ctr_posto' => 3.0, 'pozicija' => 3.0 ), array( 'prikazivanja' => 500, 'klikovi' => 16, 'ctr_posto' => 3.2, 'pozicija' => 3.0 ), 0.0 )
+	&& 'losije' === OLR_Ucinak::verdict( 'prilika', array( 'prikazivanja' => 300, 'klikovi' => 9, 'ctr_posto' => 3.0, 'pozicija' => 6.0 ), array( 'prikazivanja' => 280, 'klikovi' => 5, 'ctr_posto' => 1.8, 'pozicija' => 8.2 ), 0.0 )
+	&& 'isto' === OLR_Ucinak::verdict( 'pad', array( 'prikazivanja' => 300, 'klikovi' => 10, 'ctr_posto' => 3.3, 'pozicija' => 4.0 ), array( 'prikazivanja' => 400, 'klikovi' => 14, 'ctr_posto' => 3.5, 'pozicija' => 4.0 ), 35.0 )
+	&& 'bolje' === OLR_Ucinak::verdict( 'pad', array( 'prikazivanja' => 300, 'klikovi' => 10, 'ctr_posto' => 3.3, 'pozicija' => 4.0 ), array( 'prikazivanja' => 400, 'klikovi' => 18, 'ctr_posto' => 4.5, 'pozicija' => 4.0 ), 5.0 ), 'učinak: ocjena traži dovoljno prikazivanja i gleda trend cijelog weba (rast +40 % uz web +35 % nije učinak)' );
+ok( 'bolje' === OLR_Ucinak::verdict( 'prilika', array( 'prikazivanja' => 1120, 'klikovi' => 28, 'ctr_posto' => 2.5, 'pozicija' => 6.0 ), array( 'prikazivanja' => 1155, 'klikovi' => 42, 'ctr_posto' => 3.6, 'pozicija' => 5.5 ), 0.0 )
+	&& 'isto' === OLR_Ucinak::verdict( 'ctr', array( 'prikazivanja' => 1000, 'klikovi' => 30, 'ctr_posto' => 3.0, 'pozicija' => 3.0 ), array( 'prikazivanja' => 2000, 'klikovi' => 62, 'ctr_posto' => 3.1, 'pozicija' => 3.0 ), 0.0 )
+	&& 'premalo' === OLR_Ucinak::verdict( 'ctr', array( 'prikazivanja' => 12, 'klikovi' => 0, 'ctr_posto' => 0.0, 'pozicija' => 9.0 ), array( 'prikazivanja' => 200, 'klikovi' => 9, 'ctr_posto' => 4.5, 'pozicija' => 4.0 ), 0.0 ), 'učinak: bez pomaka pozicije odlučuju klikovi prema trendu weba; naslov i opis sude se samo po CTR-u' );
+
+// 13) Indeksiranost stranica (URL Inspection API).
+$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll = 'indeks'" );
+foreach ( array( OLR_Indeks::DAY_OPT, 'olr_test_indeks_calls', 'olr_test_indeks_403' ) as $o ) {
+	delete_option( $o );
+}
+foreach ( array( '/kontakt/', '/usluge-b/' ) as $path ) {
+	// Sadržaj se traži preko crawla: istu adresu može imati stranica ili objava.
+	$pid = (int) OLR_Crawler::get_row( home_url( $path ) )->post_id;
+	$wpdb->update( $wpdb->posts, array( 'post_modified' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ), array( 'ID' => $pid ) );
+	clean_post_cache( $pid );
+}
+$iu    = OLR_Indeks::urls();
+$paths = array_map( array( 'OLR_Analiza', 'path' ), array_keys( $iu ) );
+ok( count( $iu ) > 100 && ! in_array( '/privatno/', $paths, true ) && in_array( '/kontakt/', $paths, true ) && '/' === $paths[0], 'indeks: provjeravaju se stranice koje trebaju biti u indeksu (bez noindex), najvažnije prve' );
+OLR_Settings::update( array( 'indeks_auto' => false ) );
+OLR_Indeks::tick();
+ok( 0 === (int) get_option( 'olr_test_indeks_calls', 0 ), 'indeks: isključena provjera ne šalje ništa' );
+OLR_Settings::update( array( 'indeks_auto' => true ) );
+OLR_Indeks::tick();
+$ic = (int) get_option( 'olr_test_indeks_calls', 0 );
+$iq = get_option( 'olr_test_indeks_last' );
+ok( 12 === $ic && OLR_Settings::get( 'gsc_site' ) === $iq['siteUrl'] && 'hr' === $iq['languageCode'] && OLR_Indeks::remaining() === count( $iu ) - 12, 'indeks: satni prolaz provjerava malu seriju (12), s našim svojstvom' );
+$ib = OLR_Indeks::run_batch( 500, 120 );
+$is = OLR_Indeks::summary();
+$ir = array();
+foreach ( $is['stranice'] as $row ) {
+	$ir[ $row['put'] ] = $row;
+}
+ok( ! is_wp_error( $ib ) && 0 === $ib['preostalo'] && count( $iu ) === $is['ukupno'] && $is['ukupno'] === $is['provjereno'] && 3 === $is['nije'] && 1 === $is['kanonski'] && 1 === $is['greske'] && $is['ukupno'] - 4 === $is['u_indeksu'] && 0 === $is['preostalo'], 'indeks: sve stranice provjerene (' . $is['u_indeksu'] . ' u indeksu, 3 nisu, 1 druga kanonska, 1 odbijena adresa)' );
+ok( 'nije' === $ir['/kontakt/']['problem'] && 'Pretraženo – trenutačno nije indeksirano' === $ir['/kontakt/']['razlog'] && '' !== $ir['/kontakt/']['zadnji_posjet'] && 0 === strpos( $ir['/kontakt/']['link'], 'https://search.google.com/search-console/inspect' ), 'indeks: razlog koji navodi Google, zadnji posjet i poveznica na Search Console' );
+ok( 'stranica ima oznaku noindex' === $ir['/usluge-a/']['razlog'] && 'greška servera (5xx)' === $ir['/usluge-b/']['razlog'] && 'kanonski' === $ir['/dioptrijske-naocale/']['problem'] && true === $ir['/dioptrijske-naocale/']['u_indeksu'] && false !== strpos( $ir['/dioptrijske-naocale/']['razlog'], '/progresivne-naocale/' ) && 'greska' === $ir['/sample-page/']['problem'], 'indeks: noindex, greška servera, druga kanonska adresa i odbijena adresa' );
+ok( '' !== $is['stranice'][0]['problem'] && '' === $ir['/progresivne-naocale/']['problem'] && true === OLR_Settings::status()['indeks']['ok'], 'indeks: stranice s problemom su prve u popisu' );
+delete_option( 'olr_test_indeks_calls' );
+OLR_Indeks::tick();
+ok( 0 === (int) get_option( 'olr_test_indeks_calls', 0 ), 'indeks: svježe provjerene stranice se ne provjeravaju ponovno' );
+// Starenje: stranica s problemom ide na ponovnu provjeru nakon 2 dana, uredna nakon 7.
+$age = static function ( $path, $days ) use ( $wpdb ) {
+	foreach ( OLR_Store::list_docs( 'indeks', '', 'asc', 2000 ) as $d ) {
+		if ( OLR_Analiza::path( $d['data']['url'] ) === $path ) {
+			$d['data']['at'] = ( time() - $days * DAY_IN_SECONDS ) * 1000;
+			OLR_Store::set( 'indeks', $d['id'], $d['data'] );
+		}
+	}
+};
+$age( '/kontakt/', 3 );
+$age( '/progresivne-naocale/', 3 );
+ok( 1 === OLR_Indeks::remaining(), 'indeks: stranica s problemom se ponovno provjerava nakon 2 dana, uredna tek nakon 7' );
+OLR_Indeks::tick();
+ok( 1 === (int) get_option( 'olr_test_indeks_calls', 0 ) && 0 === OLR_Indeks::remaining(), 'indeks: satni prolaz osvježi samo zastarjelu stranicu' );
+// Greška pristupa: jasna poruka, bez daljnjih pokušaja šest sati.
+$age( '/kontakt/', 3 );
+update_option( 'olr_test_indeks_403', 1 );
+$ie = OLR_Indeks::run_batch( 5, 20 );
+delete_option( 'olr_test_indeks_calls' );
+OLR_Indeks::tick();
+ok( is_wp_error( $ie ) && 'olr_indeks_pristup' === $ie->get_error_code() && false === OLR_Settings::status()['indeks']['ok'] && 0 === (int) get_option( 'olr_test_indeks_calls', 0 ), 'indeks: bez pristupa svojstvu javlja jasnu grešku i čeka prije novog pokušaja' );
+delete_option( 'olr_test_indeks_403' );
+update_option( OLR_Indeks::DAY_OPT, array( 'dan' => gmdate( 'Y-m-d' ), 'n' => OLR_Indeks::DAILY_MAX ) );
+$ie = OLR_Indeks::run_batch( 5, 20 );
+ok( is_wp_error( $ie ) && 'olr_indeks_dnevno' === $ie->get_error_code(), 'indeks: dnevni broj provjera je ograničen (ispod Googleove kvote)' );
+delete_option( OLR_Indeks::DAY_OPT );
+$ib = OLR_Indeks::run_batch( 5, 20 );
+ok( ! is_wp_error( $ib ) && 1 === $ib['provjereno_sada'] && true === OLR_Settings::status()['indeks']['ok'], 'indeks: nakon greške provjera se nastavlja' );
+// Analiza: stranica koja nije u indeksu i druga kanonska adresa postaju prijedlozi; svježe mijenjana stranica ne.
+$an = OLR_Analiza::run();
+$ak = array();
+foreach ( $an['kandidati'] as $c ) {
+	$ak[ $c['kljuc'] ] = $c;
+}
+ok( isset( $ak['tehnicki|nije_u_indeksu|/kontakt/'], $ak['tehnicki|nije_u_indeksu|/usluge-b/'], $ak['tehnicki|druga_kanonska|/dioptrijske-naocale/'] ) && ! isset( $ak['tehnicki|nije_u_indeksu|/usluge-a/'] ) && false !== strpos( $ak['tehnicki|nije_u_indeksu|/kontakt/']['dokazi']['detalj'], 'zadnji posjet Googlebota' ) && $ak['tehnicki|nije_u_indeksu|/kontakt/']['ucinak'] >= 14 && false !== strpos( implode( ' ', $an['napomene'] ), 'zadnjih 7 dana' ), 'indeks: stranica koja nije u indeksu ulazi u prijedloge, svježe mijenjana ne (uz napomenu)' );
+$io = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$io->set_param( 'dio', 'indeks' );
+$ior = rest_do_request( $io );
+$iod = $ior->get_data();
+$dd  = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/podaci' ) )->get_data();
+ok( 200 === $ior->get_status() && isset( $iod['rezultat']['preostalo'], $iod['rezultat']['indeks']['stranice'] ) && isset( $dd['indeks']['ukupno'] ), 'indeks: ručna serija iz ploče i sažetak u podacima ploče' );
+ok( isset( $dd['rank']['konkurenti']['domene'][0]['udio'] ) && array_key_exists( 'aio', $dd['rank']['latest']['rows'][0] ) && isset( $dd['prijedlozi']['ucinak'] ), 'konkurenti, AI pregled i učinak: u podacima nadzorne ploče' );
+if ( $reader ) {
+	wp_set_current_user( $reader[0]->ID );
+	$mi = wp_get_ability( 'ol-radar/radar-indeks' )->execute( array() );
+	$ma = wp_get_ability( 'ol-radar/radar-indeks' )->execute( array( 'sve' => true, 'limit' => 20 ) );
+	$mz = wp_get_ability( 'ol-radar/radar-pozicije' )->execute( array( 'konkurenti' => true ) );
+	$ms = wp_get_ability( 'ol-radar/radar-stanje' )->execute( array() );
+	ok( 5 === count( $mi['stranice'] ) && 3 === $mi['sazetak']['nije'] && 20 === count( $ma['stranice'] ) && ! isset( $mi['sazetak']['stranice'] ), 'mcp: radar-indeks (zadano samo stranice s problemom)' );
+	ok( isset( $mz['kretanje_konkurenata']['domene'][0]['udio'] ) && true === $mz['rijeci'][0]['ai_pregled']['ima'] && isset( $ms['indeks']['u_indeksu'], $ms['prijedlozi']['ucinak']['mjeri_se'] ) && strlen( wp_json_encode( $ms ) ) < 6000, 'mcp: radar-pozicije s AI pregledom i kretanjem konkurenata; radar-stanje s indeksom i učinkom' );
+	wp_set_current_user( $admin[0]->ID );
+}
+
 // Vrati osnovne Google podatke (ostali testovi računaju s njima); prijedlozi ostaju za test ploče.
 delete_option( 'olr_test_gsc_extra' );
 OLR_GSC::collect();

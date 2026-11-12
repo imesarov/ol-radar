@@ -15,6 +15,8 @@ class OLR_DFS {
 	const API          = 'https://api.dataforseo.com/v3/';
 	const PENDING      = 'olr_rank_pending';
 	const PRICE_PAGE   = 0.0006;
+	/** Doplata po riječi kad se traže i AI pregledi koji se učitavaju naknadno (naplaćuje se samo kad takav postoji). */
+	const PRICE_AIO    = 0.0006;
 	const MAX_KEYWORDS = 100;
 	const MAX_RUNS     = 26;
 
@@ -45,7 +47,8 @@ class OLR_DFS {
 	/** Procjena troška jednog mjerenja u USD. */
 	public static function estimate() {
 		$pages = (int) ceil( max( 10, (int) OLR_Settings::get( 'rank_depth' ) ) / 10 );
-		return round( count( self::keywords() ) * $pages * self::PRICE_PAGE, 4 );
+		$n     = count( self::keywords() );
+		return round( $n * $pages * self::PRICE_PAGE + ( OLR_Settings::get( 'rank_aio_async' ) ? $n * self::PRICE_AIO : 0 ), 4 );
 	}
 
 	private static function request( $method, $path, $body = null ) {
@@ -108,8 +111,12 @@ class OLR_DFS {
 			return new WP_Error( 'olr_dfs_rijeci', 'Popis ciljanih riječi je prazan.' );
 		}
 		$run_id = gmdate( 'Ymd-His' );
+		if ( OLR_Store::get( 'rank_run', $run_id ) ) {
+			$run_id .= '-' . wp_rand( 10, 99 ); // dva mjerenja u istoj sekundi ne smiju pregaziti jedno drugo
+		}
 		$device = 'mobile' === OLR_Settings::get( 'rank_device' ) ? 'mobile' : 'desktop';
 		$tasks  = array();
+		$aio    = (bool) OLR_Settings::get( 'rank_aio_async' );
 		foreach ( $kws as $i => $kw ) {
 			$tasks[] = array(
 				'keyword'       => $kw,
@@ -120,6 +127,10 @@ class OLR_DFS {
 				'depth'         => max( 10, min( 100, (int) OLR_Settings::get( 'rank_depth' ) ) ),
 				'tag'           => 'olr|' . $run_id . '|' . $i,
 			);
+			if ( $aio ) {
+				// AI pregled koji Google učitava naknadno; bez ovoga stižu samo oni koji su odmah u rezultatu.
+				$tasks[ count( $tasks ) - 1 ]['load_async_ai_overview'] = true;
+			}
 		}
 		$j = self::request( 'POST', 'serp/google/organic/task_post', $tasks );
 		if ( is_wp_error( $j ) ) {
@@ -190,16 +201,64 @@ class OLR_DFS {
 		return $d === $own || substr( $d, -strlen( '.' . $own ) ) === '.' . $own;
 	}
 
-	/** Iz jednog rezultata: naša pozicija, URL i top 20 organskih rezultata. */
+	/** Domena bez „www.” iz adrese ili naziva domene. */
+	public static function host( $url ) {
+		$h = false !== strpos( (string) $url, '/' ) ? wp_parse_url( (string) $url, PHP_URL_HOST ) : (string) $url;
+		return $h ? preg_replace( '/^www\./', '', strtolower( $h ) ) : '';
+	}
+
+	/**
+	 * Googleov AI pregled (AI Overview) iz organskog rezultata: postoji li, je li učitan i koje izvore citira.
+	 * Izvori su i na razini cijelog pregleda i uz pojedine odlomke; ovdje se spajaju u popis domena.
+	 */
+	public static function parse_aio( $it ) {
+		$refs = array();
+		$add  = static function ( $list ) use ( &$refs ) {
+			foreach ( is_array( $list ) ? $list : array() as $r ) {
+				if ( ! is_array( $r ) ) {
+					continue;
+				}
+				$u = isset( $r['url'] ) && is_string( $r['url'] ) ? $r['url'] : '';
+				$h = self::host( '' !== $u ? $u : ( isset( $r['domain'] ) ? (string) $r['domain'] : '' ) );
+				if ( '' !== $h && ! isset( $refs[ $h ] ) ) {
+					$refs[ $h ] = $u;
+				}
+			}
+		};
+		$add( isset( $it['references'] ) ? $it['references'] : array() );
+		foreach ( isset( $it['items'] ) && is_array( $it['items'] ) ? $it['items'] : array() as $el ) {
+			$add( is_array( $el ) && isset( $el['references'] ) ? $el['references'] : array() );
+		}
+		$ours = null;
+		foreach ( $refs as $h => $u ) {
+			if ( self::is_ours( $h ) ) {
+				$ours = '' !== $u ? $u : $h;
+				break;
+			}
+		}
+		return array(
+			'ima'         => true,
+			'ucitan'      => (bool) $refs || ! empty( $it['markdown'] ) || ! empty( $it['items'] ),
+			'mi'          => null !== $ours,
+			'nasa_adresa' => $ours,
+			'izvori'      => array_slice( array_keys( $refs ), 0, 8 ),
+		);
+	}
+
+	/** Iz jednog rezultata: naša pozicija, URL, top 20 organskih rezultata i AI pregled. */
 	public static function parse_result( $result ) {
 		$pos   = null;
 		$url   = null;
 		$top   = array();
 		$local = false;
+		$aio   = null;
 		foreach ( (array) ( isset( $result['items'] ) ? $result['items'] : array() ) as $it ) {
 			$type = isset( $it['type'] ) ? $it['type'] : '';
 			if ( 'local_pack' === $type ) {
 				$local = true;
+			}
+			if ( 'ai_overview' === $type && is_array( $it ) ) {
+				$aio = self::parse_aio( $it );
 			}
 			if ( 'organic' !== $type ) {
 				continue;
@@ -219,11 +278,22 @@ class OLR_DFS {
 				);
 			}
 		}
+		// Google pokazuje AI pregled, ali ga nije isporučio odmah (učitava se naknadno): znamo da postoji, ne i izvore.
+		if ( null === $aio && isset( $result['item_types'] ) && is_array( $result['item_types'] ) && in_array( 'ai_overview', $result['item_types'], true ) ) {
+			$aio = array(
+				'ima'         => true,
+				'ucitan'      => false,
+				'mi'          => false,
+				'nasa_adresa' => null,
+				'izvori'      => array(),
+			);
+		}
 		return array(
 			'pos'        => $pos,
 			'url'        => $url,
 			'top'        => $top,
 			'lokalni'    => $local,
+			'aio'        => $aio,
 			'provjereno' => isset( $result['datetime'] ) ? $result['datetime'] : null,
 		);
 	}
@@ -305,6 +375,8 @@ class OLR_DFS {
 				'prev'    => array_key_exists( $id, $prev ) ? $prev[ $id ] : null,
 				'url'     => $res ? $res['url'] : null,
 				'lokalni' => $res ? ! empty( $res['lokalni'] ) : false,
+				// AI pregled: null = u ovom rezultatu ga nema; inače ima li ga, je li učitan i citira li nas.
+				'aio'     => $res && ! empty( $res['aio'] ) ? $res['aio'] : null,
 				'checked' => (bool) $res && empty( $res['greska'] ),
 			);
 			if ( $res && ! empty( $res['top'] ) ) {
@@ -329,6 +401,10 @@ class OLR_DFS {
 			// 0 = nije pronađen u rezultatima; null = nije mjereno.
 			array_unshift( $old, $r['checked'] ? ( null === $r['pos'] ? 0 : $r['pos'] ) : null );
 			$hist['by'][ $r['id'] ] = array_slice( $old, 0, self::MAX_RUNS );
+			// Povijest AI pregleda: 0 = nema ga, 1 = ima ga, 2 = ima ga i citira nas, null = nije mjereno.
+			$olda = isset( $hist['aio'][ $r['id'] ] ) ? $hist['aio'][ $r['id'] ] : array_fill( 0, count( $hist['runs'] ) - 1, null );
+			array_unshift( $olda, $r['checked'] ? ( $r['aio'] ? ( ! empty( $r['aio']['mi'] ) ? 2 : 1 ) : 0 ) : null );
+			$hist['aio'][ $r['id'] ] = array_slice( $olda, 0, self::MAX_RUNS );
 		}
 		foreach ( $hist['by'] as $id => $vals ) {
 			if ( count( $vals ) < count( $hist['runs'] ) ) {
@@ -336,8 +412,15 @@ class OLR_DFS {
 				$hist['by'][ $id ] = array_slice( $vals, 0, self::MAX_RUNS );
 			}
 		}
+		foreach ( isset( $hist['aio'] ) ? $hist['aio'] : array() as $id => $vals ) {
+			if ( count( $vals ) < count( $hist['runs'] ) ) {
+				array_unshift( $vals, null );
+				$hist['aio'][ $id ] = array_slice( $vals, 0, self::MAX_RUNS );
+			}
+		}
 		$hist['runs'] = array_slice( $hist['runs'], 0, self::MAX_RUNS );
 		OLR_Store::set( 'rank', 'hist', $hist );
+		self::competitors( true );
 		OLR_Store::set(
 			'rank',
 			'latest',
@@ -358,6 +441,214 @@ class OLR_DFS {
 			)
 		);
 		OLR_Settings::set_status( 'rank', true, 'mjereno ' . $label . ' UTC: ' . $found . ' od ' . count( $rows ) . ' riječi pronađeno', array( 'zadnje' => $run['pocetak'] ) );
+	}
+
+	/** Očekivani udio klikova za poziciju (opća krivulja), za usporedbu vidljivosti domena. */
+	private static function ctr( $pos ) {
+		$p = (int) $pos;
+		if ( $p < 1 ) {
+			return 0.0;
+		}
+		return $p <= 10 ? OLR_Analiza::CTR[ $p ] : ( $p <= 20 ? 0.008 : 0.002 );
+	}
+
+	/** Po domeni za jedno mjerenje: broj riječi u top 3, 10 i 20, zbroj očekivanih klikova i najbolja pozicija po riječi. */
+	private static function run_domains( $run ) {
+		$dom = array();
+		foreach ( isset( $run['zadaci'] ) ? (array) $run['zadaci'] : array() as $task_id => $kw ) {
+			$res = isset( $run['rezultati'][ $task_id ] ) ? $run['rezultati'][ $task_id ] : null;
+			if ( ! $res || empty( $res['top'] ) ) {
+				continue;
+			}
+			$seen = array();
+			foreach ( $res['top'] as $t ) {
+				$h = self::host( isset( $t['url'] ) ? $t['url'] : '' );
+				if ( '' === $h || isset( $seen[ $h ] ) ) {
+					continue; // po riječi se računa samo najbolji rezultat domene
+				}
+				$seen[ $h ] = true;
+				$pos        = (int) $t['pos'];
+				if ( ! isset( $dom[ $h ] ) ) {
+					$dom[ $h ] = array( 'n3' => 0, 'n10' => 0, 'n20' => 0, 'vid' => 0.0, 'kw' => array() );
+				}
+				$dom[ $h ]['n3']      += $pos <= 3 ? 1 : 0;
+				$dom[ $h ]['n10']     += $pos <= 10 ? 1 : 0;
+				$dom[ $h ]['n20']     += $pos <= 20 ? 1 : 0;
+				$dom[ $h ]['vid']     += self::ctr( $pos );
+				$dom[ $h ]['kw'][ $kw ] = array( $pos, $t['url'] );
+			}
+		}
+		return $dom;
+	}
+
+	/**
+	 * Kretanje konkurenata iz naših mjerenja: po domeni broj riječi u top 3 i top 10 te udio vidljivosti
+	 * (procjena udjela klikova među izmjerenim riječima, bez volumena pretraga), sada i u prethodnom mjerenju,
+	 * te po riječi tko je ušao u top 10, tko je ispao i tko nas je pretekao.
+	 *
+	 * @param bool $rebuild Izračunaj iznova (nakon novog mjerenja); inače vrati spremljeno ili izračunaj ako ga nema.
+	 * @return array|null
+	 */
+	public static function competitors( $rebuild = false ) {
+		if ( ! $rebuild ) {
+			$doc = OLR_Store::data( 'rank', 'konkurenti' );
+			if ( $doc ) {
+				return $doc;
+			}
+		}
+		$runs = array();
+		foreach ( OLR_Store::latest_docs( 'rank_run', 12 ) as $d ) {
+			if ( is_array( $d['data'] ) && ! empty( $d['data']['gotovo'] ) && ! empty( $d['data']['rezultati'] ) && count( $runs ) < 8 ) {
+				$runs[] = $d['data'];
+			}
+		}
+		if ( ! $runs ) {
+			return null;
+		}
+		$per    = array();
+		$total  = array();
+		$labels = array();
+		foreach ( $runs as $i => $run ) {
+			$per[ $i ]   = self::run_domains( $run );
+			$total[ $i ] = 0.0;
+			foreach ( $per[ $i ] as $d ) {
+				$total[ $i ] += $d['vid'];
+			}
+			$labels[] = gmdate( 'Y-m-d H:i', strtotime( $run['pocetak'] ) );
+		}
+		$share = static function ( $i, $h ) use ( $per, $total ) {
+			return isset( $per[ $i ][ $h ] ) && $total[ $i ] > 0 ? round( 100 * $per[ $i ][ $h ]['vid'] / $total[ $i ], 1 ) : 0.0;
+		};
+		$now   = $per[0];
+		$prev  = isset( $per[1] ) ? $per[1] : null;
+		$list  = array();
+		$names = array_keys( $now );
+		if ( $prev ) {
+			foreach ( $prev as $h => $p ) {
+				if ( ! isset( $now[ $h ] ) && $p['n10'] > 0 ) {
+					$names[] = $h; // bila je u top 10, sada je nema ni u top 20
+				}
+			}
+		}
+		foreach ( $names as $h ) {
+			$d     = isset( $now[ $h ] ) ? $now[ $h ] : array( 'n3' => 0, 'n10' => 0, 'n20' => 0, 'vid' => 0.0, 'kw' => array() );
+			$p     = $prev && isset( $prev[ $h ] ) ? $prev[ $h ] : null;
+			$trend = array();
+			foreach ( array_keys( $per ) as $i ) {
+				$trend[] = $share( $i, $h );
+			}
+			$words = array();
+			foreach ( $d['kw'] as $kw => $v ) {
+				$words[] = array(
+					'rijec' => $kw,
+					'pos'   => $v[0],
+					'prije' => $p && isset( $p['kw'][ $kw ] ) ? $p['kw'][ $kw ][0] : null,
+					'url'   => $v[1],
+				);
+			}
+			usort(
+				$words,
+				static function ( $a, $b ) {
+					return $a['pos'] <=> $b['pos'];
+				}
+			);
+			$list[] = array(
+				'domena'   => $h,
+				'nasa'     => self::is_ours( $h ),
+				'top3'     => $d['n3'],
+				'top10'    => $d['n10'],
+				'top20'    => $d['n20'],
+				'udio'     => $share( 0, $h ),
+				'prije'    => $prev ? array(
+					'top3'  => $p ? $p['n3'] : 0,
+					'top10' => $p ? $p['n10'] : 0,
+					'udio'  => $share( 1, $h ),
+				) : null,
+				'promjena' => $prev ? round( $share( 0, $h ) - $share( 1, $h ), 1 ) : null,
+				'trend'    => $trend,
+				'rijeci'   => array_slice( $words, 0, 6 ),
+			);
+		}
+		usort(
+			$list,
+			static function ( $a, $b ) {
+				return ( $b['udio'] <=> $a['udio'] ) ?: ( $b['top10'] <=> $a['top10'] ) ?: strcmp( $a['domena'], $b['domena'] );
+			}
+		);
+		// Po riječi: tko je ušao u top 10, tko je ispao i tko nas je pretekao od prethodnog mjerenja.
+		$changes = array();
+		if ( $prev ) {
+			$top = static function ( $run ) {
+				$out = array();
+				foreach ( (array) $run['zadaci'] as $task_id => $kw ) {
+					$res = isset( $run['rezultati'][ $task_id ] ) ? $run['rezultati'][ $task_id ] : null;
+					if ( ! $res || empty( $res['top'] ) ) {
+						continue;
+					}
+					$out[ $kw ] = array( 'nas' => isset( $res['pos'] ) ? $res['pos'] : null, 'dom' => array() );
+					foreach ( $res['top'] as $t ) {
+						$h = OLR_DFS::host( $t['url'] );
+						if ( '' !== $h && ! isset( $out[ $kw ]['dom'][ $h ] ) ) {
+							$out[ $kw ]['dom'][ $h ] = (int) $t['pos'];
+						}
+					}
+				}
+				return $out;
+			};
+			$a = $top( $runs[0] );
+			$b = $top( $runs[1] );
+			foreach ( $a as $kw => $cur ) {
+				if ( ! isset( $b[ $kw ] ) ) {
+					continue;
+				}
+				$old = $b[ $kw ];
+				$in  = array();
+				$out = array();
+				$ovt = array();
+				foreach ( $cur['dom'] as $h => $pos ) {
+					if ( self::is_ours( $h ) ) {
+						continue;
+					}
+					$was = isset( $old['dom'][ $h ] ) ? $old['dom'][ $h ] : null;
+					if ( $pos <= 10 && ( null === $was || $was > 10 ) ) {
+						$in[] = array( 'domena' => $h, 'pos' => $pos, 'prije' => $was );
+					}
+					// Pretekli nas: sada su iznad nas, a prije su bili ispod (ili ih nije bilo); vrijedi i kad smo mi ispali.
+					if ( null !== $old['nas'] && ( null === $was || $was > $old['nas'] ) && ( null === $cur['nas'] ? $pos <= 10 : $pos < $cur['nas'] ) ) {
+						$ovt[] = array( 'domena' => $h, 'pos' => $pos, 'prije' => $was );
+					}
+				}
+				foreach ( $old['dom'] as $h => $was ) {
+					if ( self::is_ours( $h ) || $was > 10 ) {
+						continue;
+					}
+					$pos = isset( $cur['dom'][ $h ] ) ? $cur['dom'][ $h ] : null;
+					if ( null === $pos || $pos > 10 ) {
+						$out[] = array( 'domena' => $h, 'pos' => $pos, 'prije' => $was );
+					}
+				}
+				if ( $in || $out || $ovt ) {
+					$changes[] = array(
+						'rijec'    => $kw,
+						'nas'      => $cur['nas'],
+						'nas_prije' => $old['nas'],
+						'usli'     => $in,
+						'ispali'   => $out,
+						'pretekli' => $ovt,
+					);
+				}
+			}
+		}
+		$doc = array(
+			'at'       => time() * 1000,
+			'mjerenja' => $labels,
+			'rijeci'   => count( isset( $runs[0]['zadaci'] ) ? (array) $runs[0]['zadaci'] : array() ),
+			'domene'   => array_slice( $list, 0, 40 ),
+			'promjene' => $changes,
+			'napomena' => 'Udio je procjena udjela klikova među izmjerenim riječima po poziciji (opća krivulja), bez volumena pretraga. Po riječi se računa najbolji rezultat domene.',
+		);
+		OLR_Store::set( 'rank', 'konkurenti', $doc );
+		return $doc;
 	}
 
 	/** Tjedni raspored: nedjelja od 22 h po lokalnom vremenu, ili nadoknada ako je prošlo više od 8 dana. */

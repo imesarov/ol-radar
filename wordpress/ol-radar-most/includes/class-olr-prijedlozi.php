@@ -129,6 +129,8 @@ class OLR_Prijedlozi {
 			$st            = isset( $states[ $p['id'] ] ) ? $states[ $p['id'] ] : array();
 			$p['stanje']   = isset( $st['stanje'] ) ? $st['stanje'] : 'novo';
 			$p['stanje_at'] = isset( $st['at'] ) ? (int) $st['at'] : null;
+			// Dan provedbe koji je vlasnik upisao (ako se razlikuje od dana kad je kliknuo „provedeno”).
+			$p['stanje_dan'] = isset( $st['dan'] ) && is_string( $st['dan'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $st['dan'] ) ? $st['dan'] : null;
 			$p['biljeska'] = isset( $st['biljeska'] ) ? (string) $st['biljeska'] : '';
 			$out[]         = $p;
 		}
@@ -204,6 +206,15 @@ class OLR_Prijedlozi {
 					'koraci' => array( 'Dodaj temu u planer sadržaja.', 'Napiši stranicu koja izravno odgovara na upit.', 'Poveži je internim linkovima s povezanih stranica.' ),
 				);
 			default:
+				if ( isset( $d['kod'] ) && in_array( $d['kod'], array( 'nije_u_indeksu', 'druga_kanonska' ), true ) ) {
+					return array(
+						'naslov' => $d['opis'] . ': ' . $c['put'],
+						'zasto'  => 'Googleova provjera indeksiranosti (' . $d['provjereno'] . '): ' . $d['detalj'] . '.',
+						'koraci' => 'nije_u_indeksu' === $d['kod']
+							? array( 'Otvori stranicu u Search Consoleu (Pregled URL-a) i pogledaj razlog koji Google navodi.', 'Ukloni prepreku: oznaku noindex, blokadu u robots.txt, preusmjeravanje ili grešku servera.', 'Provjeri da na stranicu vode interni linkovi i da je u sitemapu, pa u Search Consoleu zatraži indeksiranje.' )
+							: array( 'Usporedi ovu stranicu s adresom koju je Google odabrao: ako su gotovo iste, spoji ih ili jasno razdvoji sadržaj.', 'Provjeri kanonsku oznaku na obje stranice.', 'Interne linkove usmjeri na adresu koja treba biti u indeksu.' ),
+					);
+				}
 				if ( ! empty( $d['broj'] ) ) {
 					return array(
 						'naslov' => rtrim( $d['opis'], '.' ) . ' – ' . $d['broj'] . ' stranica',
@@ -785,7 +796,12 @@ class OLR_Prijedlozi {
 			}
 		}
 		$items = array();
+		$uc    = OLR_Ucinak::docs();
 		foreach ( $all as $p ) {
+			if ( 'provedeno' === $p['stanje'] ) {
+				$p['provedeno_dana'] = OLR_Ucinak::date_of( $p );
+				$p['mjerenje']       = isset( $uc[ $p['id'] ] ) ? $uc[ $p['id'] ] : null;
+			}
 			$keep = 'svi' === $filter
 				|| ( 'otvoreni' === $filter && self::is_open( $p ) )
 				|| ( in_array( $filter, self::STANJA, true ) && $p['stanje'] === $filter && empty( $p['isteklo'] ) );
@@ -802,6 +818,7 @@ class OLR_Prijedlozi {
 			'otvorenih' => $open,
 			'ceka_tekst' => $wait,
 			'pise_se'   => $wait > 0 && self::writing(),
+			'ucinak'    => OLR_Ucinak::counts( $uc ),
 			'ukupno'    => count( $all ),
 			'stavke'    => $items,
 			'zadnje'    => $run,

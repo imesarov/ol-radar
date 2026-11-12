@@ -369,7 +369,7 @@ class OLR_Analiza {
 		} else {
 			$notes[] = 'Google podaci još nisu preuzeti, pa analiza koristi samo crawl weba i pozicije.';
 		}
-		$out = array_merge( $out, self::rule_rank(), self::rule_audit() );
+		$out = array_merge( $out, self::rule_rank(), self::rule_audit(), self::rule_index() );
 		usort(
 			$out,
 			static function ( $a, $b ) {
@@ -685,6 +685,55 @@ class OLR_Analiza {
 				$d['nalaz'] = 'u rezultatu je druga stranica nego ona koju Search Console pokazuje za isti upit';
 				$out[]      = self::cand( 'pozicije', 'url|' . $k, $gurl, $r['kw'], 2, $d, array( 'ucinak_opis' => 'nije procjena klikova; stavka je označena jer Google koleba između dviju stranica' ) );
 			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Indeksiranost (Googleov URL Inspection): stranica koja bi trebala biti u indeksu, a nije, ili je Google
+	 * kao kanonsku odabrao drugu adresu. Stranice mijenjane u zadnjih 7 dana se preskaču (Google ih još obrađuje).
+	 */
+	private static function rule_index() {
+		$out  = array();
+		$impr = array();
+		$pg   = OLR_Store::data( 'gsc', 'pages', array() );
+		foreach ( isset( $pg['rows'] ) ? $pg['rows'] : array() as $r ) {
+			$impr[ self::path( $r[0] ) ] = (int) $r[2];
+		}
+		foreach ( OLR_Indeks::docs() as $d ) {
+			if ( ! empty( $d['greska'] ) || empty( $d['problem'] ) ) {
+				continue;
+			}
+			$row = self::page_row( $d['url'] );
+			if ( ! $row || self::is_noindex( $row ) ) {
+				continue;
+			}
+			$none = 'nije' === $d['problem'];
+			$days = self::days_since_modified( $row );
+			if ( $none && null !== $days && $days < 7 ) {
+				self::note( 'indeks_svjeze', 'Stranice mijenjane u zadnjih 7 dana koje još nisu u indeksu ne ulaze u prijedloge; Google ih obično obradi za nekoliko dana.' );
+				continue;
+			}
+			$path  = self::path( $d['url'] );
+			$kod   = $none ? 'nije_u_indeksu' : 'druga_kanonska';
+			$visit = ! empty( $d['zadnji_posjet'] ) ? substr( $d['zadnji_posjet'], 0, 10 ) : '';
+			$out[] = self::cand(
+				'tehnicki',
+				$kod . '|' . $path,
+				$d['url'],
+				'',
+				( $none ? 14 : 5 ) + min( 10, ( isset( $impr[ $path ] ) ? $impr[ $path ] : 0 ) * 0.01 ),
+				array(
+					'kod'            => $kod,
+					'ozbiljnost'     => $none ? 'visoka' : 'srednja',
+					'opis'           => $none ? 'Stranica nije u Googleovu indeksu' : 'Google je kao kanonsku odabrao drugu adresu',
+					'detalj'         => $d['razlog'] . ( '' !== $visit ? ' · zadnji posjet Googlebota ' . $visit : ' · Googlebot stranicu još nije posjetio' ),
+					'google_stanje'  => isset( $d['stanje_google'] ) ? $d['stanje_google'] : '',
+					'provjereno'     => gmdate( 'Y-m-d', (int) ( $d['at'] / 1000 ) ),
+					'search_console' => isset( $d['link'] ) ? $d['link'] : '',
+				),
+				array( 'ucinak_opis' => 'nije procjena klikova; stranica koje nema u indeksu ne može dobiti promet s Googlea' )
+			);
 		}
 		return $out;
 	}
