@@ -7,7 +7,7 @@ Stanje 13. 11. 2026. (00:20):
   - Google podaci stižu, prvo mjerenje pozicija je obavljeno (12 od 27 riječi u prvih 40; 0,0648 $), indeksiranost se provjerava (sve provjerene stranice su u indeksu).
   - Prijedlozi: 5 ukupno, 0 otvorenih, 0 čeka tekst; 2 provedena se mjere.
   - Društvene mreže: pristupni podaci još nisu upisani (`kljucevi.meta`, `youtube`, `tiktok` su `false`).
-  - Tjedno mjerenje pozicija: Ivan ga želi (12. 11.), ali kvačicu „Mjeri automatski jednom tjedno” mora uključiti sam u Postavkama. Provjera: `stanje.dfs.tjedno` mora biti `true`.
+  - **Tjedno mjerenje pozicija je uključeno** (Ivan ga je uključio 12. 11.; provjereno u 23:55: `stanje.dfs.tjedno` je `true`). Uključeni su i naknadno učitani AI pregledi; procjena je 0,081 $ po mjerenju, oko 0,35 $ mjesečno. Kretanje konkurenata ima što usporediti nakon drugog mjerenja.
 - **Verzija 2.4.0 je spremna i čeka da je Ivan učita** (izravno preko 2.3.0):
   - **Suradnje i poveznice:** kandidati za suradnju, Claudeovi prijedlozi (zašto, što ponuditi, koraci, nacrt poruke), javni kontakt, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata (vidi „Suradnje i poveznice” niže).
   - **Claude trošak** u Postavkama i u zaglavlju ploče.
@@ -15,7 +15,7 @@ Stanje 13. 11. 2026. (00:20):
 - Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.4.0, tri ključa `true`, `nadogradnja` `null`, `suradnje.kandidata` 20 (arhiva se uveze pri prvom čitanju), `stanje.ai.trosak`. Prvi tjedni prijedlozi suradnje stižu unutar nekoliko sati (satni prolaz), ili odmah gumbom „Napiši prijedloge”.
 - **Nije provjereno na stvarnim servisima:** društvene mreže (2.3.0), Anthropicova web pretraga i Ahrefsov javni DR (2.4.0). Sve je testirano prema lažnim odgovorima. Prvi stvarni prolaz treba pogledati zajedno (`stanje.izvori.suradnje`, `suradnje_trazi`, `suradnje_dr`, `mreze_*`).
 - Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
-- DataForSEO: prijava radi. Mjerenje pokreće samo Ivan (gumb ili tjedna kvačica); Claude ga ne pokreće.
+- DataForSEO: prijava radi (stanje računa 12. 11.: 0,94 $). Mjerenje pokreće samo Ivan (gumb ili tjedna kvačica); Claude ga ne pokreće.
 - OpenSEO tracker radi i arhiva Ahrefsa je gotova.
 
 ## GSC je glavni izvor, Ahrefs je samo arhiva (Ivan, 12. 11. 2026.)
