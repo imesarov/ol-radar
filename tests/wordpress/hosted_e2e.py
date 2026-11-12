@@ -134,6 +134,53 @@ async def main():
         okx = ex["gsc"] == "Google API" and ex["poz"] == 5
         print(("OK  " if okx else "FAIL") + " export/radar u bazi dodatka:", ex); bad += 0 if okx else 1
 
+        # prijedlozi bez Claudeova teksta: jasno piše da tekst još stiže (nije greška)
+        await fr.evaluate("location.hash='#prijedlozi'")
+        await pg.wait_for_timeout(400)
+        pw = await fr.evaluate("""(()=>{const it=S.prop.items.find(p=>p.stanje==='novo'&&!p.isteklo); const k=[it.ai,it.ai_pokusaja,S.prop.wait];
+            it.ai=false; it.ai_pokusaja=1; S.prop.wait=1; renderProp();
+            const r={card:document.querySelector('[data-prop="'+it.id+'"] .meta').textContent, meta:document.querySelector('#prop-meta').textContent};
+            it.ai_pokusaja=3; renderProp(); r.card3=document.querySelector('[data-prop="'+it.id+'"] .meta').textContent;
+            [it.ai,it.ai_pokusaja,S.prop.wait]=k; renderProp(); return r})()""")
+        okw = "tekst izmjene se još piše" in pw["card"] and "još se piše za 1 prijedlog" in pw["meta"] and "bez napisanog teksta" in pw["card3"]
+        print(("OK  " if okw else "FAIL") + " prijedlozi: bez teksta piše „tekst izmjene se još piše”, nakon 3 pokušaja „bez napisanog teksta”"); bad += 0 if okw else 1
+
+        # dok server dopisuje tekst u pozadini, ploča sama osvježava prijedloge (lagani poziv /prijedlozi)
+        pb = await fr.evaluate("""(async()=>{const d=await OLR_HOSTED.api('prijedlozi'); setProp(Object.assign({},d,{pise_se:true,ceka_tekst:2})); renderProp();
+            const r={n:d.stavke.length, timer:!!propPollTimer, meta:document.querySelector('#prop-meta').textContent};
+            clearTimeout(propPollTimer); propPollTimer=null; setProp(d); renderProp(); r.poslije=!!propPollTimer; return r})()""")
+        okb = pb["n"] >= 4 and pb["timer"] and not pb["poslije"] and "dopisuje u pozadini" in pb["meta"]
+        print(("OK  " if okb else "FAIL") + " prijedlozi: dok se tekst piše u pozadini, prikaz se osvježava sam"); bad += 0 if okb else 1
+
+        # pozicije: bez mjerenja je to napomena s objašnjenjem troška, ne greška ni vječno „učitavam”
+        await fr.evaluate("location.hash='#pozicije'")
+        await pg.wait_for_timeout(400)
+        em = await fr.evaluate("""(()=>{const keep=S.rank.rows; S.rank.rows=null; renderRank(); const t=document.querySelector('#rk-table'), b=document.querySelector('#btn-rank-run');
+            const r={note:t.querySelectorAll('.note').length, err:t.querySelectorAll('.err').length, load:t.querySelectorAll('.loading').length, txt:t.textContent, btn:b.textContent, hidden:b.hidden, dis:b.disabled};
+            S.rank.rows=keep; renderRank(); r.btn2=b.textContent; return r})()""")
+        oke0 = em["note"] == 1 and em["err"] == 0 and em["load"] == 0 and "još nisu izmjerene" in em["txt"] and "$" in em["txt"] and em["btn"] == "Izmjeri pozicije sada" and not em["hidden"] and not em["dis"] and em["btn2"] == "Novo mjerenje"
+        print(("OK  " if oke0 else "FAIL") + " pozicije: prazno stanje je napomena s cijenom i gumbom:", {k: em[k] for k in ("note", "err", "load", "btn", "btn2")}); bad += 0 if oke0 else 1
+        # gumb traži potvrdu troška: „Odustani” ne šalje ništa, „U redu” pokreće mjerenje na serveru
+        msgs = []
+        pg.once("dialog", lambda d: (msgs.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await fr.click("#btn-rank-run")
+        await pg.wait_for_timeout(700)
+        r0 = await fr.evaluate("OLR_HOSTED.api('podaci').then(d=>!!(d.rank&&d.rank.u_tijeku))")
+        pg.once("dialog", lambda d: (msgs.append(d.message), asyncio.ensure_future(d.accept())))
+        await fr.click("#btn-rank-run")
+        await fr.wait_for_function("S.rank.hosted && S.rank.hosted.pending && !S.rank.starting", timeout=20000)
+        r1 = await fr.evaluate("(()=>{const b=document.querySelector('#btn-rank-run');return {txt:b.textContent,dis:b.disabled,src:S.src.rank.msg}})()")
+        okm = len(msgs) == 2 and "DataForSEO" in msgs[0] and "$" in msgs[0] and not r0 and r1["dis"] and "u tijeku" in r1["txt"] and "u tijeku" in r1["src"]
+        print(("OK  " if okm else "FAIL") + " pozicije: mjerenje se pokreće tek nakon potvrde troška: " + msgs[0].split("\n")[0][:90]); bad += 0 if okm else 1
+        # rezultati se pokupe sami (ovdje ručno, da test ne čeka 20 s); gumb se vraća
+        for _ in range(4):
+            await fr.evaluate("hostedRefresh(['rank'])")
+            if not await fr.evaluate("S.rank.hosted.pending"):
+                break
+        r2 = await fr.evaluate("(()=>({pending:S.rank.hosted.pending, rows:(S.rank.rows||[]).length, runs:S.rank.hist?S.rank.hist.runs.length:0, btn:document.querySelector('#btn-rank-run').textContent, dis:document.querySelector('#btn-rank-run').disabled}))()")
+        okm2 = not r2["pending"] and r2["rows"] == 5 and r2["runs"] == 3 and r2["btn"] == "Novo mjerenje" and not r2["dis"]
+        print(("OK  " if okm2 else "FAIL") + " pozicije: novo mjerenje završeno i prikazano:", r2); bad += 0 if okm2 else 1
+
         # postavke: gumb "Spremi i provjeri" sprema upisani ključ pa ga provjerava
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
         await pg.fill("#dfs_login", "ivan@test.hr")
@@ -149,6 +196,9 @@ async def main():
         msg = await pg.inner_text(".notice")
         oka = "Anthropic ključ spremljen" in msg and "Ključ radi" in msg
         print(("OK  " if oka else "FAIL") + " spremi i provjeri Claude ključ: " + msg[:120]); bad += 0 if oka else 1
+        stt = await pg.evaluate("[...document.querySelectorAll('table.widefat tr')].map(r=>r.innerText.replace(/\\s+/g,' ')).filter(t=>t.includes('Zadnja provjera')).join(' | ')")
+        okst = "Zadnja provjera DataForSEO prijave ● Prijava radi" in stt and "Zadnja provjera Claude ključa ● Ključ radi" in stt
+        print(("OK  " if okst else "FAIL") + " ishod provjere ostaje zapisan u stanju izvora: " + stt[:160]); bad += 0 if okst else 1
         # "Spremi postavke" i Enter u polju ne smiju dirati spremljene ključeve (greška iz 2.0.0: ugniježđeni obrazac "obriši")
         async def kljucevi():
             return await pg.evaluate("[...document.querySelectorAll('button[name=olr_forget]')].map(b=>b.value).sort().join(',')")

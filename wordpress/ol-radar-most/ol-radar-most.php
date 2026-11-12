@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       OL Radar – most za Claudea
  * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba samo čita, ne mijenja ga.
- * Version:           2.1.0
+ * Version:           2.1.1
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.1.0' );
+define( 'OLR_VERSION', '2.1.1' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -72,6 +72,8 @@ register_activation_hook( __FILE__, 'olr_activate' );
 function olr_deactivate() {
 	wp_clear_scheduled_hook( OLR_CRON );
 	wp_clear_scheduled_hook( OLR_RADAR_CRON );
+	wp_clear_scheduled_hook( 'olr_prijedlozi_event' );
+	wp_clear_scheduled_hook( 'olr_prijedlozi_tekst' );
 }
 register_deactivation_hook( __FILE__, 'olr_deactivate' );
 
@@ -132,6 +134,9 @@ add_action(
 		}
 		if ( OLR_Prijedlozi::due() ) {
 			OLR_Prijedlozi::run( 'auto' );
+		} elseif ( OLR_Prijedlozi::fill_due() ) {
+			// Otvoreni prijedlozi kojima još nije napisan tekst (npr. prekinut poziv): novi pokušaj.
+			OLR_Prijedlozi::run( 'tekst' );
 		}
 	}
 );

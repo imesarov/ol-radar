@@ -1,5 +1,17 @@
 # Promjene
 
+## 2026-11-12 (kasno navečer)
+- **Dodatak 2.1.1** (popravci nakon prvog dana rada 2.1.0 na webu).
+  - **Claudeov tekst prijedloga nije stizao.** Jedan poziv za svih pet prijedloga prekinut je zbog duljine (`max_tokens`), pa odgovor nije bio čitljiv. Sada je to jedan kratak poziv po prijedlogu s prisilnim pozivom alata `spremi_prijedlog` (`tool_choice`); ako API takav poziv odbije ili vrati nečitljivo, slijedi jedan pokušaj s običnim JSON odgovorom. Svaki se prijedlog sprema odmah. Što ne uspije, pokušava se ponovno pri satnom prolazu (`fill_due()`), najviše tri puta po prijedlogu. Kvar mreže ili ključa prekida prolaz bez trošenja pokušaja.
+  - **„Analiziraj sada” više ne drži preglednik.** Ručna analiza vraća prijedloge odmah i piše tekst najviše 20 s; ostatak se dopisuje u pozadini (`olr_prijedlozi_tekst`), a ploča se sama osvježava laganim pozivom `GET /prijedlozi`. Ako hosting prekine dugi zahtjev, ploča provjeri je li analiza ipak završila prije nego što javi grešku.
+  - **DataForSEO „ne radi”.** Mjerenje nikad nije bilo pokrenuto, a ploča je pokazivala „učitavam…” i crvenu poruku. Sada je stanje bez mjerenja napomena s objašnjenjem i cijenom, u modulu Pozicije je gumb „Izmjeri pozicije sada” (potvrda troška u pregledniku, server traži `potvrda=da`), a prikaz se sam osvježava svakih 20 s dok mjerenje traje.
+  - **Kvaliteta analize.** Upit mora biti o temi stranice (`OLR_Analiza::relevant()`: riječi upita po korijenu u naslovu, opisu, naslovima, fokus riječi ili adresi). Brend se prepoznaje po korijenu („ljiljan”). Nova postavka „Zanemari upite” (npr. „optika anda”). Stranica mijenjana u zadnjih 14 dana ne dobiva prijedlog naslova i opisa. Tjedni pad traži stvarno izgubljene klikove ili jasan pad pozicije uz dovoljno prikazivanja. Naslovnica i blog kao „stranica bez prave teme” samo kad je pozicija stvarno slaba. Najviše jedan otvoren prijedlog po stranici.
+  - **Usklađivanje postojećih prijedloga.** Novi prijedlog bez Claudeova teksta čiji nalaz više ne postoji označava se kao istekao; onaj čiji nalaz i dalje vrijedi dobiva svježe brojke.
+  - **Google podaci:** adrese s parametrima (`utm_*`, `rwg_token`) pribrajaju se pravoj stranici (klikovi i prikazivanja se zbrajaju, pozicija je prosjek po prikazivanjima).
+  - **Provjere veze:** ishod „Spremi i provjeri…” (Google, DataForSEO, Claude) ostaje zapisan u stanju izvora (`provjera_gsc`, `provjera_dfs`, `provjera_ai`).
+  - **MCP:** nova sposobnost `ol-radar/radar-stanje` (kratko stanje bez podataka, oko 1 kB), za provjeru nakon nadogradnje umjesto velikog sažetka.
+  - Testovi: `radar_test.php` 119 provjera, `hosted_e2e.py` 27.
+
 ## 2026-11-12 (navečer)
 - **Dodatak 2.1.0.**
   - **Dnevni prijedlozi izmjena.** `OLR_Analiza` iz spremljenih podataka izdvaja nalaze (nizak CTR na visokoj poziciji, upiti blizu vrha, kanibalizacija, tjedni pad, ciljane riječi, tehnički nalazi, upiti bez prave stranice). `OLR_Prijedlozi` bira najvažnije koji nemaju otvoren prijedlog, sprema ih i jednim pozivom Claudea dopunjava gotovim tekstom izmjene. Pokreće se sam nakon novih Google podataka, ručno gumbom „Analiziraj sada”. Modul Prijedlozi u ploči (stanja: novo, prihvaćeno, provedeno, odbijeno), traka na Pregledu, alat `prijedlozi` u chatu, MCP `ol-radar/radar-prijedlozi`.

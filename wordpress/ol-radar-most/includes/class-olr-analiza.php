@@ -27,12 +27,19 @@ class OLR_Analiza {
 	/** Kodovi audita iz kojih nastaje prijedlog (ostali su sitnice ili namjerne postavke). */
 	const AUDIT_KODOVI = array( 'http_greska', 'pokvaren_link', 'bez_naslova', 'bez_opisa', 'bez_h1', 'dupli_naslov', 'dupli_opis', 'canonical_drugi', 'mijesani_sadrzaj', 'bez_ulaznih_linkova' );
 
+	/** Stranica mijenjana u zadnjih toliko dana: brojke još opisuju stari naslov i opis. */
+	const SVJEZE_DANA = 14;
+
 	private static $pages = null;
 	private static $curve = null;
+	private static $sigs  = array();
+	private static $notes = array();
 
 	public static function reset() {
 		self::$pages = null;
 		self::$curve = null;
+		self::$sigs  = array();
+		self::$notes = array();
 	}
 
 	/* ---------- pomoćne ---------- */
@@ -46,19 +53,105 @@ class OLR_Analiza {
 		return function_exists( 'mb_strlen' ) ? mb_strlen( (string) $s, 'UTF-8' ) : strlen( (string) $s );
 	}
 
-	private static function brand_terms() {
-		$t = array_filter( array_map( array( 'OLR_DFS', 'lower' ), explode( ',', (string) OLR_Settings::get( 'brand' ) ) ) );
-		return $t ? array_values( $t ) : array( 'ljiljana' );
+	/** Mala slova bez dijakritike: „naočale” i „naocale” su isto. */
+	public static function norm( $s ) {
+		return strtolower( remove_accents( OLR_DFS::lower( (string) $s ) ) );
 	}
 
+	/** Korijen riječi (bez zadnja dva slova kod duljih), da se poklope padeži: naočale, naočala, naočalama. */
+	private static function stem( $w ) {
+		$n = strlen( $w );
+		return $n > 5 ? substr( $w, 0, $n - 2 ) : $w;
+	}
+
+	private static function terms( $key, $default = array() ) {
+		$t = array_filter( array_map( 'trim', array_map( array( __CLASS__, 'norm' ), explode( ',', (string) OLR_Settings::get( $key ) ) ) ) );
+		return $t ? array_values( $t ) : $default;
+	}
+
+	/** Upit s imenom tvrtke; uspoređuje se korijen, pa „ljiljana” pokriva i „ljiljan”. */
 	public static function is_brand( $query ) {
-		$q = OLR_DFS::lower( $query );
-		foreach ( self::brand_terms() as $t ) {
+		$q = self::norm( $query );
+		foreach ( self::terms( 'brand', array( 'ljiljana' ) ) as $t ) {
+			$t = strlen( $t ) >= 6 ? substr( $t, 0, strlen( $t ) - 1 ) : $t;
 			if ( '' !== $t && false !== strpos( $q, $t ) ) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** Upit s popisa „zanemari” (tuđe optike i slično). */
+	public static function is_ignored( $query ) {
+		$q = self::norm( $query );
+		foreach ( self::terms( 'zanemari' ) as $t ) {
+			if ( false !== strpos( $q, $t ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static function skip( $query ) {
+		return self::is_brand( $query ) || self::is_ignored( $query );
+	}
+
+	/** O čemu je stranica: naslov, opis, svi naslovi na stranici, fokus riječ i riječi iz adrese. */
+	private static function signature( $url ) {
+		$path = self::path( $url );
+		if ( isset( self::$sigs[ $path ] ) ) {
+			return self::$sigs[ $path ];
+		}
+		$row = self::page_row( $url );
+		$sig = '';
+		if ( $row ) {
+			$d   = is_array( $row->data ) ? $row->data : array();
+			$sig = ( isset( $d['naslov'] ) ? $d['naslov'] : '' ) . ' ' . ( isset( $d['opis'] ) ? $d['opis'] : '' ) . ' ' . ( ! empty( $d['h1'] ) ? implode( ' ', (array) $d['h1'] ) : '' );
+			foreach ( isset( $d['naslovi'] ) ? (array) $d['naslovi'] : array() as $h ) {
+				$sig .= ' ' . ( isset( $h['t'] ) ? $h['t'] : '' );
+			}
+			$rm   = OLR_Audit::rank_math( (int) $row->post_id );
+			$sig .= ' ' . ( $rm ? $rm['fokus'] : '' ) . ' ' . str_replace( array( '-', '/' ), ' ', $path );
+			$sig  = self::norm( $sig );
+		}
+		self::$sigs[ $path ] = $sig;
+		return $sig;
+	}
+
+	/**
+	 * Je li upit o onome o čemu je stranica: svaka riječ upita od 4 ili više slova mora se (korijenom)
+	 * naći u potpisu stranice. Tako „optika anda” (tuđa optika) ili „sunčane naočale” na naslovnici
+	 * ne postaju razlog za promjenu naslova.
+	 */
+	public static function relevant( $query, $url ) {
+		$sig = self::signature( $url );
+		if ( '' === $sig ) {
+			return false;
+		}
+		$n = 0;
+		foreach ( preg_split( '/[^a-z0-9]+/', self::norm( $query ) ) as $w ) {
+			if ( strlen( $w ) < 4 ) {
+				continue;
+			}
+			++$n;
+			if ( false === strpos( $sig, self::stem( $w ) ) ) {
+				return false;
+			}
+		}
+		return $n > 0;
+	}
+
+	/** Dana od zadnje izmjene stranice u WordPressu (null ako se ne zna). */
+	private static function days_since_modified( $row ) {
+		if ( ! $row || ! $row->post_id ) {
+			return null;
+		}
+		$t = get_post_modified_time( 'U', true, (int) $row->post_id );
+		return $t ? (int) floor( ( time() - (int) $t ) / DAY_IN_SECONDS ) : null;
+	}
+
+	private static function note( $key, $text ) {
+		self::$notes[ $key ] = $text;
 	}
 
 	/** Stranice iz crawla, po putanji (GSC i crawl mogu se razlikovati u www/http). */
@@ -115,6 +208,10 @@ class OLR_Analiza {
 		$out['rijeci'] = isset( $d['rijeci'] ) ? (int) $d['rijeci'] : 0;
 		$out['fokus']  = $rm ? (string) $rm['fokus'] : '';
 		$out['status'] = (int) $row->status;
+		$dm            = self::days_since_modified( $row );
+		if ( null !== $dm ) {
+			$out['izmijenjeno_prije_dana'] = $dm;
+		}
 		return $out;
 	}
 
@@ -144,7 +241,7 @@ class OLR_Analiza {
 		$qp  = OLR_Store::data( 'gsc', 'qp', array() );
 		$agg = array();
 		foreach ( isset( $qp['rows'] ) ? $qp['rows'] : array() as $r ) {
-			if ( self::is_brand( $r[0] ) ) {
+			if ( self::skip( $r[0] ) ) {
 				continue;
 			}
 			$p = max( 1, (int) round( $r[5] ) );
@@ -282,7 +379,7 @@ class OLR_Analiza {
 		return array(
 			'kandidati' => $out,
 			'gsc_do'    => $meta && ! empty( $meta['do'] ) ? $meta['do'] : null,
-			'napomene'  => $notes,
+			'napomene'  => array_merge( $notes, array_values( self::$notes ) ),
 		);
 	}
 
@@ -290,13 +387,19 @@ class OLR_Analiza {
 	private static function rule_ctr_and_gap( $rows ) {
 		$ctr = array();
 		$gap = array();
+		$fresh = array();
 		foreach ( $rows as $r ) {
 			list( $q, $page, $c, $i, $ratio, $pos ) = $r;
-			if ( self::is_brand( $q ) || $i < 30 ) {
+			// Samo upiti o onome o čemu je stranica; ostalo nije razlog za promjenu te stranice.
+			if ( self::skip( $q ) || $i < 30 || ! self::relevant( $q, $page ) ) {
 				continue;
 			}
 			$exp = self::expected_ctr( $pos );
-			if ( $pos <= 6.0 && $ratio < 0.5 * $exp ) {
+			$dm  = self::days_since_modified( self::page_row( $page ) );
+			if ( $pos <= 6.0 && $ratio < 0.5 * $exp && null !== $dm && $dm < self::SVJEZE_DANA ) {
+				// Stranica je nedavno mijenjana: CTR iz 28 dana još opisuje stari naslov i opis.
+				$fresh[ self::path( $page ) ] = 1;
+			} elseif ( $pos <= 6.0 && $ratio < 0.5 * $exp ) {
 				$missed = $i * ( 0.8 * $exp - $ratio );
 				if ( $missed >= 1.5 ) {
 					$ctr[ $page ][] = array(
@@ -322,6 +425,9 @@ class OLR_Analiza {
 					);
 				}
 			}
+		}
+		if ( $fresh ) {
+			self::note( 'svjeze', 'Naslov i opis nisu predloženi za ' . count( $fresh ) . ' stranica mijenjanih u zadnjih ' . self::SVJEZE_DANA . ' dana (' . implode( ', ', array_slice( array_keys( $fresh ), 0, 4 ) ) . '): brojke još opisuju staro stanje.' );
 		}
 		$out = array();
 		foreach ( array( 'ctr' => $ctr, 'prilika' => $gap ) as $vrsta => $by_page ) {
@@ -368,7 +474,7 @@ class OLR_Analiza {
 		$by = array();
 		foreach ( $rows as $r ) {
 			list( $q, $page, $c, $i, , $pos ) = $r;
-			if ( self::is_brand( $q ) ) {
+			if ( self::skip( $q ) ) {
 				continue;
 			}
 			$by[ $q ][] = array(
@@ -403,7 +509,10 @@ class OLR_Analiza {
 					return ( $b['klikovi'] <=> $a['klikovi'] ) ?: ( $a['pozicija'] <=> $b['pozicija'] );
 				}
 			);
-			$main  = $live[0];
+			$main = $live[0];
+			if ( ! self::relevant( $q, $main['url'] ) ) {
+				continue; // upit nije o onome o čemu je glavna stranica (npr. tuđa optika)
+			}
 			$out[] = self::cand(
 				'kanibal',
 				$q,
@@ -454,16 +563,22 @@ class OLR_Analiza {
 		$out = array();
 		foreach ( $wk['prev'] as $p ) {
 			list( $q, $pc, $pi, , $ppos ) = $p;
-			if ( self::is_brand( $q ) || $pi < 30 ) {
+			if ( self::skip( $q ) || $pi < 30 ) {
 				continue;
 			}
 			$c    = isset( $cur[ $q ] ) ? $cur[ $q ] : array( $q, 0, 0, 0, null );
 			$lost = $pc - $c[1];
 			$slip = null !== $c[4] ? $c[4] - $ppos : null;
-			if ( $lost < 3 && ! ( null !== $slip && $slip >= 3 && $c[2] >= 15 ) && ! ( $c[2] <= 0.5 * $pi && $lost >= 1 ) ) {
+			// Pad je ili stvarno izgubljeni klikovi (barem 3) ili osjetan pad pozicije na upitu s dovoljno prikazivanja.
+			$by_clicks = $pc >= 3 && $lost >= 3;
+			$by_pos    = $pi >= 60 && null !== $slip && $slip >= 3 && $c[2] >= 20;
+			if ( ! $by_clicks && ! $by_pos ) {
 				continue;
 			}
-			$page  = isset( $top[ $q ] ) ? $top[ $q ][1] : '';
+			$page = isset( $top[ $q ] ) ? $top[ $q ][1] : '';
+			if ( $page && self::page_row( $page ) && ! self::relevant( $q, $page ) ) {
+				continue;
+			}
 			$out[] = self::cand(
 				'pad',
 				$q,
@@ -487,7 +602,7 @@ class OLR_Analiza {
 		$by = array();
 		foreach ( $rows as $r ) {
 			list( $q, $page, $c, $i, , $pos ) = $r;
-			if ( self::is_brand( $q ) ) {
+			if ( self::skip( $q ) ) {
 				continue;
 			}
 			if ( ! isset( $by[ $q ] ) || $i > $by[ $q ]['i'] ) {

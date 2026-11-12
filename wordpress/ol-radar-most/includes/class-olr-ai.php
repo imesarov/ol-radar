@@ -123,6 +123,13 @@ class OLR_AI {
 			}
 			if ( $tools ) {
 				$body['tools'] = $tools;
+				// Prisilni poziv jednog alata: odgovor je tada uvijek strukturiran (koristi ga dnevna analiza).
+				if ( ! empty( $req['tool_choice']['name'] ) && in_array( $req['tool_choice']['name'], wp_list_pluck( $tools, 'name' ), true ) ) {
+					$body['tool_choice'] = array(
+						'type' => 'tool',
+						'name' => $req['tool_choice']['name'],
+					);
+				}
 			}
 		}
 		$json = wp_json_encode( $body );

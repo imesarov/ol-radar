@@ -190,6 +190,7 @@ class OLR_Radar_Admin {
 		if ( '' !== $brand ) {
 			$vals['brand'] = $brand;
 		}
+		$vals['zanemari'] = sanitize_text_field( (string) self::post( 'zanemari' ) );
 		OLR_Settings::update( $vals );
 		$msgs[] = 'Postavke spremljene.';
 		$then   = self::run_then( sanitize_key( (string) self::post( 'olr_then' ) ) );
@@ -252,16 +253,26 @@ class OLR_Radar_Admin {
 			case 'run_prijedlozi':
 				$r = OLR_Prijedlozi::run( 'rucno' );
 				if ( ! is_wp_error( $r ) ) {
-					$r = sprintf( 'Analiza gotova: %d nalaza, %d novih prijedloga.%s Otvori nadzornu ploču → Prijedlozi.', $r['kandidata'], $r['novih'], $r['novih'] && ! $r['ai_ok'] ? ' Tekst Claudea nije napisan: ' . $r['ai_poruka'] : '' );
+					$r = sprintf( 'Analiza gotova: %d nalaza, %d novih prijedloga.%s Otvori nadzornu ploču → Prijedlozi.', $r['kandidata'], $r['novih'], ! $r['ai_ok'] && $r['ai_poruka'] ? ' Tekst nije napisan za sve: ' . $r['ai_poruka'] : ( $r['tekstova'] ? ' Tekst napisan za ' . $r['tekstova'] . '.' : '' ) );
 				}
 				break;
 			default:
 				return null;
 		}
-		return array(
+		$out = array(
 			'ok'  => ! is_wp_error( $r ),
 			'msg' => is_wp_error( $r ) ? $r->get_error_message() : (string) $r,
 		);
+		// Ishod provjere ostaje zapisan (bez ključeva), da ga vide Postavke i Claude preko konektora.
+		$tests = array(
+			'test_gsc' => 'provjera_gsc',
+			'test_dfs' => 'provjera_dfs',
+			'test_ai'  => 'provjera_ai',
+		);
+		if ( isset( $tests[ $then ] ) ) {
+			OLR_Settings::set_status( $tests[ $then ], $out['ok'], $out['msg'] );
+		}
+		return $out;
 	}
 
 	private static function run_and_back( $then ) {
@@ -402,6 +413,9 @@ class OLR_Radar_Admin {
 					'gsc'        => 'Google Search Console',
 					'rank'       => 'Pozicije (DataForSEO)',
 					'prijedlozi' => 'Dnevni prijedlozi izmjena',
+					'provjera_gsc' => 'Zadnja provjera Google veze',
+					'provjera_dfs' => 'Zadnja provjera DataForSEO prijave',
+					'provjera_ai'  => 'Zadnja provjera Claude ključa',
 				);
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;
@@ -496,7 +510,11 @@ class OLR_Radar_Admin {
 					<tr><th scope="row"><label for="brand">Riječi brenda</label></th><td>
 						<input type="text" id="brand" name="brand" class="regular-text" value="<?php echo esc_attr( $s['brand'] ); ?>">
 						<p class="description">Odvojene zarezom. Upiti s tim riječima (npr. „optika ljiljana”) ne ulaze u analizu, jer za njih ionako rangiramo.</p>
-					</td></tr>
+						</td></tr>
+						<tr><th scope="row"><label for="zanemari">Zanemari upite s riječima</label></th><td>
+							<input type="text" id="zanemari" name="zanemari" class="regular-text" value="<?php echo esc_attr( $s['zanemari'] ); ?>" placeholder="npr. anda, dado">
+							<p class="description">Odvojene zarezom. Za upite koji nisu naši (imena drugih optika i slično). Analiza ionako uzima samo upite o onome o čemu je stranica; ovo je dodatni filtar.</p>
+						</td></tr>
 				</table>
 				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="run_prijedlozi">Spremi i izradi prijedloge sada</button></p>
 				<?php submit_button( 'Spremi postavke' ); ?>

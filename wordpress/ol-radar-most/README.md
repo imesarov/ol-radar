@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.1.0)
+# OL Radar – most za Claudea (v2.1.1)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -31,13 +31,20 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   - tehnički nalazi crawla s konkretnim popravkom;
   - upiti bez prave stranice (novi sadržaj).
 - **Brojke** u prijedlogu uvijek su iz podataka (Search Console, mjerenje pozicija, crawl). „Sada” (sadašnji naslov, opis, H1) dolazi iz crawla, ne iz odgovora Claudea.
-- **Tekst izmjene** (novi SEO naslov, meta opis, odlomak, tekst internog linka) piše Claude jednim pozivom dnevno preko Anthropic API ključa. Odgovor se provjerava: nepoznata polja i linkovi sa stranica kojih nema u popisu se odbacuju, HTML se uklanja, predug naslov ili opis dobiva upozorenje.
-- **Bez ključa ili ako poziv ne uspije:** prijedlog svejedno nastaje, s koracima složenim iz podataka. Tekst se dopuni pri sljedećoj analizi.
-- **Bez ponavljanja:** nalaz s otvorenim prijedlogom se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Neobrađeni prijedlog stariji od 21 dan čiji nalaz više ne postoji označava se kao istekao.
+- **Tekst izmjene** (novi SEO naslov, meta opis, odlomak, tekst internog linka) piše Claude preko Anthropic API ključa. Od 2.1.1 to je jedan kratak poziv po prijedlogu, s obaveznim oblikom odgovora (alat `spremi_prijedlog`), pa se odgovor ne prekida zbog duljine. Odgovor se provjerava: nepoznata polja i linkovi sa stranica kojih nema u popisu se odbacuju, HTML se uklanja, predug naslov ili opis dobiva upozorenje.
+- **Bez ključa ili ako poziv ne uspije:** prijedlog svejedno nastaje, s koracima složenim iz podataka. Tekst se dopisuje pri sljedećem satnom prolazu, najviše tri pokušaja po prijedlogu; u ploči piše „tekst izmjene se još piše”.
+- **„Analiziraj sada” ne čeka Claudea:** prijedlozi se pojave odmah, tekst se piše najviše 20 s u samom zahtjevu, a ostatak u pozadini; ploča se za to vrijeme sama osvježava.
+- **Što ne ulazi u analizu (od 2.1.1):**
+  - upit koji nije o temi stranice (riječi upita moraju se naći u naslovu, opisu, naslovima na stranici, fokus riječi ili adresi; padeži i dijakritika se poklapaju);
+  - brend (i po korijenu, npr. „ljiljan”) te upiti s popisa „Zanemari upite” u Postavkama (npr. imena drugih optika);
+  - prijedlog naslova i opisa za stranicu mijenjanu u zadnjih 14 dana (brojke još opisuju staro stanje);
+  - tjedni pad bez stvarno izgubljenih klikova.
+- **Jedan po jedan:** stranica može imati najviše jedan otvoren prijedlog (osim tehničkih).
+- **Bez ponavljanja:** nalaz s otvorenim prijedlogom se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Novi prijedlog čiji nalaz više ne postoji označava se kao istekao: odmah ako još nema Claudeov tekst, inače nakon 21 dan.
 - **Procjena učinka** je namjerno oprezna (80 % opće krivulje CTR-a ili prosjek s vlastitom) i uvijek označena kao procjena.
 - **Stanja:** novo → prihvaćeno → provedeno, ili odbijeno. Sprema ih ploča (`prijedlozi_stanje`); same prijedloge piše samo server.
 - **Web se ne mijenja.** Prijedlozi su za odluku vlasnika.
-- **Postavke:** automatska analiza (uključeno), najviše novih dnevno (5), riječi brenda (upiti s njima ne ulaze u analizu). Gumb „Analiziraj sada” u ploči i u Postavkama, najviše 6 ručnih pokretanja dnevno.
+- **Postavke:** automatska analiza (uključeno), najviše novih dnevno (5), riječi brenda i popis „Zanemari upite” (upiti s njima ne ulaze u analizu). Gumb „Analiziraj sada” u ploči i u Postavkama, najviše 6 ručnih pokretanja dnevno.
 
 ### Izvori i trošak
 
@@ -48,11 +55,12 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | Audit iznutra | crawl dodatka | 0 |
 | Claude u ploči | Anthropic API; Ultra plan uključuje mjesečne API kredite | po upotrebi, uz dnevni limit poziva |
 
-- **Mjerenje pozicija** pokreće se samo na dva načina, oba uz tvoju odluku:
-  - gumbom „Izmjeri pozicije sada” u Postavkama;
+- **Mjerenje pozicija** pokreće se samo uz tvoju odluku:
+  - gumbom „Izmjeri pozicije sada” u modulu Pozicije (od 2.1.1; prije slanja traži potvrdu troška, a prikaz se sam osvježava dok rezultati ne stignu) ili u Postavkama;
   - uključenim tjednim rasporedom (nedjelja navečer, nadoknada nakon 8 dana).
 - **Svako mjerenje** usput sprema top 20 organskih rezultata po riječi, za model konkurencije.
 - **Stvarni trošak** svakog mjerenja sprema se iz odgovora DataForSEO-a.
+- **Adrese s parametrima** (`?utm_…`, `?rwg_token=…`) u Google podacima pribrajaju se pravoj stranici (od 2.1.1).
 
 ### Postavke (OL Radar → Postavke)
 1. **Google Search Console:**
@@ -124,6 +132,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/radar-sazetak` (novo) | sažetak Radara s hostinga (`export/radar`) i stanje izvora |
 | `ol-radar/radar-gsc` (novo) | upiti iz Search Consolea za 28 ili 7 dana, s filtrom |
 | `ol-radar/radar-pozicije` (novo) | pozicije, povijest i top 10 konkurenata po riječi |
+| `ol-radar/radar-stanje` (2.1.1) | kratko stanje bez podataka: verzija, koji su ključevi postavljeni (da/ne), stanje izvora i ishod zadnjih provjera, mjerenje u tijeku, upozorenje nakon nadogradnje |
 | `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem |
 
 ### Crawl
@@ -138,7 +147,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 
 ## Instalacija i nadogradnja
 1. Napravi backup weba u cPanelu.
-2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.1.0.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
+2. **Dodaci → Dodaj novi → Učitaj dodatak**, odaberi `ol-radar-most-2.1.1.zip` → **Zamijeni postojeći**. Ako je dodatak deaktiviran, aktiviraj ga. Spremljeni ključevi i postavke ostaju.
 3. U izborniku se pojavljuje **OL Radar** s podstranicama Nadzorna ploča i Postavke. Stara stranica Alati → OL Radar (crawl) ostaje.
 
 ## Spajanje s Claudeom (claude.ai, desktop, mobitel)

@@ -2,11 +2,15 @@
 
 Stanje 12. 11. 2026.:
 - Radar na claude.ai: v3.1.
-- WordPress dodatak (Radar na hostingu): na webu je 2.0.2 (provjereno 12. 11. u 16:35). Spremljena su sva tri ključa (Google, DataForSEO, Anthropic); model u ploči je Opus 5.5.
-- **Verzija 2.1.0 je spremna i čeka da je Ivan učita:** dnevni prijedlozi izmjena, zaštita ključeva pri nadogradnji, robusnija veza prema Googleu.
-- **Otvoreno: Google podaci još nisu preuzeti.** 12. 11. u 16:26 upit prema Search Consoleu ostao je 60 s bez odgovora (`cURL error 28`), iako je token izdan. 2.1.0 šalje HTTP/1.1, ponavlja preko IPv4 i rezervne adrese i bilježi dijagnostiku. Nakon nadogradnje pogledaj `stanje.izvori.gsc` u `ol-radar/radar-sazetak`. Ako sva tri pokušaja pokažu „zahtjev poslan, odgovor nije stigao”, sljedeće probati svojstvo `sc-domain:optikaljiljana.hr` (servisni račun tada treba pristup i tom svojstvu).
+- WordPress dodatak (Radar na hostingu): na webu je 2.1.0 (provjereno 12. 11. u 20:15). Spremljena su sva tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
+- Google podaci na hostingu stižu (do 9. 11.; 28 dana: 370 klikova, 13.607 prikazivanja). Zastoj od 12. 11. u 16:26 (`cURL error 28`) bio je prolazan.
+- **Verzija 2.1.1 je spremna i čeka da je Ivan učita.** Popravlja ono što je Ivan prijavio 12. 11. navečer („javlja greške, DataForSEO ne radi, Claude ne daje prijedloge”):
+  - Claudeov tekst prijedloga: jedan kratak poziv po prijedlogu, ponovni pokušaj svaki sat (prije je odgovor bio prekinut zbog duljine);
+  - Pozicije: gumb „Izmjeri pozicije sada” u ploči, uz potvrdu troška; bez mjerenja više nema greške ni vječnog „učitavam”;
+  - čišća analiza (tema stranice, brend po korijenu, popis „Zanemari upite”, svježe mijenjane stranice, jedan prijedlog po stranici).
+- **Nakon 2.1.1 slijedi 2.2.0** (Ivanov zahtjev 12. 11.): mjerenje učinka provedenih izmjena (Search Console prije i poslije), indeksiranost stranica (URL Inspection API), AI Overview iz DataForSEO rezultata, kretanje konkurenata iz naših mjerenja.
 - Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
-- DataForSEO račun je otvoren (12. 11.). Prvo mjerenje pozicija (oko 0,065 $) još nije pokrenuto; pokreće se samo na Ivanov OK.
+- DataForSEO račun je otvoren (12. 11.). Prvo mjerenje pozicija (oko 0,065 $) još nije pokrenuto. Od 2.1.1 Ivan ga pokreće sam gumbom u modulu Pozicije; Claude ga ne pokreće. Nije još potvrđeno da prijava prolazi: nakon 2.1.1 pogledaj `izvori.provjera_dfs` u `ol-radar/radar-stanje`.
 - **Greška u 2.0.0:** gumb „obriši” bio je ugniježđeni obrazac, pa su „Spremi” i provjere brisali već spremljeni ključ (popravljeno u 2.0.1).
 - OpenSEO tracker radi i arhiva Ahrefsa je gotova.
 
@@ -16,7 +20,7 @@ Stanje 12. 11. 2026.:
 
 ## Pravilo
 Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
-- **Kad je dodatak 2.0 postavljen:** preko konektora „Optika Ljiljana web” pozovi `ol-radar/radar-sazetak`. Za svježe Google brojke koristi `ol-radar/radar-gsc`, a za pozicije `ol-radar/radar-pozicije`.
+- **Kad je dodatak 2.0 postavljen:** preko konektora „Optika Ljiljana web” pozovi `ol-radar/radar-sazetak` (velik odgovor, oko 25 tisuća tokena; za samu provjeru radi li sve od 2.1.1 koristi `ol-radar/radar-stanje`). Za svježe Google brojke koristi `ol-radar/radar-gsc`, a za pozicije `ol-radar/radar-pozicije`.
 - **Od 2.1.0 gotovi prijedlozi izmjena čekaju na serveru:** `ol-radar/radar-prijedlozi` (zadano: otvoreni). Kad Ivan pita „što mijenjamo”, kreni od njih: imaju dokaze s brojkama, sadašnji i predloženi tekst i stanje. Stanje (prihvaćeno, provedeno, odbijeno) mijenja Ivan u ploči; konektor je samo za čitanje.
 
 ## Pravilo za nove verzije dodatka (Ivan, 12. 11. 2026.)
@@ -25,7 +29,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - Nakon izdanja dodaj redak „verzija commit” u `tests/wordpress/izdanja.txt`, da je sljedeći test pokrije (git oznake se iz ovog okruženja ne mogu poslati na GitHub).
 - Ne mijenjaj način šifriranja (`OLR_Settings::encrypt`, ključ iz `wp_salt('auth')`) ni imena opcija `olr_secrets` i `olr_settings` bez migracije koja čita stari oblik i testa za nju.
 - `set_secret()` se zove samo na izričit unos ili „obriši” u Postavkama. Svaki novi gumb na stranici Postavke mora biti unutar glavnog obrasca (bez ugniježđenih obrazaca) i pokriven e2e testom „Spremi postavke čuva ključeve”.
-- Nakon što Ivan učita novu verziju, provjeri `ol-radar/radar-sazetak`: `stanje.kljucevi` (sva tri `true`) i `stanje.nadogradnja` (mora biti `null`).
+- Nakon što Ivan učita novu verziju, provjeri `ol-radar/radar-stanje` (do 2.1.0: `ol-radar/radar-sazetak`): `stanje.verzija`, `stanje.kljucevi` (sva tri `true`) i `stanje.nadogradnja` (mora biti `null`).
 - Uputa Ivanu je uvijek „Dodaci → Dodaj novi → Učitaj dodatak → Zamijeni postojeći”. Od 2.1.0 ključevi preživljavaju i brisanje dodatka pa ponovnu instalaciju.
 - **Inače:** pročitaj `export/radar` u bazi artefakta.
 - **Zastario ili nepostojeći sažetak:** ako ga nema ili je stariji od 7 dana, napomeni da treba otvoriti Radar (wp-admin → OL Radar).
@@ -37,20 +41,22 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - Svijetla tema je zadana (Ivan: ne mora sve biti crno-zlatno kao web). Tamna je na prekidaču ispod logotipa.
 - **Izvori na serveru:**
   - Google Search Console API (servisni račun, svakih 12 h);
-  - DataForSEO (pozicije: tjedno ako je uključeno, ili gumbom; oko 0,065 $ za 27 riječi);
+  - DataForSEO (pozicije: tjedno ako je uključeno, ili gumbom u modulu Pozicije odnosno u Postavkama; oko 0,065 $ za 27 riječi; gumb u ploči traži potvrdu troška);
   - crawl dodatka;
   - Anthropic API za Claudea u ploči (Ultra plan: 200 $ API kredita mjesečno uz povezanu Console organizaciju).
 - **Ključeve** upisuje samo Ivan na stranici Postavke. Spremaju se šifrirano i nikad se ne lijepe u chat.
 - **Pohrana:** tablica `ol_radar_docs`, s istim zbirkama kao artefakt, plus `gsc`, `rank`, `rank_run` i `serp`.
 - **Uvoz iz claude.ai Radara:** Arhiva → „Izvezi za hosting”, zatim Postavke → Uvoz.
 - **Instagram i YouTube** na hostingu tek u sljedećoj fazi (Meta API). Do tada samo u claude.ai Radaru (vidIQ).
-- **Dnevni prijedlozi izmjena (2.1.0):**
+- **Dnevni prijedlozi izmjena (2.1.0, dorađeno u 2.1.1):**
   - Pokreću se sami kad stignu novi Google podaci (jednom dnevno), ili gumbom „Analiziraj sada” (ploča, Postavke; najviše 6 puta dnevno).
-  - Analiza je u PHP-u (`OLR_Analiza`): nizak CTR na visokoj poziciji, upiti blizu vrha (4–15), kanibalizacija u zadnjih 7 dana, tjedni pad, ciljane riječi (pad, ispadanje, kriva stranica), tehnički nalazi crawla, upiti bez prave stranice. Brend upiti (postavka „Riječi brenda”) i noindex stranice ne ulaze.
-  - Tekst izmjene piše Claude jednim pozivom dnevno (Anthropic ključ na serveru); brojke i „sada” uvijek su iz podataka. Bez ključa nastaju prijedlozi bez teksta, koji se dopune kasnije.
-  - Najviše 5 novih dnevno, najviše 2 po vrsti. Otvoren nalaz se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana.
+  - Analiza je u PHP-u (`OLR_Analiza`): nizak CTR na visokoj poziciji, upiti blizu vrha (4–15), kanibalizacija u zadnjih 7 dana, tjedni pad, ciljane riječi (pad, ispadanje, kriva stranica), tehnički nalazi crawla, upiti bez prave stranice.
+  - Ne ulaze: brend (postavka „Riječi brenda”, i po korijenu riječi), upiti s popisa „Zanemari upite” (npr. imena drugih optika), noindex stranice, upiti koji nisu o temi stranice, prijedlog naslova za stranicu mijenjanu u zadnjih 14 dana, tjedni pad bez izgubljenih klikova.
+  - Tekst izmjene piše Claude (Anthropic ključ na serveru), jedan kratak poziv po prijedlogu; brojke i „sada” uvijek su iz podataka. Ako tekst ne uspije ili nema ključa, prijedlog vrijedi s koracima iz podataka, a tekst se dopisuje u pozadini odmah nakon ručne analize i pri satnom prolazu (najviše tri pokušaja). U odgovoru `radar-prijedlozi` to su polja `ai`, `ai_pokusaja`, `ai_greska` i `ceka_tekst`.
+  - Najviše 5 novih dnevno, najviše 2 po vrsti, najviše jedan otvoren po stranici (osim tehničkih). Otvoren nalaz se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Novi prijedlog čiji nalaz više ne postoji označava se kao istekao (`isteklo`).
   - Zbirke: `prijedlozi` (piše samo server), `prijedlozi_stanje` (piše ploča).
 - **MCP (samo čitanje, uloga `ol_radar_reader`):**
+  - `ol-radar/radar-stanje` (od 2.1.1; kratko stanje bez podataka: verzija, ključevi da/ne, stanje izvora, ishod zadnjih provjera `provjera_gsc`, `provjera_dfs`, `provjera_ai`, mjerenje u tijeku, broj prijedloga);
   - `ol-radar/radar-sazetak` (export/radar, stanje izvora, starost);
   - `ol-radar/radar-gsc` (filtar, razdoblje 28 ili 7, limit do 500);
   - `ol-radar/radar-pozicije` (konkurenti: true daje top 10 po riječi);
@@ -145,7 +151,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 2.0.2. Verzija 2.1.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+- **Verzija:** na webu 2.1.0. Verzija 2.1.1 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
   - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
   - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.

@@ -42,6 +42,15 @@ class OLR_REST {
 		);
 		register_rest_route(
 			self::NS,
+			'/prijedlozi',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'prijedlozi' ),
+				'permission_callback' => array( __CLASS__, 'can' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/docs/' . $name,
 			array(
 				'methods'             => 'GET',
@@ -170,6 +179,11 @@ class OLR_REST {
 		return rest_ensure_response( self::state_array() );
 	}
 
+	/** Samo prijedlozi: ploča ovo čita dok se tekst izmjena dopisuje u pozadini. */
+	public static function prijedlozi() {
+		return rest_ensure_response( OLR_Prijedlozi::summary( 'svi', 300 ) );
+	}
+
 	public static function docs( WP_REST_Request $r ) {
 		$coll = $r['coll'];
 		return rest_ensure_response(
@@ -221,8 +235,8 @@ class OLR_REST {
 
 	/**
 	 * Osvježavanje: gsc (Search Console), rank (pokupi gotove rezultate mjerenja), crawl (serija stranica)
-	 * i prijedlozi (analiza + jedan poziv Claudea, najviše nekoliko puta dnevno).
-	 * Novo plaćeno mjerenje pozicija pokreće se samo na stranici Postavke.
+	 * prijedlozi (analiza + tekst izmjena od Claudea, najviše nekoliko puta dnevno) i mjerenje
+	 * (novo plaćeno mjerenje pozicija; samo uz potvrda=da, koju ploča šalje nakon korisnikove potvrde troška).
 	 */
 	public static function osvjezi( WP_REST_Request $r ) {
 		$dio = (string) $r->get_param( 'dio' );
@@ -232,13 +246,19 @@ class OLR_REST {
 			$res = OLR_DFS::poll();
 		} elseif ( 'crawl' === $dio ) {
 			$res = OLR_Crawler::run_batch( 15, 25 );
+		} elseif ( 'mjerenje' === $dio ) {
+			// Plaćeno mjerenje pozicija: samo uz izričitu potvrdu korisnika u ploči.
+			if ( 'da' !== (string) $r->get_param( 'potvrda' ) ) {
+				return new WP_Error( 'olr_potvrda', 'Mjerenje pozicija se naplaćuje (DataForSEO); potrebna je potvrda.', array( 'status' => 400 ) );
+			}
+			$res = OLR_DFS::start_run( 'rucno' );
 		} elseif ( 'prijedlozi' === $dio ) {
 			$res = OLR_Prijedlozi::run( 'rucno' );
 			if ( ! is_wp_error( $res ) ) {
 				$res = OLR_Prijedlozi::summary( 'svi', 300 );
 			}
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

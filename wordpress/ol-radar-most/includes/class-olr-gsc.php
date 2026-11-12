@@ -323,6 +323,10 @@ class OLR_GSC {
 				OLR_Settings::set_status( 'gsc', false, $rows->get_error_message(), self::fail_extra( $name ) );
 				return $rows;
 			}
+			$ui = array_search( 'page', $b[0], true );
+			if ( false !== $ui ) {
+				$rows = self::merge_urls( $rows, count( $b[0] ), $ui );
+			}
 			$data[ $name ] = $rows;
 		}
 
@@ -376,6 +380,69 @@ class OLR_GSC {
 		 */
 		do_action( 'olr_gsc_collected', $meta );
 		return $meta;
+	}
+
+	/** Adresa bez parametara i sidra, s kosom crtom na kraju (osim datoteka). */
+	public static function clean_url( $url ) {
+		$p = wp_parse_url( (string) $url );
+		if ( empty( $p['host'] ) ) {
+			return (string) $url;
+		}
+		$path = isset( $p['path'] ) && '' !== $p['path'] ? $p['path'] : '/';
+		if ( '/' !== substr( $path, -1 ) && false === strpos( basename( $path ), '.' ) ) {
+			$path .= '/';
+		}
+		return ( isset( $p['scheme'] ) ? $p['scheme'] : 'https' ) . '://' . $p['host'] . $path;
+	}
+
+	/**
+	 * Search Console istu stranicu vodi i pod adresama s parametrima (utm_*, rwg_token s Google profila)
+	 * ili bez završne kose crte. Takvi se redci spajaju u jedan: klikovi i prikazivanja se zbrajaju,
+	 * pozicija je prosjek ponderiran prikazivanjima.
+	 *
+	 * @param array $rows Kompaktni redci [ključevi…, klikovi, prikazivanja, ctr, pozicija].
+	 * @param int   $keys Broj ključeva.
+	 * @param int   $ui   Indeks ključa s adresom.
+	 */
+	public static function merge_urls( $rows, $keys, $ui ) {
+		$agg = array();
+		foreach ( $rows as $r ) {
+			$r[ $ui ] = self::clean_url( $r[ $ui ] );
+			$k        = implode( "\n", array_slice( $r, 0, $keys ) );
+			$w        = max( 1, (int) $r[ $keys + 1 ] ); // ponder pozicije: prikazivanja, najmanje 1
+			if ( ! isset( $agg[ $k ] ) ) {
+				$agg[ $k ] = array(
+					'keys' => array_slice( $r, 0, $keys ),
+					'c'    => 0,
+					'i'    => 0,
+					'pw'   => 0.0,
+					'w'    => 0,
+				);
+			}
+			$agg[ $k ]['c']  += (int) $r[ $keys ];
+			$agg[ $k ]['i']  += (int) $r[ $keys + 1 ];
+			$agg[ $k ]['pw'] += (float) $r[ $keys + 3 ] * $w;
+			$agg[ $k ]['w']  += $w;
+		}
+		$out = array();
+		foreach ( $agg as $a ) {
+			$out[] = array_merge(
+				$a['keys'],
+				array(
+					$a['c'],
+					$a['i'],
+					$a['i'] ? round( $a['c'] / $a['i'], 5 ) : 0,
+					round( $a['pw'] / $a['w'], 2 ),
+				)
+			);
+		}
+		usort(
+			$out,
+			static function ( $x, $y ) use ( $keys ) {
+				return ( $y[ $keys ] <=> $x[ $keys ] ) ?: ( $y[ $keys + 1 ] <=> $x[ $keys + 1 ] );
+			}
+		);
+		return $out;
 	}
 
 	/** Dodatak statusu pri grešci: koji dio je pao i dijagnostika pokušaja. */

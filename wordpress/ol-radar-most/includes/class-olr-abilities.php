@@ -229,6 +229,19 @@ class OLR_Abilities {
 			)
 		);
 		wp_register_ability(
+			'ol-radar/radar-stanje',
+			array(
+				'label'               => 'Radar: stanje',
+				'description'         => 'Kratko stanje OL Radara na hostingu, bez podataka: verzija dodatka, koji su ključevi postavljeni (samo da/ne, nikad vrijednosti), stanje izvora (Google, DataForSEO, Claude API, prijedlozi) s porukom zadnjeg pokušaja, ishod zadnjih provjera veze, je li mjerenje pozicija u tijeku, procjena troška mjerenja, zadnja analiza prijedloga i upozorenje nakon nadogradnje. Koristi ovo za provjeru radi li sve; sažetak s podacima je ol-radar/radar-sazetak.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_state' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
 			'ol-radar/radar-gsc',
 			array(
 				'label'               => 'Radar: Google Search Console',
@@ -290,11 +303,37 @@ class OLR_Abilities {
 		$s = OLR_Prijedlozi::summary( $f, $n );
 		return array(
 			'otvorenih'  => $s['otvorenih'],
+			'ceka_tekst' => $s['ceka_tekst'],
 			'ukupno'     => $s['ukupno'],
 			'zadnja_analiza' => $s['zadnje'],
 			'automatski' => $s['auto'],
 			'prijedlozi' => $s['stavke'],
 			'napomena'   => 'Prijedlozi su za odluku vlasnika. Izmjenu na webu radi tek nakon izričitog odobrenja.',
+		);
+	}
+
+	/** Stanje bez podataka: što je postavljeno i radi li. Vrijednosti ključeva se nikad ne vraćaju. */
+	public static function radar_state( $input = array() ) {
+		$st = OLR_REST::state_array();
+		unset( $st['postavke'], $st['ai']['potrosnja'] );
+		$meta = OLR_Store::data( 'gsc', 'meta' );
+		$p    = OLR_Prijedlozi::summary( 'otvoreni', 1 );
+		$last = OLR_Store::data( 'rank', 'latest' );
+		return array(
+			'stanje'     => $st,
+			'gsc'        => $meta ? array(
+				'podaci_do' => isset( $meta['prozori']['28_dana'][1] ) ? $meta['prozori']['28_dana'][1] : null,
+				'preuzeto'  => isset( $meta['at'] ) ? $meta['at'] : null,
+			) : null,
+			'pozicije'   => array(
+				'zadnje_mjerenje'   => is_array( $last ) && isset( $last['last'] ) ? $last['last'] : null,
+				'mjerenje_u_tijeku' => (bool) get_option( OLR_DFS::PENDING ),
+			),
+			'prijedlozi' => array(
+				'otvorenih'  => $p['otvorenih'],
+				'ceka_tekst' => $p['ceka_tekst'],
+				'ukupno'     => $p['ukupno'],
+			),
 		);
 	}
 

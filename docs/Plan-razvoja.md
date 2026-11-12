@@ -2,9 +2,12 @@
 
 Stanje 12. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
 
-## Već radi (dodatak 2.1.0)
+## Već radi (dodatak 2.1.1)
 - Google Search Console na serveru (servisni račun), pozicije (DataForSEO), crawl i audit weba, model konkurencije, Claude u ploči.
 - **Dnevni prijedlozi izmjena:** server sam analizira i priprema gotove prijedloge (modul Prijedlozi, MCP `ol-radar/radar-prijedlozi`).
+
+## U izradi (verzija 2.2.0)
+Ivan je 12. 11. 2026. odobrio stavke 1–4 iz tablice: mjerenje učinka provedenih izmjena, indeksiranost stranica, AI Overview u mjerenjima i kretanje konkurenata.
 
 ## Preporučeni redoslijed
 

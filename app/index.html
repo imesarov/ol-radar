@@ -81,7 +81,7 @@ p{margin:0}
 .srcs{display:flex;flex-direction:column;gap:8px;margin-top:auto}
 .src{display:grid;grid-template-columns:10px 1fr;gap:4px 10px;align-items:baseline;font-size:12.5px}
 .src i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:block;transform:translateY(-1px)}
-.src i.ok{background:var(--good)} .src i.load{background:var(--gold);animation:pulse 1.2s infinite} .src i.err{background:var(--crit)} .src i.off{background:var(--off)}
+.src i.ok{background:var(--good)} .src i.load{background:var(--gold);animation:pulse 1.2s infinite} .src i.err{background:var(--crit)} .src i.off{background:var(--off)} .src i.wait{background:transparent;box-shadow:inset 0 0 0 2px var(--gold)}
 .src b{font-weight:500;color:var(--lead)}
 .src small{grid-column:2;color:var(--muted);font-size:11.5px;line-height:1.35}
 @keyframes pulse{50%{opacity:.35}}
@@ -351,7 +351,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
           <h1>Gdje smo <em>u Googleu</em></h1>
           <p>Tjedno mjerenje stvarnog Google rezultata za ciljane riječi, uz GSC prosjek za isti upit. Tracker mjeri jednu lokaciju i jedan uređaj u jednom trenutku, a GSC je prosjek svih prikazivanja, pa se brojke mogu razlikovati.</p>
         </div>
-        <button class="btn btn-g" type="button" data-refresh="rank">Osvježi prikaz</button>
+        <span class="row"><button class="btn" type="button" id="btn-rank-run" hidden>Izmjeri pozicije sada</button><button class="btn btn-g" type="button" data-refresh="rank">Osvježi prikaz</button></span>
       </div>
       <div class="tiles" id="rk-tiles"></div>
       <div class="panel"><header><h3>Ciljane riječi</h3><p id="rk-meta"></p></header><div id="rk-table"><p class="loading">Učitavam…</p></div></div>
@@ -975,7 +975,7 @@ function setSrc(k, state, msg, at) { S.src[k] = { state, msg: msg || "", at: at 
 function renderSources() {
   $("#srcs").innerHTML = Object.keys(SRC_LABEL).map(k => {
     const s = S.src[k] || { state: "off", msg: "čeka" };
-    const sub = s.state === "ok" ? (s.msg || ("ažurirano " + ago(s.at))) : s.state === "load" ? "učitavam…" : s.msg;
+    const sub = s.state === "ok" ? (s.msg || ("ažurirano " + ago(s.at))) : s.state === "load" ? "učitavam…" : s.msg; // wait, err, off: poruka
     return `<div class="src"><i class="${s.state}"></i><b>${SRC_LABEL[k]}</b><small>${esc(sub)}</small></div>`;
   }).join("");
 }
@@ -1150,7 +1150,15 @@ async function loadHosted() {
     Object.assign(S.rank, { rows: L.rows.map(x => ({ id: x.id, kw: x.kw, pos: x.pos, prev: x.prev, url: x.url, pinned: false })), last: L.last, sched: L.sched, at: Date.parse(L.last) || Date.now(), err: null });
     const Hh = P.rank.hist; S.rank.hist = Hh && Hh.runs ? { runs: Hh.runs, by: new Map(Object.entries(Hh.by || {})) } : null;
     setSrc("rank", "ok", L.rows.length + " riječi · mjereno " + hrDate(L.last) + (P.rank.u_tijeku ? " · novo mjerenje u tijeku" : ""), S.rank.at);
-  } else { S.rank.err = keys.dataforseo ? (P.rank?.u_tijeku ? "Prvo mjerenje je u tijeku; rezultati stižu za nekoliko minuta." : "Pozicije još nisu izmjerene (Postavke → Izmjeri pozicije sada).") : "DataForSEO pristup nije postavljen (Postavke)."; setSrc("rank", keys.dataforseo ? "load" : "off", S.rank.err); }
+  } else {
+    // Bez mjerenja nema pozicija; to nije greška nego stanje koje čeka odluku (mjerenje se plaća).
+    S.rank.rows = null; S.rank.err = null;
+    const bad = iz.rank && !iz.rank.ok ? iz.rank.msg : null;
+    setSrc("rank", !keys.dataforseo ? "off" : bad ? "err" : P.rank?.u_tijeku ? "load" : "wait",
+      !keys.dataforseo ? "DataForSEO pristup nije postavljen (Postavke)" : bad ? bad : "još nije mjereno · modul Pozicije → Izmjeri pozicije sada");
+  }
+  Object.assign(S.rank, { hosted: { key: !!keys.dataforseo, pending: !!P.rank?.u_tijeku, cost: st.dfs?.procjena_mjerenja || null, weekly: !!st.dfs?.tjedno, error: iz.rank && !iz.rank.ok ? iz.rank.msg : null, progress: iz.rank && iz.rank.ok ? iz.rank.msg : null } });
+  if (S.rank.hosted.pending) rankPoll();
   /* svježi SERP-ovi iz mjerenja, za model konkurencije */
   S.serpLive = new Map((P.serp || []).filter(x => x && x.keyword).map(x => [(x.country || "hr") + "|" + x.keyword, x]));
   /* web iznutra */
@@ -1168,12 +1176,39 @@ async function loadHosted() {
   rerender(); maybeSnapshot(); maybeExport();
 }
 
+/* ---------- mjerenje pozicija na hostingu: pokreće se samo uz potvrdu troška ---------- */
+let rankPollTimer = null, rankPollN = 0;
+function rankPoll() {
+  if (rankPollTimer || rankPollN > 45) return;
+  rankPollTimer = setTimeout(async () => { rankPollTimer = null; rankPollN++; await hostedRefresh(["rank"]); }, 20000);
+}
+async function rankRun() {
+  const H = S.rank.hosted; if (!H || !H.key || H.pending || S.rank.starting) return;
+  const cost = H.cost ? "oko " + String(H.cost.toFixed(2)).replace(".", ",") + " $" : "nekoliko centi";
+  if (!window.confirm("Mjerenje pozicija za sve ciljane riječi košta " + cost + " (DataForSEO). Rezultati stižu za nekoliko minuta.\n\nPokrenuti mjerenje?")) return;
+  S.rank.starting = true; renderRank();
+  try { await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "mjerenje", potvrda: "da" } }); rankPollN = 0; }
+  catch (e) { note("Mjerenje nije pokrenuto", e.message || "Server ne odgovara."); }
+  S.rank.starting = false;
+  await loadHosted();
+}
+
 /* ---------- 02 prijedlozi izmjena (samo na hostingu: analizu i tekst priprema server) ---------- */
 const PROP_VRSTA = { ctr: ["gold", "Naslov i opis"], prilika: ["gold", "Blizu vrha"], kanibal: ["warn", "Kanibalizacija"], pad: ["crit", "Pad"], pozicije: ["warn", "Pozicije"], tehnicki: ["info", "Tehnički"], novo: ["good", "Novi sadržaj"] };
 const PROP_POLJE = { seo_naslov: "SEO naslov", meta_opis: "Meta opis", h1: "Naslov na stranici (H1)", odlomak: "Novi odlomak", interni_link: "Interni link", novi_clanak: "Novi članak", tehnicki: "Tehnička izmjena" };
 const PROP_STANJE = { novo: "novo", prihvaceno: "prihvaćeno", provedeno: "provedeno", odbijeno: "odbijeno" };
 function setProp(d) {
-  S.prop.items = d.stavke || []; S.prop.meta = d.zadnje || null; S.prop.auto = !!d.auto; S.prop.claude = !!d.claude; S.prop.loaded = true;
+  S.prop.items = d.stavke || []; S.prop.meta = d.zadnje || null; S.prop.auto = !!d.auto; S.prop.claude = !!d.claude; S.prop.wait = d.ceka_tekst || 0; S.prop.bg = !!d.pise_se; S.prop.loaded = true;
+  if (S.prop.bg) propPoll(); else propPollN = 0;
+}
+/* dok server u pozadini dopisuje tekst izmjena, prikaz se sam osvježava (lagani poziv, samo prijedlozi) */
+let propPollTimer = null, propPollN = 0;
+function propPoll() {
+  if (propPollTimer || propPollN > 40) return;
+  propPollTimer = setTimeout(async () => {
+    propPollTimer = null; propPollN++;
+    try { setProp(await OLR_HOSTED.api("prijedlozi")); rerender(); } catch (e) { console.warn("prijedlozi", e); }
+  }, 12000);
 }
 const propOpen = p => !p.isteklo && (p.stanje === "novo" || p.stanje === "prihvaceno");
 function propRows(p) {
@@ -1214,7 +1249,7 @@ function propCard(p) {
   const page = p.put ? (p.url ? `<a href="${esc(HOSTED ? OLR_HOSTED.web.replace(/\/$/, "") + p.put : p.url)}" target="_blank" rel="noopener">${esc(p.put)}</a>` : esc(p.put)) : "";
   return `<article class="prop st-${esc(p.stanje)}${p.isteklo ? " isteklo" : ""}" data-prop="${esc(p.id)}">
     <header><h3>${esc(p.naslov)}</h3>${gain}</header>
-    <div class="meta">${pill(sev, name)}${page ? "<span>" + page + "</span>" : ""}<span>${esc(hrDate(new Date(p.izradjeno).toISOString().slice(0, 10)))}</span><span>stanje: ${esc(st)}</span>${p.ai ? "" : '<span>bez teksta Claudea</span>'}</div>
+    <div class="meta">${pill(sev, name)}${page ? "<span>" + page + "</span>" : ""}<span>${esc(hrDate(new Date(p.izradjeno).toISOString().slice(0, 10)))}</span><span>stanje: ${esc(st)}</span>${p.ai ? "" : `<span>${S.prop.claude && (p.ai_pokusaja || 0) < 3 ? "tekst izmjene se još piše" : "bez napisanog teksta"}</span>`}</div>
     <p class="why">${esc(p.zasto)}${p.objasnjenje ? " " + esc(p.objasnjenje) : ""}</p>
     ${propRows(p)}
     ${(p.izmjene || []).map((c, i) => propChange(c, p, i)).join("")}
@@ -1228,7 +1263,7 @@ function renderProp() {
   const meta = [];
   if (m.at) meta.push("Zadnja analiza " + ago(m.at * 1000) + (m.gsc_do ? " (Google podaci do " + hrDate(m.gsc_do) + ")" : "") + ": " + fmt(m.kandidata) + " nalaza, " + fmt(m.novih) + " novih prijedloga");
   else meta.push(S.done.gsc ? "Analiza još nije pokrenuta." : "Učitavam…");
-  if (m.at && m.novih && !m.ai_ok && m.ai_poruka) meta.push("Tekst nije napisan: " + m.ai_poruka);
+  if (S.prop.claude && S.prop.wait) meta.push("Tekst izmjene još se piše za " + fmt(S.prop.wait) + (S.prop.wait === 1 ? " prijedlog" : " prijedloga") + (S.prop.bg ? " (server ga dopisuje u pozadini, prikaz se osvježava sam)" : " (sljedeći pokušaj unutar sat vremena ili gumbom „Analiziraj sada”)" + (m.ai_poruka ? "; zadnja poruka: " + m.ai_poruka : "")));
   meta.push(S.prop.auto ? "Automatski svaki dan nakon novih Google podataka." : "Automatska analiza je isključena (Postavke).");
   if (!S.prop.claude) meta.push("Anthropic ključ nije postavljen, pa prijedlozi nastaju bez napisanog teksta.");
   $("#prop-meta").textContent = meta.join(" · ");
@@ -1248,8 +1283,14 @@ async function propSet(id, stanje) {
 }
 async function propRun() {
   if (S.prop.busy) return; S.prop.busy = true; renderProp();
+  const before = S.prop.meta && S.prop.meta.at;
   try { const res = await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "prijedlozi" } }); if (res && res.rezultat) setProp(res.rezultat); }
-  catch (e) { note("Analiza nije uspjela", e.message || "Server ne odgovara."); }
+  catch (e) {
+    // Ako je hosting prekinuo dugi zahtjev, analiza je možda ipak završila: prijedlozi se spremaju prije pisanja teksta.
+    let done = false;
+    try { setProp(await OLR_HOSTED.api("prijedlozi")); done = !!(S.prop.meta && S.prop.meta.at && S.prop.meta.at !== before); } catch (e2) { done = false; }
+    if (!done) note("Analiza nije uspjela", e.message || "Server ne odgovara.");
+  }
   S.prop.busy = false; rerender();
 }
 async function propCopy(key, btn) {
@@ -2160,7 +2201,22 @@ function rankRows() {
 }
 function renderRank() {
   const RR = rankRows();
-  if (!RR) { $("#rk-tiles").innerHTML = ""; $("#rk-table").innerHTML = S.rank.err ? `<p class="err">${esc(S.rank.err)}</p>` : '<p class="loading">Učitavam…</p>'; return; }
+  const H = HOSTED ? S.rank.hosted : null, eur = v => String(v.toFixed(2)).replace(".", ",") + " $";
+  if (H) {
+    const b = $("#btn-rank-run");
+    b.hidden = !H.key; b.disabled = H.pending || S.rank.starting;
+    b.textContent = H.pending ? "Mjerenje u tijeku…" : S.rank.starting ? "Šaljem…" : RR ? "Novo mjerenje" : "Izmjeri pozicije sada";
+  }
+  if (!RR) {
+    $("#rk-tiles").innerHTML = "";
+    $("#rk-table").innerHTML = S.rank.err ? `<p class="err">${esc(S.rank.err)}</p>`
+      : !H ? '<p class="loading">Učitavam…</p>'
+      : !H.key ? `<p class="note">DataForSEO pristup nije postavljen. Upiši API login i lozinku u <a href="${esc(OLR_HOSTED.postavke)}" target="_top">Postavkama</a>.</p>`
+      : H.pending ? `<p class="note">Mjerenje je u tijeku${H.progress ? " (" + esc(H.progress) + ")" : ""}. Rezultati stižu za nekoliko minuta; prikaz se osvježava sam.</p>`
+      : (H.error ? `<p class="err">Zadnji pokušaj nije uspio: ${esc(H.error)}</p>` : "")
+        + `<p class="note">Pozicije još nisu izmjerene. Mjerenje je jedino što se u Radaru plaća po korištenju: DataForSEO naplaćuje ${H.cost ? "oko " + eur(H.cost) : "nekoliko centi"} za sve ciljane riječi (mobitel, Zagreb, prvih 40 rezultata). Pokreni ga gumbom „Izmjeri pozicije sada”. Tjedno automatsko mjerenje uključuje se u <a href="${esc(OLR_HOSTED.postavke)}" target="_top">Postavkama</a>${H.weekly ? " (uključeno je)" : ""}.</p>`;
+    return;
+  }
   const ranked = RR.filter(x => x.pos != null);
   $("#rk-tiles").innerHTML = [
     tile("U top 3", fmt(ranked.filter(x => x.pos <= 3).length), "od " + RR.length + " riječi", "mobitel, Zagreb"),
@@ -2903,6 +2959,7 @@ function bindStatic() {
   $("#chat-form").addEventListener("submit", sendChat);
   // prijedlozi izmjena
   $("#btn-prop-run").onclick = propRun;
+  $("#btn-rank-run").onclick = rankRun;
   $$("[data-pf2]").forEach(b => b.onclick = () => { S.prop.filter = b.dataset.pf2; renderProp(); });
   $("#prop-list").addEventListener("click", e => {
     const st = e.target.closest("[data-prop-set]"); if (st) { const [id, stanje] = st.dataset.propSet.split("|"); propSet(id, stanje); return; }

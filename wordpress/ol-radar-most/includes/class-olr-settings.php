@@ -51,6 +51,8 @@ class OLR_Settings {
 			'prijedlozi_auto' => true,
 			'prijedlozi_max'  => 5,
 			'brand'           => 'ljiljana',
+			// Upiti koji nisu naši (tuđe optike, riječi koje samo zvuče slično): ne ulaze u analizu.
+			'zanemari'        => '',
 		);
 	}
 

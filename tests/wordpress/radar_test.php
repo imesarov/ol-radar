@@ -257,54 +257,119 @@ OLR_Settings::set_secret( 'dfs_password', 'tajna-api' );
 ok( null === OLR_Settings::upgrade_warning() && 'tajna-api' === OLR_Settings::secret( 'dfs_password' ), 'nadogradnja: ponovni unos gasi upozorenje' );
 
 // 11) Dnevna analiza i prijedlozi izmjena.
-$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll IN ('prijedlozi','prijedlozi_stanje')" );
-delete_option( 'olr_prijedlozi_run' );
-delete_transient( 'olr_prijedlozi_lock' );
+$wipe = static function () use ( $wpdb ) {
+	$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll IN ('prijedlozi','prijedlozi_stanje')" );
+	delete_option( 'olr_prijedlozi_run' );
+	delete_transient( 'olr_prijedlozi_lock' );
+};
+$wipe();
+foreach ( array( 'olr_test_ai_bad_json', 'olr_test_ai_tool_fail' ) as $o ) {
+	delete_option( $o );
+}
 wp_clear_scheduled_hook( OLR_Prijedlozi::EVENT );
+// Testne stranice su upravo nastale; „stara” stranica za pravilo o naslovu i opisu je /progresivne-naocale/.
+$old_page = get_page_by_path( 'progresivne-naocale' );
+$wpdb->update( $wpdb->posts, array( 'post_modified' => gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ) ), array( 'ID' => $old_page->ID ) );
+clean_post_cache( $old_page->ID );
 update_option( 'olr_test_gsc_extra', 1 );
 OLR_GSC::collect();
 ok( (bool) wp_next_scheduled( OLR_Prijedlozi::EVENT ), 'prijedlozi: nakon novih Google podataka analiza je zakazana u pozadini' );
+$kontakt = null;
+$upitni  = 0;
+foreach ( OLR_Store::data( 'gsc', 'qp' )['rows'] as $r ) {
+	$upitni += false !== strpos( $r[1], '?' ) ? 1 : 0;
+	if ( 'kontakt optika test' === $r[0] ) {
+		$kontakt = $r;
+	}
+}
+ok( 0 === $upitni && $kontakt && 300 === $kontakt[3] && 3 === $kontakt[2] && abs( $kontakt[5] - 7.03 ) < 0.02, 'gsc: adrese s parametrima (utm, rwg_token) spojene su s pravom stranicom' );
+ok( OLR_Analiza::is_brand( 'ljiljan' ) && OLR_Analiza::is_brand( 'Optika Ljiljana Sesvete' ) && ! OLR_Analiza::is_brand( 'optika sesvete' ), 'analiza: brend se prepoznaje po korijenu' );
+ok( OLR_Analiza::relevant( 'progresivnih naocala', 'https://x/progresivne-naocale/' ) && ! OLR_Analiza::relevant( 'optika anda', 'https://x/' ) && ! OLR_Analiza::relevant( 'sunčane naočale', 'https://x/kontakt/' ), 'analiza: upit mora biti o onome o čemu je stranica (padeži i dijakritika se poklapaju)' );
 $an = OLR_Analiza::run();
 $by = array();
 foreach ( $an['kandidati'] as $c ) {
 	$by[ $c['kljuc'] ] = $c;
 }
 $ctr = isset( $by['ctr|/progresivne-naocale/'] ) ? $by['ctr|/progresivne-naocale/'] : null;
-ok( $ctr && 'progresivne naočale' === $ctr['dokazi']['upiti'][0]['upit'] && 400 === $ctr['dokazi']['upiti'][0]['prikazivanja'] && $ctr['ucinak'] > 20 && 'Progresivne naočale – Optika Test' === $ctr['stranica']['naslov'], 'analiza: nizak CTR na visokoj poziciji, s činjenicama o stranici' );
+ok( $ctr && 'progresivne naočale' === $ctr['dokazi']['upiti'][0]['upit'] && 400 === $ctr['dokazi']['upiti'][0]['prikazivanja'] && $ctr['ucinak'] > 20 && 'Progresivne naočale – Optika Test' === $ctr['stranica']['naslov'] && $ctr['stranica']['izmijenjeno_prije_dana'] >= 39, 'analiza: nizak CTR na visokoj poziciji, s činjenicama o stranici' );
+ok( ! isset( $by['ctr|/dioptrijske-naocale/'] ) && false !== strpos( implode( ' ', $an['napomene'] ), '/dioptrijske-naocale/' ), 'analiza: svježe mijenjana stranica ne dobiva prijedlog naslova (uz napomenu)' );
 $gap = isset( $by['prilika|/kontakt/'] ) ? $by['prilika|/kontakt/'] : null;
-ok( $gap && 7.8 === $gap['dokazi']['upiti'][0]['pozicija'] && count( $gap['izvori_linka'] ) >= 2 && false === $gap['dokazi']['upiti'][0]['u_naslovu'], 'analiza: upit blizu vrha, s izvorima internih linkova' );
-ok( isset( $by['kanibal|naočale za čitanje'] ) && '/dioptrijske-naocale/' === $by['kanibal|naočale za čitanje']['dokazi']['glavna_stranica'], 'analiza: kanibalizacija s glavnom stranicom' );
-ok( isset( $by['pad|progresivne naočale'] ) && 9 === $by['pad|progresivne naočale']['dokazi']['prosli_tjedan']['klikovi'] && 2 === $by['pad|progresivne naočale']['dokazi']['ovaj_tjedan']['klikovi'], 'analiza: tjedni pad' );
+ok( $gap && 7.0 === $gap['dokazi']['upiti'][0]['pozicija'] && 300 === $gap['dokazi']['upiti'][0]['prikazivanja'] && count( $gap['izvori_linka'] ) >= 2, 'analiza: upit blizu vrha, s izvorima internih linkova' );
+ok( isset( $by['kanibal|naočale test'] ) && '/dioptrijske-naocale/' === $by['kanibal|naočale test']['dokazi']['glavna_stranica'], 'analiza: kanibalizacija s glavnom stranicom' );
+ok( isset( $by['pad|progresivne naočale'] ) && 9 === $by['pad|progresivne naočale']['dokazi']['prosli_tjedan']['klikovi'] && 2 === $by['pad|progresivne naočale']['dokazi']['ovaj_tjedan']['klikovi'], 'analiza: tjedni pad (izgubljeni klikovi)' );
 ok( isset( $by['novo|mrena na oku simptomi'] ) && '/' === $by['novo|mrena na oku simptomi']['dokazi']['sada_rangira'], 'analiza: upit bez prave stranice' );
 ok( isset( $by[ 'pozicije|pad|progresivne naočale cijena' ] ) && isset( $by['pozicije|url|stellest stakla'] ), 'analiza: pad ciljane riječi i kriva stranica u rezultatu' );
-$brand = false;
+$tudje = false;
 $noidx = false;
 $teh   = 0;
 foreach ( $an['kandidati'] as $c ) {
-	$brand = $brand || false !== strpos( wp_json_encode( $c['dokazi'], JSON_UNESCAPED_UNICODE ), 'optika ljiljana' );
+	$j     = wp_json_encode( $c['dokazi'], JSON_UNESCAPED_UNICODE );
+	$tudje = $tudje || false !== strpos( $j, 'ljiljan' ) || false !== strpos( $j, 'optika anda' );
 	$noidx = $noidx || '/privatno/' === $c['put'];
 	$teh  += 'tehnicki' === $c['vrsta'] ? 1 : 0;
 }
-ok( ! $brand && ! $noidx, 'analiza: brend upiti i noindex stranice ne ulaze' );
+ok( ! $tudje && ! $noidx, 'analiza: brend, tuđe optike i noindex stranice ne ulaze' );
 ok( isset( $by['tehnicki|bez_opisa|*'] ) && $by['tehnicki|bez_opisa|*']['dokazi']['broj'] > 100 && $teh < 20, 'analiza: isti tehnički nalaz na puno stranica je jedan prijedlog' );
+OLR_Settings::update( array( 'zanemari' => 'mrena, nešto' ) );
+$an2 = OLR_Analiza::run();
+ok( ! in_array( 'novo|mrena na oku simptomi', wp_list_pluck( $an2['kandidati'], 'kljuc' ), true ), 'analiza: popis „zanemari” izbacuje upit' );
+OLR_Settings::update( array( 'zanemari' => '' ) );
 
-// Claude vrati neupotrebljiv odgovor: prijedlozi svejedno nastaju, bez teksta.
+// Claudeov odgovor je prekinut: prijedlozi svejedno nastaju, bez teksta, i čekaju novi pokušaj.
 update_option( 'olr_test_ai_bad_json', 1 );
 $r = OLR_Prijedlozi::run( 'auto' );
 $a = OLR_Prijedlozi::all();
-ok( ! is_wp_error( $r ) && 5 === $r['novih'] && false === $r['ai_ok'] && 5 === count( $a ) && false === $a[0]['ai'] && count( $a[0]['koraci'] ) >= 2 && '' !== $a[0]['zasto'], 'prijedlozi: bez upotrebljivog odgovora Claudea nastaju s koracima, bez teksta' );
-ok( false === OLR_Settings::status()['prijedlozi']['ok'], 'prijedlozi: neuspjeh Claudea vidljiv u stanju' );
+ok( ! is_wp_error( $r ) && 5 === $r['novih'] && false === $r['ai_ok'] && 0 === $r['tekstova'] && 5 === count( $a ) && false === $a[0]['ai'] && 1 === $a[0]['ai_pokusaja'] && count( $a[0]['koraci'] ) >= 2 && '' !== $a[0]['zasto'], 'prijedlozi: prekinut odgovor Claudea ne sprječava prijedloge (koraci iz podataka)' );
+ok( false === OLR_Settings::status()['prijedlozi']['ok'] && 5 === OLR_Prijedlozi::summary()['ceka_tekst'], 'prijedlozi: neuspjeh je vidljiv u stanju, 5 čeka tekst' );
+$pages = array_filter( wp_list_pluck( array_filter( $a, static function ( $p ) { return 'tehnicki' !== $p['vrsta']; } ), 'put' ) );
+ok( count( $pages ) === count( array_unique( $pages ) ) && ! in_array( 'pad|progresivne naočale', wp_list_pluck( $a, 'kljuc' ), true ), 'prijedlozi: najviše jedan po stranici u jednom danu' );
+ok( false === OLR_Prijedlozi::fill_due(), 'prijedlozi: novi pokušaj pisanja teksta ne ide odmah (jednom na sat)' );
+$run             = get_option( 'olr_prijedlozi_run' );
+$run['tekst_at'] = time() - HOUR_IN_SECONDS;
+update_option( 'olr_prijedlozi_run', $run );
+ok( true === OLR_Prijedlozi::fill_due(), 'prijedlozi: nakon sat vremena tekst je na redu' );
+// API odbije prisilni poziv alata: rezervni način (JSON u tekstu, s ogradom koda) mora proći.
 delete_option( 'olr_test_ai_bad_json' );
-// Sljedeća analiza dopunjava tekst otvorenim prijedlozima koji ga nemaju (uz nove).
-$r   = OLR_Prijedlozi::run( 'auto' );
-$ids = wp_list_pluck( $a, 'id' );
-$txt = 0;
-foreach ( OLR_Prijedlozi::all() as $p ) {
-	$txt += in_array( $p['id'], $ids, true ) && $p['ai'] ? 1 : 0;
-}
-ok( ! is_wp_error( $r ) && true === $r['ai_ok'] && 3 === $txt && $r['tekstova'] >= 3, 'prijedlozi: tekst se naknadno dopuni otvorenim prijedlozima (najviše 3 po analizi)' );
-$wpdb->query( "DELETE FROM " . OLR_Store::table() . " WHERE coll IN ('prijedlozi','prijedlozi_stanje')" );
-delete_option( 'olr_prijedlozi_run' );
+update_option( 'olr_test_ai_tool_fail', 1 );
+do_action( 'olr_radar_tick' );
+$a2  = OLR_Prijedlozi::all();
+$run = get_option( 'olr_prijedlozi_run' );
+ok( 5 === count( $a2 ) && 5 === count( array_filter( wp_list_pluck( $a2, 'ai' ) ) ) && 5 === $run['tekstova'] && true === $run['ai_ok'] && 5 === $run['novih'] && 0 === strpos( $a2[0]['naslov'], 'AI (JSON)' ), 'prijedlozi: satni prolaz dopisuje tekst postojećim prijedlozima (rezervni JSON način)' );
+ok( true === OLR_Settings::status()['prijedlozi']['ok'] && 0 === OLR_Prijedlozi::summary()['ceka_tekst'], 'prijedlozi: stanje se oporavi kad je tekst napisan' );
+delete_option( 'olr_test_ai_tool_fail' );
+// Najviše tri pokušaja po prijedlogu.
+$wipe();
+update_option( 'olr_test_ai_bad_json', 1 );
+OLR_Prijedlozi::run( 'auto' );
+OLR_Prijedlozi::run( 'tekst' );
+OLR_Prijedlozi::run( 'tekst' );
+$a3 = OLR_Prijedlozi::all();
+ok( 3 === $a3[0]['ai_pokusaja'] && 0 === OLR_Prijedlozi::summary()['ceka_tekst'] && 5 === OLR_Prijedlozi::summary()['otvorenih'], 'prijedlozi: nakon tri neuspjela pokušaja tekst se više ne traži, prijedlog ostaje' );
+delete_option( 'olr_test_ai_bad_json' );
+// Nalaz koji više ne postoji: novi prijedlog bez teksta istječe i više se ne broji među otvorene.
+$had = in_array( 'prilika|/kontakt/', wp_list_pluck( $a3, 'kljuc' ), true );
+OLR_Settings::update( array( 'zanemari' => 'kontakt optika' ) );
+$rx   = OLR_Prijedlozi::run( 'tekst' );
+$gone = array_values( array_filter( OLR_Prijedlozi::all(), static function ( $p ) { return 'prilika|/kontakt/' === $p['kljuc']; } ) );
+ok( $had && $gone && true === $gone[0]['isteklo'] && ! is_wp_error( $rx ) && 1 === $rx['isteklo'] && 4 === OLR_Prijedlozi::summary()['otvorenih'], 'prijedlozi: prijedlog bez teksta čiji nalaz više ne vrijedi označen je kao istekao' );
+OLR_Settings::update( array( 'zanemari' => '' ) );
+$wipe();
+
+// Ručno pokretanje ne drži preglednik: što ne stigne u kratkom okviru, dopisuje se u pozadini.
+$kratko = static function ( $b, $how ) {
+	return 'rucno' === $how ? -1 : $b;
+};
+add_filter( 'olr_prijedlozi_budget', $kratko, 10, 2 );
+$rb = OLR_Prijedlozi::run( 'rucno' );
+remove_filter( 'olr_prijedlozi_budget', $kratko, 10 );
+$sb = OLR_Prijedlozi::summary();
+ok( ! is_wp_error( $rb ) && 5 === $rb['novih'] && 0 === $rb['tekstova'] && 5 === $rb['u_pozadini'] && true === $rb['ai_ok'] && (bool) wp_next_scheduled( OLR_Prijedlozi::EVENT_TEXT ) && true === $sb['pise_se'] && 5 === $sb['ceka_tekst'] && true === OLR_Settings::status()['prijedlozi']['ok'], 'prijedlozi: ručna analiza vraća prijedloge odmah, a tekst zakazuje u pozadini' );
+wp_clear_scheduled_hook( OLR_Prijedlozi::EVENT_TEXT );
+do_action( OLR_Prijedlozi::EVENT_TEXT );
+$pr = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/prijedlozi' ) );
+$pd = $pr->get_data();
+ok( 200 === $pr->get_status() && 0 === $pd['ceka_tekst'] && false === $pd['pise_se'] && 5 === count( array_filter( wp_list_pluck( $pd['stavke'], 'ai' ) ) ) && 0 === $pd['zadnje']['u_pozadini'] && ! wp_next_scheduled( OLR_Prijedlozi::EVENT_TEXT ), 'prijedlozi: pozadinski prolaz dopiše tekst svima (lagani REST /prijedlozi za ploču)' );
+$wipe();
 
 // Uredan tijek.
 $r   = OLR_Prijedlozi::run( 'auto' );
@@ -313,12 +378,12 @@ $pid = array();
 foreach ( $a as $p ) {
 	$pid[ $p['kljuc'] ] = $p;
 }
-ok( ! is_wp_error( $r ) && 5 === $r['novih'] && true === $r['ai_ok'] && $r['kandidata'] > 5, 'prijedlozi: 5 novih (zadani dnevni maksimum), tekst napisao Claude' );
+ok( ! is_wp_error( $r ) && 5 === $r['novih'] && true === $r['ai_ok'] && 5 === $r['tekstova'] && $r['kandidata'] > 5, 'prijedlozi: 5 novih (zadani dnevni maksimum), tekst napisao Claude' );
 $types = array_count_values( wp_list_pluck( $a, 'vrsta' ) );
 ok( max( $types ) <= 2, 'prijedlozi: najviše 2 po vrsti (' . wp_json_encode( $types ) . ')' );
 $pc = isset( $pid['ctr|/progresivne-naocale/'] ) ? $pid['ctr|/progresivne-naocale/'] : null;
 ok( $pc && 'seo_naslov' === $pc['izmjene'][0]['polje'] && 'Progresivne naočale – Optika Test' === $pc['izmjene'][0]['sada'] && ! empty( $pc['izmjene'][0]['upozorenje'] ) && empty( $pc['izmjene'][1]['upozorenje'] ), 'prijedlozi: „sada” iz crawla, predug naslov označen, opis u redu' );
-ok( $pc && false !== strpos( $pc['zasto'], '400 prikazivanja' ) && 'Objašnjenje iz ulaza.' === $pc['objasnjenje'], 'prijedlozi: „zašto” složen iz podataka, Claudeovo objašnjenje posebno' );
+ok( $pc && false !== strpos( $pc['zasto'], '400 prikazivanja' ) && 'Objašnjenje iz ulaza.' === $pc['objasnjenje'] && 0 === strpos( $pc['naslov'], 'AI: ' ), 'prijedlozi: „zašto” složen iz podataka, Claudeovo objašnjenje posebno' );
 $pg = isset( $pid['prilika|/kontakt/'] ) ? $pid['prilika|/kontakt/'] : null;
 $links = $pg ? array_values( array_filter( $pg['izmjene'], static function ( $c ) { return 'interni_link' === $c['polje']; } ) ) : array();
 ok( $pg && 1 === count( $links ) && 0 === strpos( $links[0]['gdje'], '/' ) && false === strpos( wp_json_encode( $pg ), 'nepostojeca' ), 'prijedlozi: link s izvora kojeg nema u popisu je odbačen' );
@@ -330,8 +395,8 @@ foreach ( $a as $p ) {
 }
 ok( $clean, 'prijedlozi: HTML uklonjen, nepoznata polja odbačena' );
 $sent = get_option( 'olr_test_ai_last' );
-ok( false === strpos( wp_json_encode( $sent ), 'sk-ant' ) && false === strpos( wp_json_encode( $sent ), 'PRIVATE KEY' ) && false !== strpos( $sent['system'], 'Ne izmišljaj' ), 'prijedlozi: Claudeu idu samo podaci o stranicama i upitima' );
-ok( false === OLR_Prijedlozi::due(), 'prijedlozi: za iste Google podatke automatika ne pokreće ponovno' );
+ok( false === strpos( wp_json_encode( $sent ), 'sk-ant' ) && false === strpos( wp_json_encode( $sent ), 'PRIVATE KEY' ) && false !== strpos( $sent['system'], 'Ne izmišljaj' ) && 'spremi_prijedlog' === $sent['tool_choice']['name'] && $sent['max_tokens'] <= 3000 && ! isset( json_decode( $sent['messages'][0]['content'], true )['nalazi'] ), 'prijedlozi: jedan nalaz po pozivu, prisilni poziv alata, Claudeu idu samo podaci o stranici i upitima' );
+ok( false === OLR_Prijedlozi::due() && false === OLR_Prijedlozi::fill_due(), 'prijedlozi: za iste Google podatke automatika ne pokreće ponovno' );
 
 // Stanja: odbijeni se ne vraća, otvoreni se ne dupliciraju.
 $put = new WP_REST_Request( 'PUT', '/ol-radar/v1/doc/prijedlozi_stanje/' . $pc['id'] );
@@ -357,10 +422,23 @@ unset( $run['rucno'] );
 update_option( 'olr_prijedlozi_run', $run );
 $d = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/podaci' ) )->get_data();
 ok( $d['prijedlozi']['otvorenih'] === $s['otvorenih'] && isset( $d['prijedlozi']['stavke'][0]['dokazi'] ), 'prijedlozi: u podacima nadzorne ploče' );
+$mj = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$mj->set_param( 'dio', 'mjerenje' );
+ok( 400 === rest_do_request( $mj )->get_status() && ! get_option( OLR_DFS::PENDING ), 'pozicije: plaćeno mjerenje se iz ploče ne pokreće bez potvrde' );
+// S potvrdom zahtjev stiže do pokretanja mjerenja (ovdje ga zaustavlja „već u tijeku”, da test ne stvara novo mjerenje).
+$tasks_before = count( (array) get_option( 'olr_test_dfs_tasks' ) );
+update_option( OLR_DFS::PENDING, 'test-u-tijeku' );
+$mj->set_param( 'potvrda', 'da' );
+$mr = rest_do_request( $mj );
+ok( 502 === $mr->get_status() && 'olr_dfs_u_tijeku' === $mr->get_data()['code'] && count( (array) get_option( 'olr_test_dfs_tasks' ) ) === $tasks_before, 'pozicije: s potvrdom zahtjev dolazi do mjerenja, a drugo se ne pokreće dok prvo traje' );
+delete_option( OLR_DFS::PENDING );
 if ( $reader ) {
 	wp_set_current_user( $reader[0]->ID );
 	$mp = wp_get_ability( 'ol-radar/radar-prijedlozi' )->execute( array( 'limit' => 3 ) );
 	ok( is_array( $mp ) && 3 === count( $mp['prijedlozi'] ) && $mp['otvorenih'] === $s['otvorenih'] && 'novo' === $mp['prijedlozi'][0]['stanje'] && false === strpos( wp_json_encode( $mp ), 'sk-ant' ), 'mcp: radar-prijedlozi (otvoreni, s limitom)' );
+	$ms = wp_get_ability( 'ol-radar/radar-stanje' )->execute( array() );
+	$mj = wp_json_encode( $ms );
+	ok( is_array( $ms ) && OLR_VERSION === $ms['stanje']['verzija'] && true === $ms['stanje']['kljucevi']['anthropic'] && $ms['prijedlozi']['otvorenih'] === $s['otvorenih'] && false === $ms['pozicije']['mjerenje_u_tijeku'] && ! empty( $ms['gsc']['podaci_do'] ) && strlen( $mj ) < 6000 && false === strpos( $mj, 'sk-ant' ) && false === strpos( $mj, 'PRIVATE KEY' ), 'mcp: radar-stanje je kratko i bez ključeva (' . strlen( $mj ) . ' znakova)' );
 	$sz = wp_get_ability( 'ol-radar/radar-sazetak' )->execute( array() );
 	ok( $sz['prijedlozi']['otvorenih'] === $s['otvorenih'], 'mcp: radar-sazetak javlja broj otvorenih prijedloga' );
 	wp_set_current_user( $admin[0]->ID );
