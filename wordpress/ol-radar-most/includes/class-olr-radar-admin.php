@@ -1,6 +1,6 @@
 <?php
 /**
- * OL Radar u wp-adminu: nadzorna ploča preko cijelog zaslona i stranica Postavke.
+ * OL Radar u wp-adminu: nadzorna ploča u radnom dijelu (WP izbornik ostaje lijevo) i stranica Postavke.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -18,11 +18,49 @@ class OLR_Radar_Admin {
 	}
 
 	public static function menu() {
-		$hook = add_menu_page( 'OL Radar', 'OL Radar', 'manage_options', self::SLUG, '__return_null', 'dashicons-chart-area', 3 );
-		add_submenu_page( self::SLUG, 'OL Radar – nadzorna ploča', 'Nadzorna ploča', 'manage_options', self::SLUG, '__return_null' );
+		$hook = add_menu_page( 'OL Radar', 'OL Radar', 'manage_options', self::SLUG, array( __CLASS__, 'render_page' ), 'dashicons-chart-area', 3 );
+		add_submenu_page( self::SLUG, 'OL Radar – nadzorna ploča', 'Nadzorna ploča', 'manage_options', self::SLUG, array( __CLASS__, 'render_page' ) );
 		add_submenu_page( self::SLUG, 'OL Radar – postavke', 'Postavke', 'manage_options', self::SETTINGS, array( __CLASS__, 'render_settings' ) );
-		// Ploča se ispisuje prije wp-admin okvira, preko cijelog zaslona.
-		add_action( 'load-' . $hook, array( __CLASS__, 'render_app' ) );
+		add_action( 'load-' . $hook, array( __CLASS__, 'load_page' ) );
+	}
+
+	/**
+	 * Ploča ide u okvir (iframe) u radnom dijelu wp-admina: WP izbornik ostaje lijevo, a stilovi
+	 * ploče i wp-admina se ne miješaju. Sam okvir učitava istu stranicu s ?olr_okvir=1.
+	 */
+	public static function load_page() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- samo prikaz, bez promjena
+		if ( isset( $_GET['olr_okvir'] ) ) {
+			self::render_app();
+		}
+		add_action(
+			'admin_head',
+			function () {
+				echo '<style>#wpcontent{padding-left:0}#wpbody-content{padding-bottom:0}#wpfooter{display:none}'
+					. '#wpbody-content>.notice,#wpbody-content>.update-nag,#wpbody-content>.error,#wpbody-content>.updated{margin:10px 16px}'
+					. '.olr-okvir{display:block;width:100%;border:0;height:calc(100vh - 32px);background:#f6f5f1}'
+					. '@media (max-width:782px){.olr-okvir{height:calc(100vh - 46px)}}</style>';
+			}
+		);
+	}
+
+	public static function render_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$src = add_query_arg( 'olr_okvir', '1', admin_url( 'admin.php?page=' . self::SLUG ) );
+		?>
+		<iframe id="olr-okvir" class="olr-okvir" title="OL Radar – nadzorna ploča" src="<?php echo esc_url( $src ); ?>"></iframe>
+		<script>
+		( function () {
+			var f = document.getElementById( 'olr-okvir' );
+			// visina do dna prozora (iznad mogu biti obavijesti drugih dodataka); modul iz #adrese preuzima sama ploča
+			function fit() { f.style.height = Math.max( 400, window.innerHeight - f.getBoundingClientRect().top - window.scrollY ) + 'px'; }
+			window.addEventListener( 'resize', fit );
+			fit();
+		} )();
+		</script>
+		<?php
 	}
 
 	/** Nadzorna ploča: isti kod kao Radar na claude.ai, s podacima s ovog servera. */

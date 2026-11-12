@@ -103,4 +103,22 @@
   window.claude = {
     use: async name => name === "db" ? db : name === "sample" ? (H.ai ? sample : null) : null
   };
+
+  /* Ploča je u okviru unutar wp-admina: odabrani modul (#pregled, #pozicije …) prepisuje se u adresu
+     glavnog prozora, pa osvježavanje i oznake vode na isti modul. */
+  if (window.parent !== window) {
+    document.documentElement.classList.add("ugradeno");
+    try {
+      const ph = window.parent.location.hash;
+      if (ph && !location.hash) history.replaceState(null, "", location.pathname + location.search + ph);
+    } catch (e) { /* drugi izvor */ }
+    const sync = () => {
+      try {
+        const p = window.parent.location;
+        if (p.hash !== location.hash) window.parent.history.replaceState(null, "", p.pathname + p.search + location.hash);
+      } catch (e) { /* drugi izvor: ništa */ }
+    };
+    window.addEventListener("hashchange", sync);
+    sync();
+  }
 })();

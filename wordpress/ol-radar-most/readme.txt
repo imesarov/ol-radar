@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,10 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.0.2 =
+* Nadzorna ploča je u radnom dijelu wp-admina, a WP izbornik ostaje lijevo (kao kod drugih dodataka).
+* Nova svijetla tema kao zadana (topla bijela podloga, zlato samo kao naglasak); tamna tema je na prekidaču u izborniku ploče.
 
 = 2.0.1 =
 * Postavke: gumbi za provjeru (Google, DataForSEO, Claude), preuzimanje i mjerenje sada najprije spremaju upisano. Prije su se upisani ključevi gubili ako se kliknula provjera umjesto „Spremi postavke”.

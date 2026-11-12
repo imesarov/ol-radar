@@ -1,13 +1,14 @@
 # Promjene
 
 ## 2026-11-12 (popodne)
+- **Dodatak 2.0.2:** ploča je u radnom dijelu wp-admina (okvir), a WP izbornik ostaje lijevo. Odabrani modul ostaje u adresi glavnog prozora. Svijetla tema je zadana (kontrast teksta ≥ 4,5:1), tamna je na prekidaču. U okviru wp-admina izbornik ploče je uži, a tablice gušće, pa sve stane od 1280 px naviše. Kod je zajednički, pa Radar na claude.ai dobiva temu pri sljedećoj objavi.
 - **Dodatak 2.0.1:** gumbi za provjeru, preuzimanje i mjerenje na stranici Postavke sada najprije spremaju upisano (prije su se ključevi gubili ako se kliknula provjera prije „Spremi postavke”). Dodano je upozorenje na nespremljene promjene i potvrda troška prije mjerenja.
   - **Važan popravak:** gumbi „obriši” bili su ugniježđeni obrasci unutar glavnog obrasca, a preglednik ih spaja s njim. Zato su „Spremi postavke” i gumbi za provjeru, čim je neki ključ već bio spremljen, zapravo pokretali brisanje ključa. „Obriši” je sada običan gumb u glavnom obrascu, s potvrdom.
   - Enter u polju radi obično spremanje. Polja za lozinku i API ključ imaju `autocomplete="new-password"`, da preglednik u njih ne upiše spremljenu lozinku za wp-admin.
 
 ## 2026-11-12
 - **WordPress dodatak 2.0.0: OL Radar na hostingu.**
-  - Nadzorna ploča u wp-adminu, preko cijelog zaslona, samo za administratore. Isti kod kao Radar na claude.ai (`app/hosted-shim.js`, `tools/build-hosted.py`).
+  - Nadzorna ploča u wp-adminu, samo za administratore (od 2.0.2 u radnom dijelu, uz WP izbornik). Isti kod kao Radar na claude.ai (`app/hosted-shim.js`, `tools/build-hosted.py`).
   - Google Search Console preko servisnog računa (JWT RS256, bez posrednika i bez kredita), svakih 12 h.
   - Pozicije preko DataForSEO-a: standardni red, tjedno ili ručno, s poviješću i top 20 rezultata po riječi za model konkurencije. Trošak se bilježi.
   - Claude u ploči preko Anthropic API-ja: ključ ostaje na serveru, alati se izvršavaju u pregledniku, uz dnevni limit i zapis potrošnje.

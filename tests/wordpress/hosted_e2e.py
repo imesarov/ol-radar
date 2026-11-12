@@ -27,10 +27,17 @@ async def main():
         async with pg.expect_navigation():
             await pg.click("#wp-submit")
 
+        # ploča je u okviru u radnom dijelu wp-admina; WP izbornik ostaje lijevo
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar#pregled")
-        await pg.wait_for_function("typeof S !== \"undefined\" && S.done && S.done.gsc", timeout=20000)
+        el = await pg.wait_for_selector("#olr-okvir")
+        fr = await el.content_frame()
+        await fr.wait_for_function("typeof S !== \"undefined\" && S.done && S.done.gsc", timeout=20000)
         await pg.wait_for_timeout(1500)
-        st = await pg.evaluate("""(()=>({gsc:S.gsc.src, daily:(S.gsc.daily||[]).length, qp:(S.gsc.qp||[]).length,
+        lay = await pg.evaluate("""(()=>{const m=document.querySelector('#adminmenu').getBoundingClientRect(), f=document.querySelector('#olr-okvir').getBoundingClientRect();
+            return {meni:m.width>0&&getComputedStyle(document.querySelector('#adminmenuwrap')).display!=='none', lijevo:Math.round(f.left), sirina:Math.round(f.width), dno:Math.round(f.bottom), vis:innerHeight, footer:getComputedStyle(document.querySelector('#wpfooter')).display}})()""")
+        okl = lay["meni"] and lay["lijevo"] >= 150 and abs(lay["dno"] - lay["vis"]) <= 2 and lay["footer"] == "none"
+        print(("OK  " if okl else "FAIL") + " ploča u radnom dijelu, WP izbornik lijevo:", lay); bad += 0 if okl else 1
+        st = await fr.evaluate("""(()=>({gsc:S.gsc.src, daily:(S.gsc.daily||[]).length, qp:(S.gsc.qp||[]).length,
             rank:(S.rank.rows||[]).length, hist:S.rank.hist?S.rank.hist.runs.length:0, wp:(S.wp.list||[]).length,
             onpage:S.onpageSrc, wk:!!(weekData()&&weekData().movers), serpLive:S.serpLive?S.serpLive.size:0,
             model:(compModel()||{}).list?compModel().list.length:0, ai:!!SAMPLE, mcp:!!MCP,
@@ -41,31 +48,59 @@ async def main():
         print("OK   podaci s hostinga" if ok else "FAIL podaci s hostinga"); bad += 0 if ok else 1
 
         for v in ["tjedno", "google", "pozicije", "kljucne-rijeci", "planer", "konkurencija", "trendovi", "audit", "drustvene-mreze", "popravci", "arhiva", "metodologija", "pregled"]:
-            await pg.evaluate(f"location.hash='#{v}'")
+            await fr.evaluate(f"location.hash='#{v}'")
             await pg.wait_for_timeout(400)
             if v in ("tjedno", "pozicije", "audit", "konkurencija"):
-                await pg.screenshot(path=f"{OUT}/hosted_{v}.png", full_page=True)
+                await pg.screenshot(path=f"{OUT}/hosted_{v}.png")
 
         # stanje nalaza se sprema u bazu dodatka
-        iid = await pg.evaluate("S.issues[0] && S.issues[0].id")
-        await pg.evaluate(f"setIssueState('{iid}', 'gotovo')")
+        iid = await fr.evaluate("S.issues[0] && S.issues[0].id")
+        await fr.evaluate(f"setIssueState('{iid}', 'gotovo')")
         await pg.wait_for_timeout(1200)
-        saved = await pg.evaluate(f"S.status['{iid}'] && S.status['{iid}'].status")
+        saved = await fr.evaluate(f"S.status['{iid}'] && S.status['{iid}'].status")
         print(("OK  " if saved == "gotovo" else "FAIL") + " stanje nalaza spremljeno preko REST-a i vraćeno (onSnapshot)"); bad += 0 if saved == "gotovo" else 1
 
         # AI chat: alat se izvršava u pregledniku, odgovor stiže preko servera
-        await pg.evaluate("location.hash='#popravci'")
+        await fr.evaluate("location.hash='#popravci'")
         await pg.wait_for_timeout(300)
-        await pg.fill("#chat-in", "Kako stojimo ovaj tjedan?")
-        await pg.evaluate("document.querySelector('#chat-form').requestSubmit()")
-        await pg.wait_for_function("S.chat.length >= 2 && !document.querySelector('#chat-send').disabled", timeout=20000)
-        ans = await pg.evaluate("S.chat[S.chat.length-1].content")
+        await fr.fill("#chat-in", "Kako stojimo ovaj tjedan?")
+        await fr.evaluate("document.querySelector('#chat-form').requestSubmit()")
+        await fr.wait_for_function("S.chat.length >= 2 && !document.querySelector('#chat-send').disabled", timeout=20000)
+        ans = await fr.evaluate("S.chat[S.chat.length-1].content")
         print(("OK  " if "Prema alatu" in ans else "FAIL") + " AI chat s alatom: " + ans[:80].replace("\n", " ")); bad += 0 if "Prema alatu" in ans else 1
 
+        # modul u adresi glavnog prozora; nakon osvježavanja ista stranica ploče
+        await fr.evaluate("location.hash='#pozicije'")
+        await pg.wait_for_timeout(300)
+        okh1 = pg.url.endswith("#pozicije")
+        await pg.reload()
+        fr = await (await pg.wait_for_selector("#olr-okvir")).content_frame()
+        await fr.wait_for_function("typeof S !== \"undefined\" && S.view === 'pozicije'", timeout=20000)
+        print(("OK  " if okh1 else "FAIL") + " modul u adresi wp-admina i nakon osvježavanja"); bad += 0 if okh1 else 1
+        # tema: svijetla zadana, prekidač pamti izbor
+        t0 = await fr.evaluate("document.documentElement.dataset.tema")
+        await fr.click("#btn-tema")
+        t1 = await fr.evaluate("[document.documentElement.dataset.tema, getComputedStyle(document.body).backgroundColor]")
+        await pg.screenshot(path=f"{OUT}/hosted_tamna.png")
+        await pg.reload()
+        fr = await (await pg.wait_for_selector("#olr-okvir")).content_frame()
+        await fr.wait_for_function("typeof S !== \"undefined\"", timeout=20000)
+        t2 = await fr.evaluate("document.documentElement.dataset.tema")
+        await fr.click("#btn-tema")
+        bg = await fr.evaluate("getComputedStyle(document.body).backgroundColor")
+        okt = t0 == "svijetla" and t1[0] == "tamna" and t1[1] == "rgb(10, 10, 10)" and t2 == "tamna" and bg == "rgb(246, 245, 241)"
+        print(("OK  " if okt else "FAIL") + f" tema: zadana {t0}, prekidač {t1}, zapamćena {t2}, natrag {bg}"); bad += 0 if okt else 1
+        tg = await fr.evaluate("[...document.querySelectorAll('#banner a')].map(a=>a.textContent+':'+(a.target||'-')).join(', ')")
+        okg2 = "Postavke i ključevi:_top" in tg
+        print(("OK  " if okg2 else "FAIL") + " poveznice iz ploče otvaraju se u glavnom prozoru: " + tg); bad += 0 if okg2 else 1
+        await fr.evaluate("location.hash='#pregled'")
+        await pg.wait_for_timeout(800)
+        await pg.screenshot(path=f"{OUT}/hosted_pregled.png")
+
         # export za Claudea zapisan u bazu dodatka
-        await pg.evaluate("maybeExport(true)")
+        await fr.evaluate("maybeExport(true)")
         await pg.wait_for_timeout(1500)
-        ex = await pg.evaluate("OLR_HOSTED.api('doc/export/radar').then(d=>({potpuno:d.data.potpuno, gsc:d.data.izvori.gsc, poz:(d.data.pozicije||[]).length}))")
+        ex = await fr.evaluate("OLR_HOSTED.api('doc/export/radar').then(d=>({potpuno:d.data.potpuno, gsc:d.data.izvori.gsc, poz:(d.data.pozicije||[]).length}))")
         okx = ex["gsc"] == "Google API" and ex["poz"] == 5
         print(("OK  " if okx else "FAIL") + " export/radar u bazi dodatka:", ex); bad += 0 if okx else 1
 

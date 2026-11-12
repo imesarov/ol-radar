@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OL Radar</title>
+<script>
+/* Tema prije iscrtavanja: svijetla je zadana, izbor se pamti u ovom pregledniku. */
+(function(){ var t = "svijetla"; try { t = localStorage.getItem("olr_tema") || t; } catch (e) {} document.documentElement.setAttribute("data-tema", t === "tamna" ? "tamna" : "svijetla"); })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
@@ -14,11 +18,31 @@
   --text:#fafaf8; --lead:#d8d5cf; --muted:#9a9693; --dim:#b5b1aa;
   --gold:#c8a96e; --gold-lt:#e8d5b0; --gold-dk:#a08750;
   --good:#8fb996; --warn:#d9a05b; --crit:#e07b6a;
+  --on-gold:#0a0a0a; --off:#3a3631; --info-bar:#4a453e; --hl:rgba(200,169,110,.08); --area:rgba(200,169,110,.12); --scrim:rgba(0,0,0,.72);
   --serif:"Playfair Display", Georgia, "Times New Roman", serif;
   --sans:"DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* raspored: lijevi izbornik + radna površina; sažetak gore, detalji ispod */
   color-scheme:dark;
 }
+/* Svijetla tema (zadana): topla bijela podloga, zlato samo kao naglasak. Kontrast teksta ≥ 4,5:1. */
+:root[data-tema="svijetla"]{
+  --bg:#f6f5f1; --surface:#ffffff; --surface-2:#f0ede6; --line:#ddd7cb; --line-soft:#e9e5dc;
+  --text:#1d1b18; --lead:#3f3b35; --muted:#6b665e; --dim:#5a554e;
+  --gold:#836528; --gold-lt:#74591f; --gold-dk:#b39558;
+  --good:#2b7342; --warn:#9b5a13; --crit:#b83a2b;
+  --on-gold:#ffffff; --off:#cfc9bd; --info-bar:#bdb6a8; --hl:rgba(131,101,40,.08); --area:rgba(131,101,40,.10); --scrim:rgba(29,27,24,.45);
+  color-scheme:light;
+}
+#banner:not(:empty){margin-bottom:22px}
+/* U okviru wp-admina (lijevo je i WP izbornik): uži izbornik ploče i gušće tablice da sve stane i na 1280–1440 px. */
+.ugradeno .app{grid-template-columns:200px minmax(0,1fr)}
+.ugradeno .rail{padding:24px 16px}
+.ugradeno main{padding:28px 24px 64px}
+.ugradeno .logo{font-size:21px}
+@media (max-width:1240px){ .ugradeno th,.ugradeno td{padding:8px 8px} .ugradeno .spark{width:84px} .ugradeno table{font-size:13px} }
+.rail .tema{margin-top:-14px}
+.tema{align-self:flex-start;background:transparent;border:1px solid var(--line);border-radius:2px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tema:hover{color:var(--text);border-color:var(--gold-dk)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
@@ -56,7 +80,7 @@ p{margin:0}
 .srcs{display:flex;flex-direction:column;gap:8px;margin-top:auto}
 .src{display:grid;grid-template-columns:10px 1fr;gap:4px 10px;align-items:baseline;font-size:12.5px}
 .src i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:block;transform:translateY(-1px)}
-.src i.ok{background:var(--good)} .src i.load{background:var(--gold);animation:pulse 1.2s infinite} .src i.err{background:var(--crit)} .src i.off{background:#3a3631}
+.src i.ok{background:var(--good)} .src i.load{background:var(--gold);animation:pulse 1.2s infinite} .src i.err{background:var(--crit)} .src i.off{background:var(--off)}
 .src b{font-weight:500;color:var(--lead)}
 .src small{grid-column:2;color:var(--muted);font-size:11.5px;line-height:1.35}
 @keyframes pulse{50%{opacity:.35}}
@@ -86,7 +110,7 @@ td.nw{white-space:nowrap}
 .note{font-size:13px;color:var(--muted);border-left:2px solid var(--gold-dk);padding:2px 0 2px 12px}
 .err{font-size:13px;color:var(--crit);border-left:2px solid var(--crit);padding:2px 0 2px 12px}
 .loading{font-size:13px;color:var(--muted)}
-.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:2px;border:1px solid var(--gold);background:var(--gold);color:#0a0a0a;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border-radius:2px;border:1px solid var(--gold);background:var(--gold);color:var(--on-gold);font-weight:600;cursor:pointer;white-space:nowrap}
 .btn:hover{background:var(--gold-lt);border-color:var(--gold-lt)}
 .btn-g{background:transparent;color:var(--gold-lt);border-color:var(--line)}
 .btn-g:hover{background:var(--surface-2);border-color:var(--gold-dk);color:var(--gold-lt)}
@@ -102,7 +126,7 @@ table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
 th{font-weight:500;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);position:sticky;top:0;white-space:nowrap}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.me td{background:rgba(200,169,110,.08)}
+tr.me td{background:var(--hl)}
 tr:last-child td{border-bottom:0}
 td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
 .pill{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:20px;border:1px solid currentColor;white-space:nowrap;line-height:1.5}
@@ -112,7 +136,7 @@ td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-
 .issue{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:14px;background:var(--surface);border:1px solid var(--line-soft);padding:14px 16px 14px 0;cursor:pointer;text-align:left;width:100%;color:inherit}
 .issue:hover{border-color:var(--line)}
 .issue .bar{border-radius:0 2px 2px 0}
-.issue .bar.crit{background:var(--crit)} .issue .bar.warn{background:var(--warn)} .issue .bar.info{background:#4a453e} .issue .bar.good{background:var(--good)}
+.issue .bar.crit{background:var(--crit)} .issue .bar.warn{background:var(--warn)} .issue .bar.info{background:var(--info-bar)} .issue .bar.good{background:var(--good)}
 .issue .it{display:block;font-size:15px;font-weight:600;line-height:1.35}
 .issue .id{display:block;font-size:13px;color:var(--muted);margin-top:4px}
 .issue.sel{border-color:var(--gold-dk)}
@@ -124,7 +148,7 @@ td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-
 .chart .ax{fill:var(--muted);font:11px var(--sans)}
 .chart .ln{fill:none;stroke:var(--gold);stroke-width:2;stroke-linejoin:round}
 .chart .ln2{fill:none;stroke:var(--dim);stroke-width:1.5;stroke-dasharray:4 4}
-.chart .ar{fill:rgba(200,169,110,.12)}
+.chart .ar{fill:var(--area)}
 .chart .pt{fill:var(--gold);stroke:var(--bg);stroke-width:2}
 .chart .lb{fill:var(--gold-lt);font:600 12px var(--sans)}
 .spark{width:120px;height:30px;display:block}
@@ -147,13 +171,13 @@ td .u{display:block;max-width:44ch;overflow:hidden;text-overflow:ellipsis;white-
 .msg.me{background:var(--surface-2);border-color:var(--line);align-self:flex-end;max-width:80%}
 .msg.ai{background:var(--bg)}
 .msg .who{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
 .modal.on{display:flex}
 .modal .box{background:var(--surface);border:1px solid var(--line);max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:24px;display:flex;flex-direction:column;gap:14px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:2px;overflow:hidden;flex-wrap:wrap}
 .seg button{background:transparent;border:0;padding:7px 12px;font-size:13px;color:var(--lead);cursor:pointer;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
-.seg button[aria-pressed="true"]{background:var(--gold);color:#0a0a0a;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--gold);color:var(--on-gold);font-weight:600}
 .method td:first-child{font-weight:600;white-space:nowrap}
 .banner{background:var(--surface);border:1px solid var(--crit);padding:12px 16px;font-size:14px}
 details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
@@ -164,6 +188,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
   .rail{position:sticky;top:0;z-index:20;height:auto;flex-direction:row;align-items:center;gap:16px;padding:12px 16px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
   .logo small,.srcs{display:none}
   .logo{font-size:19px}
+  .rail .tema{margin-top:0;order:3;align-self:center}
   .nav{flex-direction:row;gap:2px}
   .nav a{white-space:nowrap;padding:8px 10px}
   .nav a span{display:none}
@@ -178,6 +203,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
 <div class="app">
   <aside class="rail">
     <div class="logo">Optika <i>Ljiljana</i><b>.</b><small>Radar · web i mreže</small></div>
+    <button type="button" class="tema" id="btn-tema" aria-label="Promijeni temu"></button>
     <nav class="nav" aria-label="Moduli">
       <a href="#pregled" data-v="pregled"><span>01</span>Pregled</a>
       <a href="#tjedno" data-v="tjedno"><span>02</span>Tjedno</a>
@@ -205,7 +231,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         <div class="t">
           <div class="eb">Sesvete · od 1993.</div>
           <h1>Vidljivost <em>danas</em></h1>
-          <p>Stvarni Google podaci iz Search Consolea (preko OpenSEO-a), tjedne pozicije iz trackera, web iznutra preko WordPress mosta, Instagram i YouTube iz vidIQ-a. Ahrefs dok traje pretplata, zatim njegova arhiva. Brojke se keširaju da se krediti i jedinice ne troše bez potrebe.</p>
+          <p id="pregled-lead">Stvarni Google podaci iz Search Consolea (preko OpenSEO-a), tjedne pozicije iz trackera, web iznutra preko WordPress mosta, Instagram i YouTube iz vidIQ-a. Ahrefs dok traje pretplata, zatim njegova arhiva. Brojke se keširaju da se krediti i jedinice ne troše bez potrebe.</p>
         </div>
         <div class="row">
           <span class="cost" id="units-line"></span>
@@ -653,6 +679,24 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
   window.claude = {
     use: async name => name === "db" ? db : name === "sample" ? (H.ai ? sample : null) : null
   };
+
+  /* Ploča je u okviru unutar wp-admina: odabrani modul (#pregled, #pozicije …) prepisuje se u adresu
+     glavnog prozora, pa osvježavanje i oznake vode na isti modul. */
+  if (window.parent !== window) {
+    document.documentElement.classList.add("ugradeno");
+    try {
+      const ph = window.parent.location.hash;
+      if (ph && !location.hash) history.replaceState(null, "", location.pathname + location.search + ph);
+    } catch (e) { /* drugi izvor */ }
+    const sync = () => {
+      try {
+        const p = window.parent.location;
+        if (p.hash !== location.hash) window.parent.history.replaceState(null, "", p.pathname + p.search + location.hash);
+      } catch (e) { /* drugi izvor: ništa */ }
+    };
+    window.addEventListener("hashchange", sync);
+    sync();
+  }
 })();
 
 </script>
@@ -1172,7 +1216,7 @@ async function loadHosted() {
   try { P = await OLR_HOSTED.api("podaci"); }
   catch (e) { ["gsc", "rank", "wp"].forEach(k => setSrc(k, "err", e.status === 403 || e.status === 401 ? "Prijava u wp-admin je istekla. Osvježi stranicu." : (e.message || "Server ne odgovara"))); rerender(); return; }
   const st = P.stanje || {}, iz = st.izvori || {}, keys = st.kljucevi || {};
-  const pre = HOSTED ? '<a href="' + esc(OLR_HOSTED.postavke) + '">Postavke</a>' : "";
+  const pre = HOSTED ? '<a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke</a>' : "";
   /* Google Search Console */
   const G = P.gsc || {};
   if (G.daily && G.daily.rows && G.daily.rows.length) {
@@ -2857,12 +2901,24 @@ function bindStatic() {
   $("#tr-hr-list").value = S.cfg.trendsHR.join("\n");
   $("#tr-world-list").value = S.cfg.trendsWorld.join("\n");
 }
+function initTema() {
+  const b = $("#btn-tema"); if (!b) return;
+  const show = () => { const t = document.documentElement.getAttribute("data-tema"); b.textContent = t === "tamna" ? "Svijetla tema" : "Tamna tema"; };
+  b.addEventListener("click", () => {
+    const t = document.documentElement.getAttribute("data-tema") === "tamna" ? "svijetla" : "tamna";
+    document.documentElement.setAttribute("data-tema", t);
+    try { localStorage.setItem("olr_tema", t); } catch (e) {}
+    show();
+  });
+  show();
+}
 async function boot() {
-  bindStatic(); renderSources(); route(); renderChat();
+  initTema(); bindStatic(); renderSources(); route(); renderChat();
   if (HOSTED) {
     SRC_LABEL.rank = "Pozicije (DataForSEO)"; SRC_LABEL.gsc = "Google Search Console (API)";
     const eb = $("#v-pozicije .eb"); if (eb) eb.textContent = "DataForSEO · mobitel · Zagreb";
-    $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.wpadmin) + '">wp-admin</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a></div>';
+    const pl = $("#pregled-lead"); if (pl) pl.textContent = "Stvarni Google podaci iz Search Consolea (Google API, svakih 12 sati), pozicije za ciljane riječi iz DataForSEO-a, web iznutra iz ovog WordPressa i arhiva Ahrefsa. Sve se skuplja na hostingu, a ploča samo čita spremljeno.";
+    $("#banner").innerHTML = '<div class="banner" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-color:var(--line);color:var(--muted);font-size:13px"><span>OL Radar na hostingu · ' + esc(OLR_HOSTED.korisnik || "") + '</span><a href="' + esc(OLR_HOSTED.postavke) + '" target="_top">Postavke i ključevi</a><a href="' + esc(OLR_HOSTED.web) + '" target="_blank" rel="noopener">web</a></div>';
     const [d, s] = await Promise.all([claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
     DB = d; SAMPLE = s; MCP = null;
     setSrc("ai", SAMPLE ? "ok" : "off", SAMPLE ? "Anthropic API, ključ na serveru" : "Anthropic ključ nije postavljen (Postavke)");
