@@ -122,7 +122,9 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 1.0.0. Verzija 1.0.1 čeka da je Ivan učita: prazni sadržaj `<script>` i `<style>` prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala). Nakon nadogradnje sve stranice same idu na ponovnu obradu; ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
+- **Verzija:** na webu 1.0.0. Verzija 2.0.0 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+  - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
+  - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.
 - **Konektor u claude.ai:** „Optika Ljiljana web”, URL `https://www.optikaljiljana.hr/wp-json/mcp/mcp-oauth-server`.
   - OAuth je WP Rocketov.
