@@ -251,15 +251,21 @@ class OLR_AI {
 				'type'          => self::WEB_SEARCH,
 				'name'          => 'web_search',
 				'max_uses'      => $search,
+				// Bez države: Anthropicova web pretraga ne prihvaća oznaku HR (HTTP 400, 13. 11. 2026.).
 				'user_location' => array(
 					'type'     => 'approximate',
 					'city'     => 'Zagreb',
-					'country'  => 'HR',
 					'timezone' => 'Europe/Zagreb',
 				),
 			);
 		}
 		$out = self::send( $key, $body, $search, $long );
+		// Ako pretraga odbije i lokaciju (grad ili vremensku zonu), pokušaj jednom bez nje; upit je ionako na hrvatskom.
+		if ( $search && is_wp_error( $out ) && 'olr_ai_zahtjev' === $out->get_error_code() && preg_match( '/location|country/i', $out->get_error_message() ) ) {
+			$n = count( $body['tools'] ) - 1;
+			unset( $body['tools'][ $n ]['user_location'] );
+			$out = self::send( $key, $body, $search, $long );
+		}
 		if ( ! is_wp_error( $out ) && '' !== $force && 'end_turn' === $out['stop_reason'] && ! self::has_tool_use( $out['content'], $force ) ) {
 			$body['system'] .= "\n\nVAŽNO: u prethodnom pokušaju alat nije pozvan. Odgovor mora biti poziv alata " . $force . '.';
 			$again           = self::send( $key, $body, $search, $long );

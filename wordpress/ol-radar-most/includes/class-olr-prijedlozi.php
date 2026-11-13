@@ -568,6 +568,7 @@ class OLR_Prijedlozi {
 			'izradjeno'      => $now,
 			'gsc_do'         => $gsc_do,
 			'nacin'          => $how,
+			'pravila'        => OLR_Analiza::PRAVILA,
 			'isteklo'        => false,
 		);
 	}
@@ -582,12 +583,14 @@ class OLR_Prijedlozi {
 	 * - novi prijedlog bez teksta čiji nalaz i dalje vrijedi dobiva svježe brojke;
 	 * - novi prijedlog bez teksta čiji nalaz više ne postoji označava se kao istekao (nema ga smisla pisati);
 	 * - novi prijedlog s tekstom stariji od 21 dan čiji nalaz više ne postoji također istječe;
+	 * - novi prijedlog s tekstom napisan prema starijim pravilima analize (OLR_Analiza::PRAVILA) istječe odmah
+	 *   ako ga nova pravila ne potvrđuju, ali samo kad je analiza imala Google podatke ($potpuna);
 	 * - prijedlozi stariji od 180 dana brišu se.
 	 * Prijedlozi koje je korisnik prihvatio, proveo ili odbio ne diraju se.
 	 *
 	 * @return array{isteklo:int, bez_teksta:array} Broj isteklih i otvoreni prijedlozi koji još čekaju tekst.
 	 */
-	private static function reconcile( $all, $candidates ) {
+	private static function reconcile( $all, $candidates, $potpuna = true ) {
 		$alive = array();
 		foreach ( $candidates as $c ) {
 			$alive[ $c['kljuc'] ] = $c;
@@ -605,14 +608,21 @@ class OLR_Prijedlozi {
 			if ( ! empty( $p['isteklo'] ) || ! self::is_open( $p ) ) {
 				continue;
 			}
-			$live = isset( $alive[ $p['kljuc'] ] );
-			$doc  = self::strip_state( $p );
-			if ( 'novo' === $p['stanje'] && ! $live && ( empty( $p['ai'] ) || $age > 21 * DAY_IN_SECONDS ) ) {
+			$live  = isset( $alive[ $p['kljuc'] ] );
+			$doc   = self::strip_state( $p );
+			$stara = $potpuna && ( isset( $p['pravila'] ) ? (int) $p['pravila'] : 1 ) < OLR_Analiza::PRAVILA;
+			if ( 'novo' === $p['stanje'] && ! $live && ( empty( $p['ai'] ) || $stara || $age > 21 * DAY_IN_SECONDS ) ) {
 				$doc['isteklo']        = true;
-				$doc['isteklo_razlog'] = 'nalaz više ne postoji u podacima';
+				$doc['isteklo_razlog'] = ( $stara && ! empty( $p['ai'] ) && $age <= 21 * DAY_IN_SECONDS )
+					? 'nalaz ne prolazi pooštrena pravila analize'
+					: 'nalaz više ne postoji u podacima';
 				OLR_Store::set( self::COLL, $doc['id'], $doc );
 				++$expired;
 				continue;
+			}
+			if ( $live && $potpuna && ( isset( $p['pravila'] ) ? (int) $p['pravila'] : 1 ) < OLR_Analiza::PRAVILA ) {
+				$doc['pravila'] = OLR_Analiza::PRAVILA; // nalaz vrijedi i po novim pravilima
+				OLR_Store::set( self::COLL, $doc['id'], $doc );
 			}
 			if ( empty( $p['ai'] ) ) {
 				if ( 'novo' === $p['stanje'] && $live ) {
@@ -697,7 +707,7 @@ class OLR_Prijedlozi {
 		}
 
 		$an  = OLR_Analiza::run();
-		$rec = self::reconcile( self::all(), $an['kandidati'] );
+		$rec = self::reconcile( self::all(), $an['kandidati'], ! empty( $an['potpuna'] ) );
 		$all = self::all();
 		$max = max( 1, min( 10, (int) OLR_Settings::get( 'prijedlozi_max' ) ) );
 

@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.1
+Stable tag: 2.4.2
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, suradnje i poveznice, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,12 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.4.2 =
+* Manje lažnih nalaza u prijedlozima izmjena: glavna stranica za upit je ona s najviše klikova (ne s najviše prikazivanja), kanibalizacija se ne javlja kad smo prvi ili su obje stranice u prva tri rezultata, upiti s imenom konkurenta se preskaču, pad klikova i nizak CTR moraju biti statistički značajni, lokalni upiti imaju niže očekivanje CTR-a, stranice mijenjane u zadnjih 14 dana čekaju nove podatke, a novi članak se ne predlaže kad postojeća stranica već pokriva temu.
+* Otvoreni prijedlozi napisani prije 2.4.2 koje nova pravila ne potvrđuju istječu pri prvoj sljedećoj analizi (prije su čekali 21 dan). Prihvaćeni, provedeni i odbijeni ostaju kakvi jesu.
+* Popravak: web pretraga za nove tvrtke više ne šalje oznaku države HR, koju Anthropic odbija; ako odbije i grad, pokuša jednom bez lokacije.
+* Popravak: stranica „Kontakt” kandidata za suradnju više se ne miješa s poveznicom na „kontaktne leće”.
 
 = 2.4.1 =
 * Popravak: prijedlozi suradnje na modelu Claude Opus 5.5 više se ne prekidaju zbog duljine. Svaki prijedlog je sada zaseban, kratak poziv i sprema se čim stigne.

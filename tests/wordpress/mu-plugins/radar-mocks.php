@@ -173,7 +173,7 @@ add_filter(
 					array( 'cijena progresivnih naočala', 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/', 5, 120, 3.0 ),
 					array( 'progresivne naočale cijena', 'https://www.optikaljiljana.hr/progresivne-naocalne-lece/', 6, 210, 2.8 ),
 					array( 'optika sesvete', 'https://www.optikaljiljana.hr/', 3, 139, 11.6 ),
-					array( 'stellest stakla', 'https://www.optikaljiljana.hr/stellest-lece-za-djecu/', 1, 29, 3.5 ),
+					array( 'stellest stakla', 'https://www.optikaljiljana.hr/stellest-lece-za-djecu/', 1, 45, 3.5 ),
 				);
 				if ( $extra ) {
 					// Bogatiji skup za test dnevne analize (putanje postoje u testnom webu).
@@ -192,6 +192,18 @@ add_filter(
 							array( 'mrena na oku simptomi', $h . '/', 0, 180, 18.0 ),                           // nema prave stranice
 							array( 'optika ljiljana sesvete', $h . '/', 40, 90, 1.2 ),                          // brend: ne ulazi
 							array( 'privatno nešto', $h . '/privatno/', 0, 300, 3.0 ),                          // noindex: ne ulazi
+							// 2.4.2: lažni nalazi koji ne smiju nastati.
+							array( 'optika ljiljana', $h . '/', 46, 159, 1.0 ),                                  // brend: glavna je naslovnica (klikovi)
+							array( 'optika ljiljana', $h . '/progresivne-naocale/', 8, 155, 1.8 ),               // dodatne poveznice ispod rezultata
+							array( 'optika ljiljana', $h . '/kontakt/', 3, 193, 1.8 ),                           // najviše prikazivanja, ali nije glavna
+							array( 'progresivne naočale dioptrija', $h . '/progresivne-naocale/', 9, 120, 1.2 ),   // prvi smo: nije kanibalizacija
+							array( 'progresivne naočale dioptrija', $h . '/dioptrijske-naocale/', 1, 80, 2.1 ),
+							array( 'kontakt progresivne', $h . '/kontakt/', 2, 70, 2.6 ),                        // obje u prva tri: dvostruki prikaz
+							array( 'kontakt progresivne', $h . '/progresivne-naocale/', 1, 60, 3.2 ),
+							array( 'naočale za čitanje kontakt', $h . '/kontakt/', 1, 70, 6.0 ),                 // druga stranica ispod 20. mjesta
+							array( 'naočale za čitanje kontakt', $h . '/dioptrijske-naocale/', 0, 60, 34.0 ),
+							array( 'optika jo jo', $h . '/kontakt/', 0, 90, 4.0 ),                              // ime konkurenta (jojo-optika.hr)
+							array( 'stellest leće za djecu', $h . '/stellest-lece-za-djecu/', 0, 70, 26.0 ),        // postojeća stranica već pokriva temu: ne novi članak
 						)
 					);
 				}
@@ -210,6 +222,10 @@ add_filter(
 					$rows[] = $prev
 						? array( 'keys' => array( 'progresivne naočale' ), 'clicks' => 9, 'impressions' => 120, 'ctr' => 0.075, 'position' => 2.1 )
 						: array( 'keys' => array( 'progresivne naočale' ), 'clicks' => 2, 'impressions' => 95, 'ctr' => 0.021, 'position' => 2.6 );
+					// Manje klikova, ali u granicama slučajnosti (10 → 4, binomni test p ≈ 0,09): nije pad.
+					$rows[] = $prev
+						? array( 'keys' => array( 'kontakt optika test' ), 'clicks' => 10, 'impressions' => 40, 'ctr' => 0.25, 'position' => 3.1 )
+						: array( 'keys' => array( 'kontakt optika test' ), 'clicks' => 4, 'impressions' => 67, 'ctr' => 0.06, 'position' => 2.9 );
 				}
 			}
 			return $json( 200, array( 'rows' => $rows, 'responseAggregationType' => 'byProperty' ) );
@@ -616,7 +632,7 @@ add_filter(
 			if ( false !== strpos( $path, 'kontakt' ) ) {
 				return $html( '<h1>Kontakt</h1><p><a href="mailto:Info@' . $host . '">Pišite nam</a> ili <a href="tel:+385 1 2345 678">nazovite</a>. Tuđa adresa: netko@drugdje.com</p>' );
 			}
-			return $html( '<nav><a href="/o-portalu/">O portalu</a> <a href="//' . $host . '/kontakt/">Kontakt</a></nav><p>redakcija@' . $host . '</p>' );
+			return $html( '<nav><a href="/o-portalu/">O portalu</a> <a href="/kontaktne-lece/">Kontaktne leće</a> <a href="//' . $host . '/kontakt/">Kontakt</a></nav><p>redakcija@' . $host . '</p>' );
 		}
 
 		// Anthropic Messages API.
@@ -634,6 +650,13 @@ add_filter(
 			$names = array();
 			foreach ( isset( $req['tools'] ) && is_array( $req['tools'] ) ? $req['tools'] : array() as $t ) {
 				$names[] = isset( $t['type'] ) ? $t['type'] : ( isset( $t['name'] ) ? $t['name'] : '' );
+				// Kao stvarni API 13. 11. 2026.: država HR nije podržana; uz opciju olr_test_ai_lokacija odbija i grad.
+				if ( isset( $t['user_location']['country'] ) && 'HR' === $t['user_location']['country'] ) {
+					return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tools.1.web_search_20250305: Country code HR is not supported.' ) ) );
+				}
+				if ( isset( $t['user_location'] ) && get_option( 'olr_test_ai_lokacija' ) ) {
+					return $json( 400, array( 'type' => 'error', 'error' => array( 'type' => 'invalid_request_error', 'message' => 'tools.1.web_search_20250305.user_location: not a location the search provider supports' ) ) );
+				}
 			}
 			$last = end( $req['messages'] );
 			// Suradnje i poveznice.

@@ -348,7 +348,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
       </div>
       <div class="panel"><header><h3>Prilike na pragu</h3><p>pozicije 4–20 s dovoljno prikazivanja; potencijal = dodatni klikovi mjesečno ako uđu u top 3</p></header><div id="gsc-striking"></div></div>
       <div class="panel"><header><h3>Nizak CTR za poziciju</h3><p>naslov i opis ne privlače klik</p></header><div id="gsc-lowctr"></div></div>
-      <div class="panel"><header><h3>Kanibalizacija</h3><p>više vaših stranica dijeli isti upit</p></header><div id="gsc-cannibal"></div></div>
+      <div class="panel"><header><h3>Kanibalizacija</h3><p>više vaših stranica dijeli isti upit, a glavna nije prva; bez upita s imenom optike i konkurenata</p></header><div id="gsc-cannibal"></div></div>
       <div class="panel"><header><h3>Stranice: rast i pad</h3><p>klikovi 28 dana prema prethodnih 28</p></header><div id="gsc-pages"></div></div>
       <div class="panel">
         <header><h3>Svi upiti</h3><p id="gsc-q-meta"></p></header>
@@ -623,7 +623,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
           <thead><tr><th>Što</th><th>Kako</th><th>Koliko često</th><th>Trošak</th></tr></thead>
           <tbody>
             <tr><td>Google podaci</td><td>Search Console API preko servisnog računa: upiti, stranice, dnevni niz; adrese s parametrima pribrajaju se pravoj stranici</td><td>svakih 12 sati</td><td>0</td></tr>
-            <tr><td>Prijedlozi izmjena</td><td>Server iz podataka izdvoji nalaze (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj); tekst izmjene piše Claude, brojke su uvijek iz podataka</td><td>svaki dan nakon novih Google podataka</td><td>nekoliko centi API kredita dnevno</td></tr>
+            <tr><td>Prijedlozi izmjena</td><td>Server iz podataka izdvoji nalaze (naslov i opis, upiti blizu vrha, kanibalizacija, pad, pozicije, tehnički nalazi, novi sadržaj); tekst izmjene piše Claude, brojke su uvijek iz podataka. Bez lažnih nalaza: upiti s imenom optike ili konkurenta se preskaču; glavna stranica za upit je ona s najviše klikova, zatim najbolje pozicije; kanibalizacija se ne javlja kad je glavna stranica prva (do 1,5) ili su obje u prva tri; pad klikova i nizak CTR moraju biti statistički značajni (ispod 5 % slučajnosti); lokalni upiti imaju niže očekivanje CTR-a (karta s tvrtkama iznad rezultata); stranice mijenjane u zadnjih 14 dana čekaju nove podatke; novi članak se ne predlaže kad postojeća stranica već pokriva temu</td><td>svaki dan nakon novih Google podataka</td><td>nekoliko centi API kredita dnevno</td></tr>
             <tr><td>Učinak provedenih izmjena</td><td>Za prijedlog označen „provedeno” uspoređuje Search Console za tu stranicu jednak broj dana prije i poslije (7, 14, 28), samo konačne podatke, i uz to trend klikova cijelog weba. Ocjena gleda CTR (naslov i opis), poziciju (upiti blizu vrha) ili klikove u odnosu na web. Ispod 30 prikazivanja piše „premalo podataka”</td><td>nakon svakih novih Google podataka</td><td>0</td></tr>
             <tr><td>Indeksiranost</td><td>Googleov URL Inspection API za svaku stranicu koja treba biti u indeksu: je li u indeksu, razlog ako nije, kanonska adresa koju je Google odabrao, zadnji posjet Googlebota</td><td>svaka stranica jednom tjedno, problematične svaka 2 dana</td><td>0 (do 600 provjera dnevno, Google dopušta 2.000)</td></tr>
             <tr><td>Pozicije i AI pregled</td><td>DataForSEO: stvarni Google rezultat za ciljane riječi (mobitel, Zagreb). Iz istog rezultata bilježi se i Googleov AI pregled: pojavljuje li se i citira li nas</td><td>na gumb ili tjedno, ako je uključeno</td><td>oko 0,07 $ po mjerenju; naknadno učitani AI pregledi po izboru +0,0006 $ po riječi</td></tr>
@@ -933,7 +933,11 @@ const ago = ms => { if (!ms) return ""; const m = Math.round((Date.now() - ms) /
 const usd = cents => cents == null ? "–" : "$" + (cents / 100).toFixed(2).replace(".", ",");
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return String(u || ""); } };
 const path = u => { try { const x = new URL(u); return (x.pathname + x.search) || "/"; } catch { return String(u || ""); } };
-const normUrl = u => String(u || "").split("#")[0];
+const normUrl = u => String(u || "").split("#")[0].split("?")[0];
+/* stranice jednog upita: spoji iste adrese (nakon normUrl), zbroji klikove i prikazivanja, poziciju ponderiraj prikazivanjima */
+const pageAgg = list => { const m = new Map(); (list || []).forEach(p => { const k = normUrl(p.page); const x = m.get(k) || { page: k, clicks: 0, impressions: 0, pw: 0 }; x.clicks += p.clicks || 0; x.impressions += p.impressions || 0; x.pw += (p.position || 0) * (p.impressions || 0); m.set(k, x); }); return [...m.values()].map(p => ({ ...p, position: p.impressions ? p.pw / p.impressions : null })).sort((x, y) => y.impressions - x.impressions); };
+/* glavna stranica za upit: najviše klikova, zatim najbolja pozicija, zatim prikazivanja (ne samo prikazivanja: dodatne poveznice ispod rezultata imaju ista prikazivanja kao glavni rezultat) */
+const mainOf = pages => [...(pages || [])].sort((a, b) => (b.clicks || 0) - (a.clicks || 0) || (a.position ?? 1e9) - (b.position ?? 1e9) || (b.impressions || 0) - (a.impressions || 0))[0] || null;
 const hash = s => { let h = 5381; for (const c of String(s)) h = ((h << 5) + h + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: "timeout", message: "Isteklo vrijeme" }), ms))]);
@@ -1381,8 +1385,8 @@ async function loadHosted() {
     setGscData({ rows: G.daily.rows.map(r => ({ Date: r[0], clicks: r[1], impressions: r[2], ctr: r[3], position: r[4] })), at }, { rows: (G.qp?.rows || []).map(rq) }, { rows: (G.pages?.rows || []).map(rp) }, { rows: (G.pagesPrev?.rows || []).map(rp) }, "Google API");
     if (G.wk && G.wk.range) {
       const rw = r => ({ query: r[0], clicks: r[1], impressions: r[2], ctr: r[3], position: r[4] });
-      const m7 = new Map(); (G.wk.qp7 || []).forEach(r => { const q = String(r[0] || "").toLowerCase(); if (!q) return; const a = m7.get(q) || []; a.push({ page: normUrl(r[1]), impressions: r[3], position: r[5] }); m7.set(q, a); });
-      m7.forEach(a => a.sort((x, y) => y.impressions - x.impressions));
+      const m7 = new Map(); (G.wk.qp7 || []).forEach(r => { const q = String(r[0] || "").toLowerCase(); if (!q) return; const a = m7.get(q) || []; a.push({ page: normUrl(r[1]), clicks: r[2], impressions: r[3], position: r[5] }); m7.set(q, a); });
+      m7.forEach((a, q) => m7.set(q, pageAgg(a)));
       S.wk = { cur: (G.wk.cur || []).map(rw), prev: (G.wk.prev || []).map(rw), qp7: m7, range: G.wk.range, err: null, at };
     }
     setSrc("gsc", iz.gsc && !iz.gsc.ok ? "err" : "ok", "Google API · podaci do " + hrDate(S.gsc.daily.at(-1).Date) + " · " + ago(at) + (iz.gsc && !iz.gsc.ok ? " · zadnje osvježavanje nije uspjelo: " + iz.gsc.msg : ""), at);
@@ -1795,8 +1799,8 @@ async function loadWeek(refresh) {
       gscOS(["query", "page"], { startDate: R.s, endDate: R.e }, 12 * H, refresh, 3000)
     ]);
     /* upit → stranice s prikazivanjima u zadnjih 7 dana (tko se stvarno natječe sada, npr. nakon 301) */
-    const m7 = new Map(); qp7.rows.forEach(x => { const q = String(x.query || "").toLowerCase(); if (!q) return; const a = m7.get(q) || []; a.push({ page: normUrl(x.page), impressions: x.impressions, position: x.position }); m7.set(q, a); });
-    m7.forEach(a => a.sort((x, y) => y.impressions - x.impressions));
+    const m7 = new Map(); qp7.rows.forEach(x => { const q = String(x.query || "").toLowerCase(); if (!q) return; const a = m7.get(q) || []; a.push({ page: normUrl(x.page), clicks: x.clicks, impressions: x.impressions, position: x.position }); m7.set(q, a); });
+    m7.forEach((a, q) => m7.set(q, pageAgg(a)));
     S.wk = { cur: cur.rows, prev: prev.rows, qp7: m7, range: R, err: null, at: cur.at };
   } catch (e) { S.wk.err = errMsg(e, "OpenSEO"); }
   rerender(); maybeExport();
@@ -1957,7 +1961,7 @@ async function maybeExport(force) {
       model_konkurencije: M && !M.empty ? M.list.slice(0, 15).map(o => ({ d: o.d, klikovi: Math.round(o.clicks), udio: +o.share.toFixed(3), top10: o.kw, top3: o.top3 })) : null,
       upiti: Q.list.slice(0, 200).map(q => ({ q: q.query, c: q.clicks, i: q.impressions, ctr: +q.ctr.toFixed(4), p: +(q.position || 0).toFixed(1), url: path(q.top), str: q.pages.length })),
       prilike: (G?.striking || []).slice(0, 25).map(q => ({ q: q.query, p: +q.position.toFixed(1), i: q.impressions, pot: Math.round(q.pot), url: path(q.top) })),
-      kanibalizacija: (G?.cannibal || []).slice(0, 15).map(q => ({ q: q.query, i: q.impressions, str: q.rivals.map(p => path(p.page)) })),
+      kanibalizacija: (G?.cannibal || []).slice(0, 15).map(q => ({ q: q.query, i: q.impressions, glavna: path(q.main), str: q.rivals.map(p => path(p.page)) })),
       stranice: (G?.pages || []).slice(0, 80).map(p => ({ url: path(p.page), c: p.now, prije: p.prev, p: p.posNow == null ? null : +(+p.posNow).toFixed(1) })),
       onpage: (S.onpage || []).slice(0, 80).map(p => ({ url: path(p.page), naslov: p.title, meta: p.meta, h1: p.h1, canonical: p.canonical, robots: p.robots, c: p.clicks, i: p.impressions, rijeci: nul(p.words), fokus: p.focus || null })),
       nalazi: S.issues.slice(0, 60).map(i => ({ id: i.id, podrucje: i.area, ozbiljnost: i.sev, naslov: i.title, opis: i.detail, stanje: S.status[i.id]?.status || "novo" })),
@@ -1995,9 +1999,8 @@ function queries() {
     a.pages.push({ page: normUrl(r.page), clicks: r.clicks || 0, impressions: r.impressions || 0, position: r.position });
   }
   const list = [...m.values()].map(a => {
-    const pm = new Map(); a.pages.forEach(p => { const x = pm.get(p.page) || { page: p.page, clicks: 0, impressions: 0, pw: 0 }; x.clicks += p.clicks; x.impressions += p.impressions; x.pw += (p.position || 0) * p.impressions; pm.set(p.page, x); });
-    const pages = [...pm.values()].map(p => ({ ...p, position: p.impressions ? p.pw / p.impressions : null })).sort((x, y) => y.impressions - x.impressions);
-    return { query: a.query, clicks: a.clicks, impressions: a.impressions, position: a.impressions ? a.pw / a.impressions : null, ctr: a.impressions ? a.clicks / a.impressions : 0, brand: BRAND_RE.test(a.query), pages, top: pages[0]?.page };
+    const pages = pageAgg(a.pages);
+    return { query: a.query, clicks: a.clicks, impressions: a.impressions, position: a.impressions ? a.pw / a.impressions : null, ctr: a.impressions ? a.clicks / a.impressions : 0, brand: BRAND_RE.test(a.query), comp: isCompQuery(a.query), pages, top: mainOf(pages)?.page };
   }).sort((x, y) => y.impressions - x.impressions);
   S._qCache = { list, unkC, unkI, map: new Map(list.map(q => [q.query, q])) }; S._qCacheSrc = S.gsc.qp;
   return S._qCache;
@@ -2011,15 +2014,23 @@ function top3Target(curve) { const s = curve.slice(0, 3); const c = sum(s, "clic
 function gscInsights() {
   const Q = queries(); if (!Q) return null;
   const curve = ctrCurve(Q.list); const tgt = top3Target(curve);
-  const striking = Q.list.filter(q => !q.brand && q.position >= 3.5 && q.position <= 20.5 && q.impressions >= 20)
+  const striking = Q.list.filter(q => !q.brand && !q.comp && q.position >= 3.5 && q.position <= 20.5 && q.impressions >= 20)
     .map(q => ({ ...q, pot: Math.max(0, q.impressions * (tgt.ctr - q.ctr)) * 30 / 28 })).sort((a, b) => b.pot - a.pot);
-  const lowctr = Q.list.filter(q => !q.brand && q.position < 10.5 && q.impressions >= 40).map(q => { const b = bucketFor(curve, q.position); return { ...q, exp: b && b.impr >= 60 ? b.ctr : null }; })
+  const lowctr = Q.list.filter(q => !q.brand && !q.comp && q.position < 10.5 && q.impressions >= 40).map(q => { const b = bucketFor(curve, q.position); return { ...q, exp: b && b.impr >= 60 ? b.ctr : null }; })
     .filter(q => q.exp && q.ctr < q.exp * 0.5).sort((a, b) => (b.impressions * (b.exp - b.ctr)) - (a.impressions * (a.exp - a.ctr)));
   const m7 = S.wk.qp7 || null;
   const live7 = (q, page) => !m7 || (m7.get(q) || []).some(x => x.page === page && x.impressions > 0);
-  const cannibal = Q.list.filter(q => q.impressions >= 20)
-    .map(q => ({ ...q, rivals: q.pages.filter(p => p.impressions / q.impressions >= 0.15 && live7(q.query, p.page)) }))
-    .filter(q => q.rivals.length >= 2);
+  /* Kanibalizacija: više naših stranica za isti upit, i to šteti. Ne računa se kad je glavna stranica (najviše klikova,
+     zatim najbolja pozicija) na poziciji do 1,5 (ostale su dodatne poveznice ili drugi naš rezultat), kad su obje u prva
+     tri rezultata (dvostruki prikaz), kad je druga ispod 20. mjesta, ni za upite s imenom optike ili konkurenta. */
+  const cannibal = Q.list.filter(q => !q.brand && !q.comp && q.impressions >= 20)
+    .map(q => {
+      /* samo stranice koje Google za upit prikazuje i u zadnjih 7 dana (stara adresa nakon 301 ne ulazi) */
+      const live = q.pages.filter(p => live7(q.query, p.page));
+      const main = mainOf(live); if (!main || main.position == null || main.position <= 1.5) return null;
+      const others = live.filter(p => p.page !== main.page && p.impressions / q.impressions >= 0.15 && p.position != null && p.position <= 20 && !(main.position <= 3.5 && p.position <= 3.5));
+      return others.length ? { ...q, main: main.page, rivals: [main, ...others] } : null;
+    }).filter(Boolean);
   const known = sum(Q.list, "clicks"); const brandC = sum(Q.list.filter(q => q.brand), "clicks");
   let pages = null;
   if (S.gsc.pages && S.gsc.pagesPrev) {
@@ -2310,7 +2321,7 @@ function renderGoogle() {
   $("#brand-split").innerHTML = bs == null ? "" : `<div class="bars"><div class="barrow"><span>Ime optike</span><span class="track"><span class="fill" style="width:${(bs * 100).toFixed(1)}%;display:block"></span></span><span class="num">${pct(bs, 0)}</span></div><div class="barrow"><span>Usluge i teme</span><span class="track"><span class="fill" style="width:${((1 - bs) * 100).toFixed(1)}%;display:block;background:var(--gold-dk)"></span></span><span class="num">${pct(1 - bs, 0)}</span></div></div><p class="note">Klikovi s imenom optike su ljudi koji vas već znaju. Rast dolazi od usluga.</p>`;
   $("#gsc-striking").innerHTML = G.striking.length ? tableHtml(["Upit", "Poz.", "Prikazivanja", "CTR", "Potencijal/mj", "Stranica", ""], G.striking.slice(0, 25).map(q => [`<b>${esc(q.query)}</b>`, r(dec(q.position)), r(fmt(q.impressions)), r(pct(q.ctr)), r("+" + fmt(q.pot)), `<span class="u">${esc(path(q.top))}</span>`, fixBtn("google", "strike|" + q.query)])) : '<p class="muted small">Nema upita na pragu s dovoljno prikazivanja.</p>';
   $("#gsc-lowctr").innerHTML = G.lowctr.length ? tableHtml(["Upit", "Poz.", "CTR", "Očekivano", ""], G.lowctr.slice(0, 12).map(q => [esc(q.query), r(dec(q.position)), r(pct(q.ctr)), r(pct(q.exp)), fixBtn("google", "lowctr|" + q.query)])) : '<p class="muted small">Nema upita s izrazito niskim CTR-om.</p>';
-  $("#gsc-cannibal").innerHTML = G.cannibal.length ? tableHtml(["Upit", "Stranice", ""], G.cannibal.slice(0, 12).map(q => [esc(q.query) + `<span class="u">${fmt(q.impressions)} prikazivanja</span>`, q.rivals.map(p => `<span class="u" style="color:var(--lead)">${esc(path(p.page))} · ${pct(p.impressions / q.impressions, 0)} · poz. ${dec(p.position)}</span>`).join(""), fixBtn("google", "cannibal|" + q.query)])) : '<p class="muted small">Nema izražene kanibalizacije.</p>';
+  $("#gsc-cannibal").innerHTML = G.cannibal.length ? tableHtml(["Upit", "Stranice", ""], G.cannibal.slice(0, 12).map(q => [esc(q.query) + `<span class="u">${fmt(q.impressions)} prikazivanja</span>`, q.rivals.map(p => `<span class="u" style="color:var(--lead)">${esc(path(p.page))}${p.page === q.main ? " (glavna)" : ""} · ${pct(p.impressions / q.impressions, 0)} · poz. ${dec(p.position)}</span>`).join(""), fixBtn("google", "cannibal|" + q.query)])) : '<p class="muted small">Nema izražene kanibalizacije.</p>';
   $("#gsc-pages").innerHTML = G.pages ? tableHtml(["Stranica", "Klikovi", "Prije", "Promjena", "Poz."], G.pages.filter(p => p.now + p.prev > 0).slice(0, 30).map(p => [`<span class="u" style="color:var(--text)">${esc(path(p.page))}</span>`, r(fmt(p.now)), r(fmt(p.prev)), r(`<span class="${p.delta > 0.05 ? "up" : p.delta < -0.05 ? "down" : ""}">${p.prev ? sgn(p.delta) : "novo"}</span>`), r(dec(p.posNow))])) : '<p class="loading">Učitavam…</p>';
   renderQueries();
   bindFixBtns($("#v-google"));
@@ -2722,7 +2733,7 @@ function rankRows() {
     const delta = x.pos != null && x.prev != null ? x.prev - x.pos : null;   // + = napredak
     /* stranica koju Google prikazuje: zadnjih 7 dana ako su učitani (tako se ne broje stare adrese nakon 301), inače 28 dana */
     const q7 = S.wk.qp7 ? (S.wk.qp7.get(String(x.kw).toLowerCase()) || []) : null;
-    const gTop = q7 ? (q7[0]?.page || null) : (g?.top || null);
+    const gTop = q7 ? (mainOf(q7)?.page || null) : (g?.top || null);
     const enough = q7 ? sum(q7, "impressions") >= 3 : (g?.impressions || 0) >= 10;
     const wrongUrl = !!(x.url && gTop && enough && normUrl(x.url).replace(/\/$/, "") !== normUrl(gTop).replace(/\/$/, ""));
     return { ...x, g, hist, delta, gTop, gWin: q7 ? 7 : 28, wrongUrl };
@@ -3439,6 +3450,13 @@ const STOP = new Set(["za", "i", "u", "na", "s", "sa", "od", "do", "je", "li", "
 const nrm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
 const coreKey = k => { const t = nrm(k).split(/[^a-z0-9]+/).filter(x => x.length > 2 && !STOP.has(x)).map(x => x.slice(0, 6)); return t.slice(0, 2).sort().join(" ") || nrm(k); };
 function compBrandTokens() { return S.cfg.competitors.flatMap(d => d.split(".")[0].split("-")).filter(t => t.length > 2 && !/optik|optic|lece/.test(t)); }
+/* upit s imenom konkurenta: riječ upita (ili spoj dviju susjednih) počinje imenom, uz najviše 2 slova padeža; ime od barem 4 slova */
+function isCompQuery(q) {
+  const toks = compBrandTokens().map(t => t.toLowerCase()).filter(t => t.length >= 4); if (!toks.length) return false;
+  const w = String(q || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").split(/[^a-z0-9]+/).filter(Boolean);
+  const cand = [...w]; for (let i = 0; i + 1 < w.length; i++) cand.push(w[i] + w[i + 1]);
+  return cand.some(c => toks.some(t => c.startsWith(t) && c.length - t.length <= 2));
+}
 function planClusters() {
   const Q = queries(); const m = new Map();
   const add = (k, o) => { k = String(k || "").toLowerCase().trim(); if (!k) return; const x = m.get(k) || { k, vA: null, vG: null, tp: null, it: "", pt: null, imp: 0 }; Object.entries(o).forEach(([a, b]) => { if (b != null && b !== "") x[a] = b; }); m.set(k, x); };

@@ -531,19 +531,29 @@ class OLR_Abilities {
 				continue;
 			}
 			if ( ! isset( $agg[ $q ] ) ) {
-				$agg[ $q ] = array( 'q' => $q, 'c' => 0, 'i' => 0, 'pw' => 0, 'top' => $page, 'top_i' => -1, 'stranica' => 0 );
+				$agg[ $q ] = array( 'q' => $q, 'c' => 0, 'i' => 0, 'pw' => 0, 'top' => $page, 'pages' => array(), 'stranica' => 0 );
 			}
 			$a            = &$agg[ $q ];
 			$a['c']      += $c;
 			$a['i']      += $i;
 			$a['pw']     += $pos * $i;
 			$a['stranica']++;
-			if ( $i > $a['top_i'] ) {
-				$a['top']   = $page;
-				$a['top_i'] = $i;
-			}
+			$a['pages'][] = array(
+				'url'          => $page,
+				'klikovi'      => (int) $c,
+				'prikazivanja' => (int) $i,
+				'pozicija'     => (float) $pos,
+			);
 			unset( $a );
 		}
+		// Glavna stranica: najviše klikova, zatim najbolja pozicija (ne najviše prikazivanja, jer dodatne
+		// poveznice ispod rezultata imaju ista prikazivanja kao glavni rezultat).
+		foreach ( $agg as &$a ) {
+			$m        = OLR_Analiza::main_of( $a['pages'] );
+			$a['top'] = $m['url'];
+			unset( $a['pages'] );
+		}
+		unset( $a );
 		usort(
 			$agg,
 			static function ( $x, $y ) {
@@ -565,6 +575,7 @@ class OLR_Abilities {
 				'ctr'           => $a['i'] ? round( $a['c'] / $a['i'], 4 ) : 0,
 				'pozicija'      => $a['i'] ? round( $a['pw'] / $a['i'], 1 ) : null,
 				'stranica'      => wp_parse_url( $a['top'], PHP_URL_PATH ),
+				'brend'         => OLR_Analiza::is_brand( $a['q'] ),
 				'broj_stranica' => $a['stranica'],
 			);
 		}
@@ -576,7 +587,7 @@ class OLR_Abilities {
 			'ukupno_upita' => count( $agg ),
 			'zbroj'        => array( 'klikovi' => $tc, 'prikazivanja' => $ti ),
 			'upiti'        => $out,
-			'napomena'     => 'Zbroj je zbroj redaka upit+stranica; Google skriva rijetke (anonimne) upite, pa je manji od ukupnog prometa.',
+			'napomena'     => 'Zbroj je zbroj redaka upit+stranica; Google skriva rijetke (anonimne) upite, pa je manji od ukupnog prometa. Stranica je glavna stranica za upit: najviše klikova, zatim najbolja pozicija.',
 		);
 	}
 

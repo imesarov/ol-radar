@@ -470,7 +470,9 @@ class OLR_Suradnje {
 			return $doc;
 		}
 		$page = '';
-		if ( preg_match( '/<a[^>]+href=["\']([^"\'#]*(?:kontakt|contact|impressum|impresum|redakcija|o-nama)[^"\']*)["\']/i', $html, $m ) ) {
+		// Poveznica čija adresa ima dio „kontakt”, „contact”, „impressum”, „redakcija” ili „o-nama” kao
+		// cijelu riječ (ne „kontaktne-lece”).
+		if ( preg_match( '/<a[^>]+href=["\']([^"\'#]*(?<![a-z])(?:kontakt|kontakti|contact|contact-us|impressum|impresum|redakcija|o-nama)(?![a-z])[^"\']*)["\']/i', $html, $m ) ) {
 			$href = trim( html_entity_decode( $m[1] ) );
 			if ( 0 === strpos( $href, '//' ) ) {
 				$href = 'https:' . $href;
@@ -1059,8 +1061,11 @@ class OLR_Suradnje {
 			$res               = OLR_AI::call( $req, true );
 		}
 		if ( is_wp_error( $res ) ) {
-			if ( 'olr_ai_zahtjev' === $res->get_error_code() ) {
-				$res = new WP_Error( 'olr_suradnje_pretraga', 'Web pretraga nije dostupna za ovaj API ključ ili model (' . self::cut( $res->get_error_message(), 160 ) . '). Uključuje se u Claude Consoleu (Settings → Privacy); prijedlozi za postojeće kandidate rade i bez nje.' );
+			$msg = $res->get_error_message();
+			if ( 'olr_ai_zahtjev' === $res->get_error_code() && preg_match( '/not enabled|disabled|not allowed|permission/i', $msg ) ) {
+				$res = new WP_Error( 'olr_suradnje_pretraga', 'Web pretraga nije uključena za ovaj API ključ (' . self::cut( $msg, 160 ) . '). Uključuje se u Claude Consoleu (Settings → Privacy); prijedlozi za postojeće kandidate rade i bez nje.' );
+			} elseif ( 'olr_ai_zahtjev' === $res->get_error_code() ) {
+				$res = new WP_Error( 'olr_suradnje_pretraga', 'Web pretraga nije uspjela: ' . self::cut( $msg, 200 ) . ' Prijedlozi za postojeće kandidate rade i bez nje.' );
 			}
 			return self::fail( 'trazi', $res );
 		}

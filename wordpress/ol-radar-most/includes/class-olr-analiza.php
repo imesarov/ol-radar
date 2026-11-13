@@ -30,16 +30,45 @@ class OLR_Analiza {
 	/** Stranica mijenjana u zadnjih toliko dana: brojke još opisuju stari naslov i opis. */
 	const SVJEZE_DANA = 14;
 
+	/**
+	 * Verzija pravila analize. Povećava se kad se pravila pooštre: otvoreni prijedlozi napisani prema
+	 * starijim pravilima, čiji nalaz nova pravila više ne potvrđuju, tad istječu odmah (inače čekaju 21 dan).
+	 * 2 = 2.4.2 (glavna stranica po klikovima, testovi značajnosti, konkurentski i lokalni upiti).
+	 */
+	const PRAVILA = 2;
+
+	/** Prag značajnosti za statističke provjere (pad klikova, nizak CTR): ispod 5 % slučajnosti. */
+	const ZNACAJNO = 0.05;
+
+	/**
+	 * Lokalni upiti: iznad organskih rezultata Google prikazuje kartu s tvrtkama, pa organski rezultat
+	 * dobiva manje klikova nego na općoj krivulji. Korijeni mjesta i riječi blizine; upit od same
+	 * djelatnosti („optika”, „optičar”) također je lokalan.
+	 */
+	const LOKALNO     = array( 'sesvet', 'zagreb', 'dubrav', 'blizu', 'blizin', 'kraj mene', 'u mom kvartu' );
+	const DJELATNOST  = array( 'optika', 'optike', 'opticar', 'opticari', 'opticarna', 'okulist', 'oftalmolog', 'optometrist' );
+	const LOKALNO_CTR = 0.5;
+
+	/** Riječi iz domena konkurenata koje nisu ime tvrtke (ne smiju isključiti obične upite). */
+	const OPCE_RIJECI = array( 'optika', 'optike', 'optik', 'optic', 'optics', 'optical', 'opticar', 'naocale', 'naocal', 'lece', 'leca', 'kontaktne', 'vision', 'eyewear', 'shop', 'store', 'online', 'centar', 'center', 'poliklinika', 'klinika', 'ordinacija', 'studio', 'zagreb', 'sesvete', 'hrvatska', 'croatia', 'www' );
+
 	private static $pages = null;
 	private static $curve = null;
 	private static $sigs  = array();
+	private static $words = array();
+	private static $vocab = null;
+	private static $comp  = null;
 	private static $notes = array();
 
 	public static function reset() {
 		self::$pages = null;
 		self::$curve = null;
 		self::$sigs  = array();
+		self::$words = array();
+		self::$vocab = null;
+		self::$comp  = null;
 		self::$notes = array();
+		self::$fresh = array();
 	}
 
 	/* ---------- pomoćne ---------- */
@@ -93,7 +122,192 @@ class OLR_Analiza {
 	}
 
 	private static function skip( $query ) {
-		return self::is_brand( $query ) || self::is_ignored( $query );
+		return self::is_brand( $query ) || self::is_ignored( $query ) || self::is_competitor( $query );
+	}
+
+	/**
+	 * Imena konkurenata iz njihovih domena: postavka „Konkurenti” i optike iz naših mjerenja pozicija.
+	 * Riječ ulazi samo ako je duga barem 4 slova, nije opća riječ i ne koristimo je na vlastitom webu
+	 * (tako „optika-sesvete.hr” ne bi isključila upit „optika sesvete”).
+	 */
+	private static function competitor_tokens() {
+		if ( null !== self::$comp ) {
+			return self::$comp;
+		}
+		$hosts = preg_split( '/[,\s]+/', (string) OLR_Settings::get( 'konkurenti' ) );
+		$rk    = OLR_Store::data( 'rank', 'konkurenti' );
+		foreach ( isset( $rk['domene'] ) ? (array) $rk['domene'] : array() as $d ) {
+			$h = is_array( $d ) && isset( $d['domena'] ) ? (string) $d['domena'] : '';
+			if ( preg_match( '/optik|optic|naocal|lece/i', $h ) ) {
+				$hosts[] = $h;
+			}
+		}
+		$own   = self::vocabulary();
+		$brand = self::terms( 'brand', array( 'ljiljana' ) );
+		$out   = array();
+		foreach ( $hosts as $h ) {
+			$h = preg_replace( '#^(https?://)?(www\.)?#i', '', strtolower( trim( (string) $h ) ) );
+			$h = preg_replace( '#[/:].*$#', '', $h );
+			$h = preg_replace( '/\.[a-z]{2,6}$/', '', $h );
+			foreach ( preg_split( '/[^a-z0-9]+/', self::norm( $h ) ) as $t ) {
+				if ( strlen( $t ) < 4 || in_array( $t, self::OPCE_RIJECI, true ) || isset( $own[ $t ] ) || in_array( $t, $brand, true ) ) {
+					continue;
+				}
+				$out[ $t ] = 1;
+			}
+		}
+		self::$comp = array_keys( $out );
+		return self::$comp;
+	}
+
+	/**
+	 * Upit s imenom konkurenta („optika anda”, „jo jo optika”). Riječ upita mora počinjati imenom
+	 * (dopušteno do 2 slova padeža), a gleda se i spoj dviju susjednih riječi.
+	 */
+	public static function is_competitor( $query ) {
+		$tokens = self::competitor_tokens();
+		if ( ! $tokens ) {
+			return false;
+		}
+		$w    = array_values( array_filter( preg_split( '/[^a-z0-9]+/', self::norm( $query ) ) ) );
+		$cand = $w;
+		for ( $i = 0; $i + 1 < count( $w ); $i++ ) {
+			$cand[] = $w[ $i ] . $w[ $i + 1 ];
+		}
+		foreach ( $cand as $c ) {
+			foreach ( $tokens as $t ) {
+				if ( 0 === strpos( $c, $t ) && strlen( $c ) - strlen( $t ) <= 2 ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/** Lokalni upit (mjesto, blizina ili sama djelatnost): očekivani CTR organskog rezultata je niži. */
+	public static function is_local( $query ) {
+		$q = self::norm( $query );
+		if ( in_array( trim( $q ), self::DJELATNOST, true ) ) {
+			return true;
+		}
+		foreach ( self::LOKALNO as $t ) {
+			if ( preg_match( '/(^|[^a-z])' . preg_quote( $t, '/' ) . '/', $q ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Vjerojatnost da slučajno bude najviše $k uspjeha u $n pokušaja uz vjerojatnost $p (binomna razdioba).
+	 * Računa se u logaritmima, pa radi i za tisuće prikazivanja.
+	 */
+	public static function binom_cdf( $k, $n, $p ) {
+		$k = (int) $k;
+		$n = (int) $n;
+		if ( $k < 0 ) {
+			return 0.0;
+		}
+		if ( $k >= $n || $p <= 0 ) {
+			return 1.0;
+		}
+		if ( $p >= 1 ) {
+			return 0.0;
+		}
+		$lt  = $n * log( 1 - $p );
+		$sum = exp( $lt );
+		for ( $i = 0; $i < $k; $i++ ) {
+			$lt  += log( $n - $i ) - log( $i + 1 ) + log( $p ) - log( 1 - $p );
+			$sum += exp( $lt );
+		}
+		return min( 1.0, $sum );
+	}
+
+	/**
+	 * Glavna stranica za upit: najviše klikova, zatim najbolja pozicija, zatim prikazivanja. Po samim
+	 * prikazivanjima bi za upit s imenom optike pobijedila stranica iz dodatnih poveznica ispod rezultata
+	 * (sitelinkovi imaju ista prikazivanja kao glavni rezultat) ili stranica s Googleova profila tvrtke.
+	 *
+	 * @param array $list Redci s ključevima klikovi, pozicija, prikazivanja.
+	 */
+	public static function main_of( $list ) {
+		$best = null;
+		foreach ( $list as $l ) {
+			if ( null === $best ) {
+				$best = $l;
+				continue;
+			}
+			$x = ( $l['klikovi'] <=> $best['klikovi'] ) ?: ( $best['pozicija'] <=> $l['pozicija'] ) ?: ( $l['prikazivanja'] <=> $best['prikazivanja'] );
+			if ( $x > 0 ) {
+				$best = $l;
+			}
+		}
+		return $best;
+	}
+
+	/**
+	 * Glavna stranica po upitu iz redaka [upit, stranica, klikovi, prikazivanja, ctr, pozicija].
+	 *
+	 * @return array upit => [url, put, klikovi, prikazivanja, pozicija, udio (prikazivanja)]
+	 */
+	public static function main_pages( $rows ) {
+		$by = array();
+		foreach ( $rows as $r ) {
+			$by[ $r[0] ][] = array(
+				'url'          => $r[1],
+				'put'          => self::path( $r[1] ),
+				'klikovi'      => (int) $r[2],
+				'prikazivanja' => (int) $r[3],
+				'pozicija'     => (float) $r[5],
+			);
+		}
+		$out = array();
+		foreach ( $by as $q => $list ) {
+			$m   = self::main_of( $list );
+			$tot = 0;
+			foreach ( $list as $l ) {
+				$tot += $l['prikazivanja'];
+			}
+			$m['udio']    = $tot ? $m['prikazivanja'] / $tot : 0;
+			$m['stranica'] = count( $list );
+			$out[ $q ]    = $m;
+		}
+		return $out;
+	}
+
+	/** Je li stranica mijenjana u zadnjih SVJEZE_DANA dana (brojke iz Googlea tada opisuju staro stanje). */
+	private static function is_fresh( $url ) {
+		$dm = self::days_since_modified( self::page_row( $url ) );
+		return null !== $dm && $dm < self::SVJEZE_DANA;
+	}
+
+	/** Bilježi stranicu preskočenu zbog nedavne izmjene, po vrsti nalaza (za napomenu ispod analize). */
+	private static $fresh = array();
+
+	private static function skip_fresh( $vrsta, $url ) {
+		self::$fresh[ $vrsta ][ self::path( $url ) ] = 1;
+	}
+
+	/** Riječi potpisa stranice (za usporedbu po početku riječi, ne po bilo kojem dijelu teksta). */
+	private static function sig_words( $url ) {
+		$path = self::path( $url );
+		if ( ! isset( self::$words[ $path ] ) ) {
+			self::$words[ $path ] = array_values( array_unique( array_filter( preg_split( '/[^a-z0-9]+/', self::signature( $url ) ) ) ) );
+		}
+		return self::$words[ $path ];
+	}
+
+	/** Sve riječi koje koristimo na webu (naslovi, opisi, podnaslovi, adrese). */
+	private static function vocabulary() {
+		if ( null === self::$vocab ) {
+			self::$vocab = array();
+			foreach ( array_keys( self::pages() ) as $p ) {
+				foreach ( self::sig_words( $p ) as $w ) {
+					self::$vocab[ $w ] = 1;
+				}
+			}
+		}
+		return self::$vocab;
 	}
 
 	/** O čemu je stranica: naslov, opis, svi naslovi na stranici, fokus riječ i riječi iz adrese. */
@@ -120,12 +334,13 @@ class OLR_Analiza {
 
 	/**
 	 * Je li upit o onome o čemu je stranica: svaka riječ upita od 4 ili više slova mora se (korijenom)
-	 * naći u potpisu stranice. Tako „optika anda” (tuđa optika) ili „sunčane naočale” na naslovnici
-	 * ne postaju razlog za promjenu naslova.
+	 * naći na početku neke riječi u potpisu stranice. Tako „optika anda” (tuđa optika) ili „sunčane
+	 * naočale” na naslovnici ne postaju razlog za promjenu naslova. Usporedba je po riječima: „anda”
+	 * se ne smije poklopiti s „standard”.
 	 */
 	public static function relevant( $query, $url ) {
-		$sig = self::signature( $url );
-		if ( '' === $sig ) {
+		$words = self::sig_words( $url );
+		if ( ! $words ) {
 			return false;
 		}
 		$n = 0;
@@ -134,7 +349,15 @@ class OLR_Analiza {
 				continue;
 			}
 			++$n;
-			if ( false === strpos( $sig, self::stem( $w ) ) ) {
+			$st = self::stem( $w );
+			$ok = false;
+			foreach ( $words as $sw ) {
+				if ( 0 === strpos( $sw, $st ) ) {
+					$ok = true;
+					break;
+				}
+			}
+			if ( ! $ok ) {
 				return false;
 			}
 		}
@@ -370,6 +593,24 @@ class OLR_Analiza {
 			$notes[] = 'Google podaci još nisu preuzeti, pa analiza koristi samo crawl weba i pozicije.';
 		}
 		$out = array_merge( $out, self::rule_rank(), self::rule_audit(), self::rule_index() );
+		if ( self::$fresh ) {
+			$paths = array();
+			foreach ( self::$fresh as $list ) {
+				$paths += $list;
+			}
+			$names = array(
+				'ctr'      => 'naslov i opis',
+				'prilika'  => 'blizu vrha',
+				'kanibal'  => 'kanibalizacija',
+				'novo'     => 'novi sadržaj',
+				'pozicije' => 'kriva stranica u rezultatu',
+			);
+			$kinds = array();
+			foreach ( array_keys( self::$fresh ) as $k ) {
+				$kinds[] = isset( $names[ $k ] ) ? $names[ $k ] : $k;
+			}
+			self::note( 'svjeze', 'Za ' . count( $paths ) . ' stranica mijenjanih u zadnjih ' . self::SVJEZE_DANA . ' dana (' . implode( ', ', array_slice( array_keys( $paths ), 0, 4 ) ) . ( count( $paths ) > 4 ? ' i druge' : '' ) . ') nalazi se ne predlažu (' . implode( ', ', $kinds ) . '): Googleove brojke još opisuju staro stanje. Vraćaju se sami ako i dalje vrijede.' );
+		}
 		usort(
 			$out,
 			static function ( $a, $b ) {
@@ -378,44 +619,58 @@ class OLR_Analiza {
 		);
 		return array(
 			'kandidati' => $out,
+			'potpuna'   => (bool) $meta, // bez Google podataka nalazi iz GSC-a nedostaju, pa se ne smiju gasiti
 			'gsc_do'    => $meta && ! empty( $meta['do'] ) ? $meta['do'] : null,
 			'napomene'  => array_merge( $notes, array_values( self::$notes ) ),
 		);
 	}
 
-	/** Naslov/opis ne privlači klik (visoka pozicija, nizak CTR) i upiti blizu vrha (pozicija 4–15). */
+	/**
+	 * Naslov/opis ne privlači klik (visoka pozicija, nizak CTR) i upiti blizu vrha (pozicija 4–15).
+	 * Upit se uzima samo za stranicu koja je za njega glavna: niži CTR sporedne stranice je očekivan,
+	 * a guranje sporedne stranice za tuđi upit stvara kanibalizaciju. Nizak CTR mora biti statistički
+	 * značajan, a kod lokalnih upita (karta s tvrtkama iznad rezultata) očekivanje je niže.
+	 */
 	private static function rule_ctr_and_gap( $rows ) {
-		$ctr = array();
-		$gap = array();
-		$fresh = array();
+		$ctr   = array();
+		$gap   = array();
+		$main  = self::main_pages( $rows );
 		foreach ( $rows as $r ) {
 			list( $q, $page, $c, $i, $ratio, $pos ) = $r;
 			// Samo upiti o onome o čemu je stranica; ostalo nije razlog za promjenu te stranice.
 			if ( self::skip( $q ) || $i < 30 || ! self::relevant( $q, $page ) ) {
 				continue;
 			}
-			$exp = self::expected_ctr( $pos );
-			$dm  = self::days_since_modified( self::page_row( $page ) );
-			if ( $pos <= 6.0 && $ratio < 0.5 * $exp && null !== $dm && $dm < self::SVJEZE_DANA ) {
-				// Stranica je nedavno mijenjana: CTR iz 28 dana još opisuje stari naslov i opis.
-				$fresh[ self::path( $page ) ] = 1;
-			} elseif ( $pos <= 6.0 && $ratio < 0.5 * $exp ) {
+			if ( isset( $main[ $q ] ) && $main[ $q ]['put'] !== self::path( $page ) ) {
+				continue; // za taj upit glavna je druga naša stranica
+			}
+			$local = self::is_local( $q );
+			$exp   = self::expected_ctr( $pos ) * ( $local ? self::LOKALNO_CTR : 1 );
+			$fresh = self::is_fresh( $page );
+			// Nizak CTR: ispod pola očekivanog i statistički ispod 80 % očekivanog (ne slučajno malo klikova).
+			$low = $pos <= 6.0 && $ratio < 0.5 * $exp && self::binom_cdf( $c, $i, 0.8 * $exp ) < self::ZNACAJNO;
+			if ( $low && $fresh ) {
+				self::skip_fresh( 'ctr', $page );
+			} elseif ( $low ) {
 				$missed = $i * ( 0.8 * $exp - $ratio );
 				if ( $missed >= 1.5 ) {
 					$ctr[ $page ][] = array(
-						'upit'          => $q,
-						'pozicija'      => round( $pos, 1 ),
-						'prikazivanja'  => (int) $i,
-						'klikovi'       => (int) $c,
-						'ctr_posto'     => self::pct( $ratio ),
+						'upit'            => $q,
+						'pozicija'        => round( $pos, 1 ),
+						'prikazivanja'    => (int) $i,
+						'klikovi'         => (int) $c,
+						'ctr_posto'       => self::pct( $ratio ),
 						'ocekivano_posto' => self::pct( $exp ),
-						'_g'            => $missed,
+						'lokalni_upit'    => $local,
+						'_g'              => $missed,
 					);
 				}
 			}
 			if ( $pos > 3.5 && $pos <= 15.0 && $i >= 40 ) {
-				$gain = 0.5 * $i * max( 0, self::expected_ctr( 3 ) - $ratio );
-				if ( $gain >= 1 ) {
+				$gain = 0.5 * $i * max( 0, self::expected_ctr( 3 ) * ( $local ? self::LOKALNO_CTR : 1 ) - $ratio );
+				if ( $gain >= 1 && $fresh ) {
+					self::skip_fresh( 'prilika', $page );
+				} elseif ( $gain >= 1 ) {
 					$gap[ $page ][] = array(
 						'upit'         => $q,
 						'pozicija'     => round( $pos, 1 ),
@@ -425,9 +680,6 @@ class OLR_Analiza {
 					);
 				}
 			}
-		}
-		if ( $fresh ) {
-			self::note( 'svjeze', 'Naslov i opis nisu predloženi za ' . count( $fresh ) . ' stranica mijenjanih u zadnjih ' . self::SVJEZE_DANA . ' dana (' . implode( ', ', array_slice( array_keys( $fresh ), 0, 4 ) ) . '): brojke još opisuju staro stanje.' );
 		}
 		$out = array();
 		foreach ( array( 'ctr' => $ctr, 'prilika' => $gap ) as $vrsta => $by_page ) {
@@ -469,7 +721,14 @@ class OLR_Analiza {
 		return $out;
 	}
 
-	/** Isti upit u zadnjih 7 dana dijele dvije ili više stranica. */
+	/**
+	 * Isti upit u zadnjih 7 dana dijele dvije ili više stranica, i to šteti. Ne javlja se kad:
+	 * - je glavna stranica (najviše klikova, zatim najbolja pozicija) na poziciji do 1,5: prvi smo, a ostale
+	 *   stranice su dodatne poveznice ispod rezultata (sitelinkovi) ili drugi rezultat ispod našeg;
+	 * - su glavna i druga stranica obje u prva tri rezultata: to je dvostruki prikaz, više mjesta za nas;
+	 * - je druga stranica ispod 20. mjesta (ne konkurira glavnoj);
+	 * - je upit s imenom optike ili konkurenta, ili je neka od stranica mijenjana u zadnjih 14 dana.
+	 */
 	private static function rule_cannibal( $rows ) {
 		$by = array();
 		foreach ( $rows as $r ) {
@@ -485,34 +744,54 @@ class OLR_Analiza {
 				'pozicija'     => round( $pos, 1 ),
 			);
 		}
-		$out = array();
+		$out  = array();
+		$top1 = 0;
 		foreach ( $by as $q => $list ) {
 			$total = 0;
 			foreach ( $list as $l ) {
 				$total += $l['prikazivanja'];
 			}
-			if ( $total < 25 ) {
+			if ( $total < 25 || count( $list ) < 2 ) {
 				continue;
 			}
-			$live = array();
+			$main = self::main_of( $list );
+			if ( $main['pozicija'] <= 1.5 ) {
+				++$top1;
+				continue;
+			}
+			$rivals = array();
 			foreach ( $list as $l ) {
-				if ( $l['prikazivanja'] >= 0.2 * $total && ! self::is_noindex( self::page_row( $l['url'] ) ) ) {
-					$live[] = $l;
+				if ( $l['put'] === $main['put'] || $l['prikazivanja'] < 0.2 * $total || $l['pozicija'] > 20 || self::is_noindex( self::page_row( $l['url'] ) ) ) {
+					continue;
 				}
+				if ( $main['pozicija'] <= 3.5 && $l['pozicija'] <= 3.5 ) {
+					continue; // obje u prva tri: dvostruki prikaz
+				}
+				$rivals[] = $l;
 			}
-			if ( count( $live ) < 2 ) {
+			if ( ! $rivals || self::is_noindex( self::page_row( $main['url'] ) ) ) {
 				continue;
 			}
-			usort(
-				$live,
-				static function ( $a, $b ) {
-					return ( $b['klikovi'] <=> $a['klikovi'] ) ?: ( $a['pozicija'] <=> $b['pozicija'] );
-				}
-			);
-			$main = $live[0];
 			if ( ! self::relevant( $q, $main['url'] ) ) {
 				continue; // upit nije o onome o čemu je glavna stranica (npr. tuđa optika)
 			}
+			$fresh = false;
+			foreach ( array_merge( array( $main ), $rivals ) as $l ) {
+				if ( self::is_fresh( $l['url'] ) ) {
+					self::skip_fresh( 'kanibal', $l['url'] );
+					$fresh = true;
+				}
+			}
+			if ( $fresh ) {
+				continue;
+			}
+			usort(
+				$rivals,
+				static function ( $a, $b ) {
+					return $b['prikazivanja'] <=> $a['prikazivanja'];
+				}
+			);
+			$live = array_merge( array( $main ), $rivals );
 			$out[] = self::cand(
 				'kanibal',
 				$q,
@@ -520,27 +799,31 @@ class OLR_Analiza {
 				$q,
 				$total * 0.03,
 				array(
-					'upit'              => $q,
-					'razdoblje'         => 'zadnjih 7 dana',
-					'stranice'          => array_map(
+					'upit'            => $q,
+					'razdoblje'       => 'zadnjih 7 dana',
+					'stranice'        => array_map(
 						static function ( $l ) {
 							unset( $l['url'] );
 							return $l;
 						},
 						$live
 					),
-					'glavna_stranica'   => $main['put'],
+					'glavna_stranica' => $main['put'],
+					'kako_je_odabrana' => 'najviše klikova, zatim najbolja pozicija',
 				),
 				array(
-					'ucinak_opis'   => 'gruba procjena; kanibalizacija najčešće drži obje stranice niže nego što bi bila jedna',
+					'ucinak_opis'    => 'gruba procjena; kanibalizacija najčešće drži obje stranice niže nego što bi bila jedna',
 					'druge_stranice' => array_map(
 						static function ( $l ) {
 							return OLR_Analiza::facts( $l['url'] );
 						},
-						array_slice( $live, 1, 2 )
+						array_slice( $rivals, 0, 2 )
 					),
 				)
 			);
+		}
+		if ( $top1 ) {
+			self::note( 'kanibal_prvi', 'Za ' . $top1 . ' upita s više naših stranica glavna je na prvom mjestu (do 1,5): to nije kanibalizacija nego dodatne poveznice ili drugi naš rezultat ispod prvog.' );
 		}
 		return $out;
 	}
@@ -554,13 +837,13 @@ class OLR_Analiza {
 		foreach ( $wk['cur'] as $r ) {
 			$cur[ $r[0] ] = $r;
 		}
-		$top = array();
-		foreach ( array_merge( $qp_rows, isset( $wk['qp7'] ) ? $wk['qp7'] : array() ) as $r ) {
-			if ( ! isset( $top[ $r[0] ] ) || $r[3] > $top[ $r[0] ][3] ) {
-				$top[ $r[0] ] = $r;
-			}
+		// Glavna stranica: prvo iz zadnjih 7 dana, inače iz 28 dana.
+		$top = self::main_pages( $qp_rows );
+		foreach ( self::main_pages( isset( $wk['qp7'] ) ? $wk['qp7'] : array() ) as $q => $m ) {
+			$top[ $q ] = $m;
 		}
-		$out = array();
+		$out   = array();
+		$noise = 0;
 		foreach ( $wk['prev'] as $p ) {
 			list( $q, $pc, $pi, , $ppos ) = $p;
 			if ( self::skip( $q ) || $pi < 30 ) {
@@ -569,13 +852,19 @@ class OLR_Analiza {
 			$c    = isset( $cur[ $q ] ) ? $cur[ $q ] : array( $q, 0, 0, 0, null );
 			$lost = $pc - $c[1];
 			$slip = null !== $c[4] ? $c[4] - $ppos : null;
-			// Pad je ili stvarno izgubljeni klikovi (barem 3) ili osjetan pad pozicije na upitu s dovoljno prikazivanja.
-			$by_clicks = $pc >= 3 && $lost >= 3;
+			// Pad je ili stvarno izgubljeni klikovi (barem 3, i statistički više od slučajnog kolebanja) ili osjetan
+			// pad pozicije na upitu s dovoljno prikazivanja. Klikovi se uspoređuju binomnim testom: ako su oba tjedna
+			// ista, svaki klik je s jednakom vjerojatnošću u jednom ili drugom tjednu.
+			$p_val     = self::binom_cdf( (int) $c[1], (int) $pc + (int) $c[1], 0.5 );
+			$by_clicks = $pc >= 3 && $lost >= 3 && $p_val < self::ZNACAJNO;
 			$by_pos    = $pi >= 60 && null !== $slip && $slip >= 3 && $c[2] >= 20;
+			if ( $pc >= 3 && $lost >= 3 && ! $by_clicks && ! $by_pos ) {
+				++$noise;
+			}
 			if ( ! $by_clicks && ! $by_pos ) {
 				continue;
 			}
-			$page = isset( $top[ $q ] ) ? $top[ $q ][1] : '';
+			$page = isset( $top[ $q ] ) ? $top[ $q ]['url'] : '';
 			if ( $page && self::page_row( $page ) && ! self::relevant( $q, $page ) ) {
 				continue;
 			}
@@ -590,9 +879,13 @@ class OLR_Analiza {
 					'razdoblje' => isset( $wk['range'] ) ? $wk['range'] : null,
 					'ovaj_tjedan'   => array( 'klikovi' => (int) $c[1], 'prikazivanja' => (int) $c[2], 'pozicija' => null !== $c[4] ? round( $c[4], 1 ) : null ),
 					'prosli_tjedan' => array( 'klikovi' => (int) $pc, 'prikazivanja' => (int) $pi, 'pozicija' => round( $ppos, 1 ) ),
+					'slucajnost'    => $by_clicks ? round( $p_val, 3 ) : null,
 				),
 				array( 'ucinak_opis' => 'izgubljeni klikovi tjedno pomnoženi s 4 (ako se pad nastavi)' )
 			);
+		}
+		if ( $noise ) {
+			self::note( 'pad_sum', 'Za ' . $noise . ' upita manje klikova nego prošli tjedan je u granicama slučajnog kolebanja (premalo klikova za siguran zaključak), pa nisu prijedlog.' );
 		}
 		return $out;
 	}
@@ -600,14 +893,15 @@ class OLR_Analiza {
 	/** Upiti s potražnjom za koje nemamo pravu stranicu (rangira naslovnica/Journal ili smo ispod 20. mjesta). */
 	private static function rule_new_content( $rows ) {
 		$by = array();
+		$ri = array();
 		foreach ( $rows as $r ) {
-			list( $q, $page, $c, $i, , $pos ) = $r;
-			if ( self::skip( $q ) ) {
-				continue;
+			if ( ! self::skip( $r[0] ) ) {
+				$ri[] = $r;
 			}
-			if ( ! isset( $by[ $q ] ) || $i > $by[ $q ]['i'] ) {
-				$by[ $q ] = array( 'page' => $page, 'i' => (int) $i, 'c' => (int) $c, 'pos' => $pos );
-			}
+		}
+		foreach ( self::main_pages( $ri ) as $q => $m ) {
+			$tot      = $m['udio'] > 0 ? (int) round( $m['prikazivanja'] / $m['udio'] ) : $m['prikazivanja'];
+			$by[ $q ] = array( 'page' => $m['url'], 'i' => $tot, 'c' => $m['klikovi'], 'pos' => $m['pozicija'] );
 		}
 		$out = array();
 		foreach ( $by as $q => $b ) {
@@ -617,6 +911,14 @@ class OLR_Analiza {
 			// Naslovnica je legitiman cilj za lokalne upite: do 15. mjesta to je „blizu vrha”, a ne nova stranica.
 			$generic = ( $home && $b['pos'] > 15 ) || ( $blog && $b['pos'] > 8 );
 			if ( $b['i'] < 50 || ! ( $generic || $b['pos'] > 20 ) ) {
+				continue;
+			}
+			// Postojeća stranica već je o toj temi: nova bi joj konkurirala. To je posao za doradu, ne novi članak.
+			if ( ! $generic && self::relevant( $q, $b['page'] ) ) {
+				continue;
+			}
+			if ( ! $generic && self::is_fresh( $b['page'] ) ) {
+				self::skip_fresh( 'novo', $b['page'] );
 				continue;
 			}
 			$out[] = self::cand(
@@ -651,12 +953,13 @@ class OLR_Analiza {
 		$wk  = OLR_Store::data( 'gsc', 'wk', array() );
 		$top = array();
 		$imp = array();
-		foreach ( isset( $wk['qp7'] ) ? $wk['qp7'] : array() as $r ) {
+		$q7  = isset( $wk['qp7'] ) ? $wk['qp7'] : array();
+		foreach ( $q7 as $r ) {
 			$k         = OLR_DFS::lower( $r[0] );
 			$imp[ $k ] = ( isset( $imp[ $k ] ) ? $imp[ $k ] : 0 ) + (int) $r[3];
-			if ( ! isset( $top[ $k ] ) || $r[3] > $top[ $k ][3] ) {
-				$top[ $k ] = $r;
-			}
+		}
+		foreach ( self::main_pages( $q7 ) as $q => $m ) {
+			$top[ OLR_DFS::lower( $q ) ] = array( $q, $m['url'] );
 		}
 		$out = array();
 		foreach ( $latest['rows'] as $r ) {
@@ -681,7 +984,13 @@ class OLR_Analiza {
 			} elseif ( null !== $r['pos'] && null !== $r['prev'] && $r['pos'] - $r['prev'] >= 3 ) {
 				$d['nalaz'] = 'pad za ' . ( $r['pos'] - $r['prev'] ) . ' mjesta';
 				$out[]      = self::cand( 'pozicije', 'pad|' . $k, $r['url'] ? $r['url'] : $gurl, $r['kw'], 2 + 4 * $i7 * max( 0, self::expected_ctr( $r['prev'] ) - self::expected_ctr( $r['pos'] ) ), $d, array( 'ucinak_opis' => 'gruba procjena iz prikazivanja u Search Consoleu i razlike pozicija' ) );
-			} elseif ( null !== $r['pos'] && $r['url'] && $gurl && self::path( $r['url'] ) !== self::path( $gurl ) && $i7 >= 10 ) {
+			} elseif ( null !== $r['pos'] && $r['url'] && $gurl && self::path( $r['url'] ) !== self::path( $gurl ) && $i7 >= 30 ) {
+				// Tek uz barem 30 prikazivanja u 7 dana; s manje je glavna stranica u Search Consoleu slučajna.
+				// Mjerenje pozicija je svježe; staro može biti samo ono što Search Console pokazuje za glavnu stranicu.
+				if ( self::is_fresh( $gurl ) ) {
+					self::skip_fresh( 'pozicije', $gurl );
+					continue;
+				}
 				$d['nalaz'] = 'u rezultatu je druga stranica nego ona koju Search Console pokazuje za isti upit';
 				$out[]      = self::cand( 'pozicije', 'url|' . $k, $gurl, $r['kw'], 2, $d, array( 'ucinak_opis' => 'nije procjena klikova; stavka je označena jer Google koleba između dviju stranica' ) );
 			}

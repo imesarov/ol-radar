@@ -1,4 +1,4 @@
-# OL Radar – most za Claudea (v2.4.1)
+# OL Radar – most za Claudea (v2.4.2)
 
 WordPress dodatak koji radi dvije stvari:
 
@@ -41,10 +41,19 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Što ne ulazi u analizu (od 2.1.1):**
   - upit koji nije o temi stranice (riječi upita moraju se naći u naslovu, opisu, naslovima na stranici, fokus riječi ili adresi; padeži i dijakritika se poklapaju);
   - brend (i po korijenu, npr. „ljiljan”) te upiti s popisa „Zanemari upite” u Postavkama (npr. imena drugih optika);
-  - prijedlog naslova i opisa za stranicu mijenjanu u zadnjih 14 dana (brojke još opisuju staro stanje);
+  - stranica mijenjana u zadnjih 14 dana, za sve sadržajne nalaze (naslov i opis, blizu vrha, kanibalizacija, novi sadržaj, kriva stranica u rezultatu): Googleove brojke još opisuju staro stanje. Ploča u napomeni navodi koje su stranice preskočene; nalaz se vraća sam ako i dalje vrijedi (od 2.4.2);
   - tjedni pad bez stvarno izgubljenih klikova.
+- **Manje lažnih nalaza (od 2.4.2):**
+  - **glavna stranica upita** bira se po klikovima, zatim po poziciji, pa po prikazivanjima. Kod brend upita Google uz početnu stranicu pokazuje i podstranice (sitelinks) s istim prikazivanjima i pozicijom, pa samo prikazivanja ne govore koja je glavna. Adrese s parametrima (npr. `utm_*` i `rwg_token` iz Google profila) spajaju se sa stranicom;
+  - **naslov i opis / blizu vrha** samo za stranicu koja je za taj upit glavna. Nizak CTR mora biti statistički značajan (binomni test, p < 0,05 prema 80 % očekivanog CTR-a), a kod lokalnih upita (mjesto, „blizu”, sama djelatnost: iznad rezultata je karta s tvrtkama) očekivani CTR je upola manji;
+  - **kanibalizacija** se ne javlja kad je glavna stranica na poziciji do 1,5, kad su obje stranice u prva tri rezultata (dvostruki rezultat je dobitak) ni kad je druga stranica daleko (ispod 20. mjesta ili manje od 20 % prikazivanja). Glavna se bira samo među stranicama koje su u zadnjih 7 dana žive (bez preusmjerenih);
+  - **tjedni pad** samo kad je statistički značajan (p < 0,05 da je pad slučajan, npr. 10 → 4 klika nije: p ≈ 0,09). Broj takvih kolebanja stoji u napomeni;
+  - **upiti konkurenata** (imena iz Postavki „Konkurenti” i optike iz mjerenja konkurenata) ne ulaze u analizu, i kad su napisani bez razmaka ili sa sufiksom;
+  - **novi sadržaj** se ne predlaže kad postojeća glavna stranica već pokriva temu upita;
+  - **kriva stranica u rezultatu** tek kad upit ima barem 30 prikazivanja u 7 dana;
+  - poklapanje riječi s temom stranice traži početak riječi (npr. „anda” se više ne poklapa sa „standard”).
 - **Jedan po jedan:** stranica može imati najviše jedan otvoren prijedlog (osim tehničkih).
-- **Bez ponavljanja:** nalaz s otvorenim prijedlogom se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Novi prijedlog čiji nalaz više ne postoji označava se kao istekao: odmah ako još nema Claudeov tekst, inače nakon 21 dan.
+- **Bez ponavljanja:** nalaz s otvorenim prijedlogom se ne ponavlja; odbijeni se ne vraća 45 dana, provedeni 28 dana. Novi prijedlog čiji nalaz više ne postoji označava se kao istekao: odmah ako još nema Claudeov tekst, inače nakon 21 dan. Kad se pravila analize pooštre (`OLR_Analiza::PRAVILA`, od 2.4.2), prijedlog napisan po starim pravilima istječe odmah ako ga nova pravila ne potvrđuju (razlog „nalaz ne prolazi pooštrena pravila analize”), ali samo nakon analize s Google podacima.
 - **Procjena učinka** je namjerno oprezna (80 % opće krivulje CTR-a ili prosjek s vlastitom) i uvijek označena kao procjena.
 - **Stanja:** novo → prihvaćeno → provedeno, ili odbijeno. Sprema ih ploča (`prijedlozi_stanje`); same prijedloge piše samo server.
 - **Web se ne mijenja.** Prijedlozi su za odluku vlasnika.
@@ -282,7 +291,7 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
 ## Testirano (lokalno: WordPress 6.9, SQLite, MCP Adapter 0.7.1, PHP 8.3)
 - **Postojeći testovi:** MCP spajanje, prava (anonimno 401, pretplatnik odbijen, čitač dopušten), crawl i audit na 311 stranica.
 - **Nadogradnja (`tests/wordpress/upgrade_test.sh`):** sa svake izdane verzije 2.x na trenutni kod, deaktivacija/aktivacija, brisanje i ponovna instalacija; ključevi, postavke i podaci moraju ostati isti.
-- **Radar na hostingu (`tests/wordpress/radar_test.php`, 283 provjere)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima te lažnim webovima kandidata:
+- **Radar na hostingu (`tests/wordpress/radar_test.php`, 308 provjera)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima te lažnim webovima kandidata:
   - suradnje: arhiva, provjera weba i kontakt, prijedlozi (čišćenje, odbacivanje), web pretraga (isključena, prekinuta, bez poziva alata), stanja i provjera poveznice, uvoz iz Search Consolea, DR, satni prolaz, REST, MCP;
   - Claude: prisilni poziv alata se ne šalje (lažni API ga odbija kao pravi), ponovljeni pokušaj, trošak po modelu i po mjesecu;
   - društvene mreže: Meta batch i rezervni načini, istekao token, YouTube kvota i rezervna veza, TikTok OAuth (state, obnova tokena, prekid veze), analiza, uzori, preporuke, cron, REST, MCP, bez curenja tokena;
