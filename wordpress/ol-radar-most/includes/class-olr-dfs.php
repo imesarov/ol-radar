@@ -51,7 +51,12 @@ class OLR_DFS {
 		return round( $n * $pages * self::PRICE_PAGE + ( OLR_Settings::get( 'rank_aio_async' ) ? $n * self::PRICE_AIO : 0 ), 4 );
 	}
 
-	private static function request( $method, $path, $body = null ) {
+	/**
+	 * Poziv DataForSEO API-ja. Javno od 2.5.0 (koristi ga i OLR_Trziste).
+	 *
+	 * @param int $timeout Sekunde; poziv AI modela (LLM Responses) traje do dvije minute.
+	 */
+	public static function request( $method, $path, $body = null, $timeout = 45 ) {
 		$login = OLR_Settings::secret( 'dfs_login' );
 		$pass  = OLR_Settings::secret( 'dfs_password' );
 		if ( ! $login || ! $pass ) {
@@ -59,7 +64,7 @@ class OLR_DFS {
 		}
 		$args = array(
 			'method'  => $method,
-			'timeout' => 45,
+			'timeout' => $timeout,
 			'headers' => array(
 				'Authorization' => 'Basic ' . base64_encode( $login . ':' . $pass ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 				'Content-Type'  => 'application/json',
@@ -183,7 +188,7 @@ class OLR_DFS {
 		);
 	}
 
-	private static function add_cost( $cost ) {
+	public static function add_cost( $cost ) {
 		if ( $cost <= 0 ) {
 			return;
 		}
@@ -195,7 +200,7 @@ class OLR_DFS {
 	}
 
 	/** Je li domena naša (i poddomene). */
-	private static function is_ours( $domain ) {
+	public static function is_ours( $domain ) {
 		$own = strtolower( OLR_Settings::get( 'domain' ) );
 		$d   = strtolower( preg_replace( '/^www\./', '', (string) $domain ) );
 		return $d === $own || substr( $d, -strlen( '.' . $own ) ) === '.' . $own;

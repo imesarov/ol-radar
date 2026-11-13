@@ -121,7 +121,7 @@ class OLR_Analiza {
 		return false;
 	}
 
-	private static function skip( $query ) {
+	public static function skip( $query ) {
 		return self::is_brand( $query ) || self::is_ignored( $query ) || self::is_competitor( $query );
 	}
 

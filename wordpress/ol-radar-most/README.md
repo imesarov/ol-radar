@@ -1,11 +1,12 @@
-# OL Radar – most za Claudea (v2.4.2)
+# OL Radar – most za Claudea (v2.5.0)
 
 WordPress dodatak koji radi dvije stvari:
 
 1. **OL Radar na hostingu (novo u 2.0):** nadzorna ploča u wp-adminu (OL Radar → Nadzorna ploča). Podatke skuplja sam server, i kad tvoje računalo i claude.ai nisu otvoreni:
-   - Google Search Console preko servisnog računa;
-   - pozicije preko DataForSEO-a;
+   - Google Search Console preko servisnog računa (glavni izvor o našem webu);
+   - DataForSEO: pozicije, a od 2.5.0 i tržište (Google karta, profili i recenzije, obujam iz Google Adsa, ključne riječi i poveznice konkurenata, spominjanja, brzina, AI asistenti);
    - audit weba iznutra.
+   - Ahrefs je od 2.5.0 samo arhiva.
 2. **Most za Claudea:** pristup webu i Radaru **samo za čitanje** preko MCP-a (konektor „Optika Ljiljana web” u claude.ai, Claude desktop aplikaciji i na mobitelu).
 
 Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak samo čita i ne mijenja.
@@ -133,6 +134,30 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 - **Domain Rating.** DR je Ahrefsova brojka i ne može se dobiti iz Search Consolea. Zadano se prikazuje arhiva: mjesečna povijest od siječnja 2025. i stanje 13. 11. 2026. (naš DR 0; konkurenti 7 do 28). Arhiva ne prepisuje točke koje je Radar sam izmjerio. Tjedna provjera Ahrefsovim besplatnim javnim servisom (bez pretplate i ključa) uključuje se u Postavkama; gumb „Provjeri DR sada” radi uvijek. Oznaka „Domain Rating by Ahrefs” je uvjet licence.
 - **Raspored:** prijedlozi jednom tjedno (ako je uključeno, zadano jest), nove tvrtke i DR jednom tjedno samo ako su uključeni; svaki posao u svom satnom prolazu. Ručno najviše tri puta dnevno po poslu.
 
+### Tržište: DataForSEO uz Search Console (od 2.5.0)
+- **Odluka (Ivan, 13. 11. 2026.):** glavni izvori su Search Console (naš web u Googleu) i DataForSEO (tržište i konkurenti). Ahrefs ostaje samo arhiva.
+- **Moduli** (`OLR_Trziste`, Postavke → Tržište; svaki zasebno, zadano isključen jer se plaća):
+
+  | Modul | Što daje | Ritam | Procjena po prolazu |
+  |---|---|---|---|
+  | lokalno | Google karta za lokalne upite (zadano 8, npr. „optika sesvete”): naše mjesto, prva tri s ocjenom i brojem recenzija, povijest. Kad je naš profil poznat, pretraga ide s njegova mjesta | tjedno | 0,0006 $ po upitu |
+  | profili | naš Google profil i do 8 konkurenata s karte: ocjena, recenzije i promjena, kategorije, fotografije, je li profil preuzet, teme iz recenzija | tjedno | 0,0015 $ po profilu |
+  | recenzije | zadnjih 20 recenzija za nas i 4 najjača konkurenta, odgovor vlasnika, prosjek zadnjih; imena recenzenata se ne spremaju | tjedno | 0,0015 $ po tvrtki |
+  | volumen | Google Ads za Hrvatsku: obujam do četiri godine mjesečno, CPC, konkurencija (ciljane, lokalne i do 300 upita iz Search Consolea) i ideje iz ciljanih riječi; puni Planer i Trendove | mjesečno | 0,06 $ po zadatku (do 1.000 riječi) |
+  | kljucne | DataForSEO Labs: vidljivost domena (top 3, top 10, broj riječi), naših do 1.000 riječi, konkurentskih do 500 u prvih 20, praznine (konkurent u prvih 10, mi ne u prvih 20; bez imena tvrtki i brenda). Prvo besplatna provjera da Labs pokriva Hrvatsku | mjesečno | 0,012 $ po zahtjevu + 0,00012 $ po retku |
+  | poveznice | rank 0–100 (nije Ahrefsov DR) nas i konkurenata, naših 200 domena (bez spama i prodavača), domene koje povezuju barem dva od pet konkurenata a nas ne (do 20 po prolazu postaju kandidati u Suradnjama, izvor `dataforseo`), nove poveznice konkurenata (45 dana) | mjesečno | 0,024 $ po zahtjevu + 0,000036 $ po retku |
+  | spominjanja | Content Analysis: stranice s točnim izrazom (zadano „Optika Ljiljana”); za 15 najnovijih server provjeri ima li poveznice na nas | mjesečno | 0,024 $ + 0,000036 $ po retku |
+  | brzina | Lighthouse na mobitelu za naslovnicu i 8 najposjećenijih stranica iz Search Consolea: ocjena, LCP, CLS, TBT | mjesečno | 0,005 $ po stranici |
+  | ai | LLM Responses: zadana pitanja kupaca (do 10) za ChatGPT, Gemini, Perplexity i po želji Claude, s web pretragom gdje je ima: spominju li nas, citiraju li naš web, koje konkurente preporučuju | mjesečno | oko 0,03 $ po odgovoru (stvarni iznos stiže u odgovoru) |
+
+- **Svi moduli zajedno:** oko 2 $ mjesečno (8 konkurenata, 5 pitanja, 3 asistenta). Tablica u Postavkama računa procjenu iz stvarnih postavki.
+- **Mjesečni limit** (`dfs_limit`, zadano 5 $) vrijedi za DataForSEO ukupno, s mjerenjem pozicija. Provjerava se prije posla i prije svakog plaćenog koraka; kad se dosegne, posao staje.
+- **Izvođenje:** posao je niz koraka. Satni prolaz (`OLR_Trziste::tick`, 20 s) izvrši koliko stane; zadaci u standardnom redu (karta, profili, recenzije, Google Ads, Lighthouse) čekaju rezultat u sljedećim prolazima. Odgovor AI asistenta traje do dvije minute, pa ide jedan po prolazu. Profili čekaju kartu, recenzije profile. Posao koji nije gotov za tri dana završava s onim što je stiglo. Stanje svakog koraka sprema se prije poziva, pa se korak nikad ne plaća dvaput.
+- **Konkurenti za usporedbu:** ručno upisani (Postavke → Konkurenti), zatim domene koje su u našim mjerenjima pozicija najčešće u prvih 10 (barem 3 riječi), bez mreža, medija, foruma i imenika; najviše 8. Konkurenti na karti biraju se iz rezultata karte.
+- **Ploča:** Pozicije (karta, AI asistenti), Ključne riječi (obujam, ideje, naše riječi u Labsu), Konkurencija (profili, recenzije, vidljivost i praznine), Audit (brzina), Suradnje (poveznice, spominjanja). Uz svaki panel gumb „Pokreni sada” s potvrdom troška. Na hostingu se ne nude alati koji traže Ahrefs.
+- **Pohrana:** gotovi podaci u zbirci `trziste` (po modulu), međurezultati u `trziste_run`, stanje poslova u opciji `olr_trziste_jobs`, red u `olr_trziste_q`.
+- **Cijene** provjerene na dataforseo.com 13. 11. 2026. (nakon promjene cijena od 1. 7. 2026., kad je ukinut i mjesečni minimum za Backlinks API); konstante `OLR_Trziste::P_*`. Stvarni trošak svakog poziva uzima se iz odgovora API-ja.
+
 ### Claude trošak (od 2.4.0)
 - **Gdje:** Postavke → „Claude trošak” (danas i po mjesecima: pozivi, ulazni i izlazni tokeni, web pretrage, iznos u USD), zaglavlje ploče (iznos za mjesec i danas), stanje izvora (iznos zadnjeg poziva), `ol-radar/radar-stanje`.
 - **Kako se računa:** iz stvarnih tokena svakog poziva i cjenika modela na dan 12. 11. 2026.: Opus 5.5 4 $ ulaz i 20 $ izlaz, Sonnet 5.5 2 $ i 10 $, Haiku 5.5 0,10 $ i 0,50 $ po milijunu tokena (zahtjev s više od 100.000 ulaznih tokena 0,50 $ i 2,50 $); web pretraga 0,01 $ po upitu. Cjenik je u `OLR_AI::PRICES`; kad se cijene promijene, mijenja se ondje.
@@ -148,6 +173,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 |---|---|---|
 | Google Search Console | servisni račun, JWT RS256, opseg `webmasters.readonly`, svakih 12 h | 0 |
 | Pozicije | DataForSEO SERP API, standardni red, mobitel, Zagreb, do 40. mjesta | 0,0006 $ po 10 rezultata po riječi; 27 riječi ≈ 0,065 $ po mjerenju |
+| Tržište (od 2.5.0) | DataForSEO: Maps, Business Data, Google Ads, Labs, Backlinks, Content Analysis, Lighthouse, LLM Responses | po modulu (vidi „Tržište”); svi zajedno oko 2 $ mjesečno, uz mjesečni limit |
 | Audit iznutra | crawl dodatka | 0 |
 | Indeksiranost | Search Console URL Inspection API, isti servisni račun | 0 |
 | Učinak izmjena | Search Console API (dnevni podaci po stranici) | 0 |
@@ -213,6 +239,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
   - Google podaci, ako su stariji od 12 sati;
   - rezultati mjerenja u tijeku;
   - tjedno mjerenje, ako je uključeno;
+  - uključeni moduli Tržišta po rasporedu i rezultati iz reda (do 20 s);
   - dnevna analiza s prijedlozima, kad ima novih Google podataka;
   - učinak provedenih izmjena (inače ide odmah nakon novih Google podataka);
   - mala serija provjera indeksiranosti.
@@ -230,7 +257,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `GET /prijedlozi` | samo prijedlozi (ploča ga čita dok se tekst dopisuje u pozadini) |
 | `GET /suradnje` | samo suradnje (ploča ga čita nakon promjene stanja; usput provjeri upisane adrese s poveznicom) |
 | `GET /oauth/tiktok` | povratak s TikToka nakon odobrenja; javna ruta, radi samo uz jednokratni `state` izdan administratoru |
-| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera), `mreze`, `mreze_uzori`, `mreze_preporuke`, `suradnje`, `suradnje_dr`, `suradnje_gsc`, `suradnje_dodaj`, `suradnje_veza`; bez troška (osim Claudeovih poziva). `suradnje_trazi` pokreće web pretragu i traži `potvrda=da`. `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da` |
+| `POST /osvjezi` | `gsc`, `rank` (pokupi rezultate), `crawl`, `prijedlozi`, `ucinak`, `indeks` (jedna serija provjera), `mreze`, `mreze_uzori`, `mreze_preporuke`, `suradnje`, `suradnje_dr`, `suradnje_gsc`, `suradnje_dodaj`, `suradnje_veza`; bez troška (osim Claudeovih poziva). `suradnje_trazi` pokreće web pretragu i traži `potvrda=da`. `mjerenje` pokreće plaćeno mjerenje pozicija i traži `potvrda=da`. `trziste` (s `modul`: jedan modul ili `sve` uključene) pokreće plaćeni modul Tržišta i traži `potvrda=da`; `trziste_korak` nastavlja već pokrenute poslove |
 
 ## Most za Claudea (MCP)
 
@@ -250,6 +277,7 @@ Sadržaj weba (stranice, objave, postavke, dodatke, teme, korisnike) dodatak sam
 | `ol-radar/radar-indeks` (2.2.0) | indeksiranost: brojke i stranice s problemom (razlog iz Googlea, kanonska adresa, zadnji posjet); `sve: true` vraća sve stranice |
 | `ol-radar/radar-mreze` (2.3.0) | društvene mreže: račun i pratitelji, analiza (medijan, objave iznad i ispod uobičajenog, obrasci), preporuke; `mreza` za jednu mrežu, `objave: true` za popis objava, `uzori: true` za uzore |
 | `ol-radar/radar-suradnje` (2.4.0) | suradnje i poveznice: kandidati s prijedlogom, kontaktom i stanjem, poveznice koje vidi Google, DR nas i konkurenata; `stanje` za jedno stanje, `svi: true` i za kandidate bez prijedloga |
+| `ol-radar/radar-trziste` (2.5.0) | tržište iz DataForSEO-a: karta, profili, recenzije, obujam, ključne riječi i praznine, poveznice, spominjanja, brzina, AI asistenti; `dio` za jedan modul, `limit` za duge popise; u korijenu stanje modula, trošak i limit |
 | `ol-radar/radar-stanje` (2.1.1) | kratko stanje bez podataka: verzija, koji su ključevi postavljeni (da/ne), stanje izvora i ishod zadnjih provjera, mjerenje u tijeku, upozorenje nakon nadogradnje |
 | `ol-radar/radar-prijedlozi` (2.1.0) | gotovi prijedlozi izmjena iz dnevne analize, s dokazima, tekstom i stanjem; uz provedene i izmjereni učinak (2.2.0) |
 
@@ -291,7 +319,8 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
 ## Testirano (lokalno: WordPress 6.9, SQLite, MCP Adapter 0.7.1, PHP 8.3)
 - **Postojeći testovi:** MCP spajanje, prava (anonimno 401, pretplatnik odbijen, čitač dopušten), crawl i audit na 311 stranica.
 - **Nadogradnja (`tests/wordpress/upgrade_test.sh`):** sa svake izdane verzije 2.x na trenutni kod, deaktivacija/aktivacija, brisanje i ponovna instalacija; ključevi, postavke i podaci moraju ostati isti.
-- **Radar na hostingu (`tests/wordpress/radar_test.php`, 308 provjera)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima te lažnim webovima kandidata:
+- **Radar na hostingu (`tests/wordpress/radar_test.php`, 331 provjera)** s lažnim Google, DataForSEO, Anthropic, Meta, YouTube, TikTok i Ahrefs odgovorima te lažnim webovima kandidata:
+  - tržište (DataForSEO): zadano isključeno, potvrda i mjesečni limit, karta s redom čekanja i s našeg mjesta, profili po oznaci, recenzije, Google Ads (Hrvatska, četiri godine), Labs i praznine (bez imena konkurenata), Labs bez Hrvatske bez plaćenih poziva, poveznice i praznina u Suradnje, spominjanja s provjerom poveznice, Lighthouse, AI asistenti (model po platformi, ponovni pokušaj bez web pretrage), raspored, REST, MCP;
   - suradnje: arhiva, provjera weba i kontakt, prijedlozi (čišćenje, odbacivanje), web pretraga (isključena, prekinuta, bez poziva alata), stanja i provjera poveznice, uvoz iz Search Consolea, DR, satni prolaz, REST, MCP;
   - Claude: prisilni poziv alata se ne šalje (lažni API ga odbija kao pravi), ponovljeni pokušaj, trošak po modelu i po mjesecu;
   - društvene mreže: Meta batch i rezervni načini, istekao token, YouTube kvota i rezervna veza, TikTok OAuth (state, obnova tokena, prekid veze), analiza, uzori, preporuke, cron, REST, MCP, bez curenja tokena;
@@ -316,10 +345,12 @@ S tom ulogom Claude može pokretati samo sposobnosti `ol-radar/*`. U nadzornu pl
   - modul Prijedlozi: kartice, prihvaćanje, filtri, „Analiziraj sada”;
   - Postavke ne otkrivaju ključeve; spremanje, Enter i „obriši” ne diraju druge ključeve;
   - modul Društvene mreže (pločice, preporuke, što prolazi, uzori, „Osvježi mreže”, „Nove preporuke”) i odjeljak u Postavkama (preuzimanje, prekid i povezivanje TikToka);
-  - modul Suradnje (kartice, stanja, provjera poveznice, „Napiši prijedloge”, potvrda prije web pretrage, uvoz iz Search Consolea, DR) i u Postavkama odjeljak Suradnje te tablica „Claude trošak”.
+  - modul Suradnje (kartice, stanja, provjera poveznice, „Napiši prijedloge”, potvrda prije web pretrage, uvoz iz Search Consolea, DR) i u Postavkama odjeljak Suradnje te tablica „Claude trošak”;
+  - Tržište: odjeljak u Postavkama (glavni obrazac, zadano isključeno, „uključi sve” uz potvrdu troška, ključevi netaknuti) i modul na gumb u ploči uz potvrdu troška.
 
 ## Plan
 Cijeli plan s prioritetima, troškovima i izvorima: `docs/Plan-razvoja.md`.
-- Google Business Profile: analiza i prijedlozi (sljedeća verzija).
+- Google Business Profile: službene brojke našeg profila (pozivi, upute, klikovi) uz Googleov API za vlasnike; javni dio (ocjena, recenzije, konkurenti) radi od 2.5.0 preko DataForSEO-a.
+- Podaci Tržišta u dnevnim prijedlozima (npr. recenzije bez odgovora, spore stranice, praznine s obujmom).
 - Search Console do kraja: uređaji, države, vrsta prikaza, Discover, stanje sitemapa.
 - Faza 2 upisa: Rank Math naslovi, opisi i fokus riječi, uz dnevnik promjena, vraćanje i odobrenje za svaki upis.

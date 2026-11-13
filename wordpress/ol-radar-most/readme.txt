@@ -2,7 +2,7 @@
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.2
+Stable tag: 2.5.0
 License: GPL-2.0-or-later
 
 OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, konkurencija, društvene mreže, suradnje i poveznice, AI prijedlozi) i pristup webu samo za čitanje za Claudea preko MCP-a.
@@ -12,6 +12,15 @@ OL Radar na hostingu (nadzorna ploča: Google Search Console, pozicije, audit, k
 Registrira sposobnosti (WordPress Abilities API) u kategoriji „OL Radar”, izložene MCP Adapteru. Sve sposobnosti traže pravo ol_radar_read i samo čitaju; jedina iznimka „osvjezi-crawl” mijenja isključivo interni cache dodatka. Detaljne upute su u README.md.
 
 == Changelog ==
+
+= 2.5.0 =
+* Tržište: DataForSEO postaje glavni izvor o tržištu i konkurentima, uz Search Console kao glavni izvor o našem webu; Ahrefs ostaje samo arhiva.
+* Google karta za lokalne upite (naše mjesto, tko je ispred, ocjene i broj recenzija), Google profili i recenzije nas i konkurenata s karte.
+* Obujam pretraga iz Google Adsa za Hrvatsku (do četiri godine mjesečno) i nove ideje; pune Planer i Trendove.
+* Ključne riječi nas i konkurenata (DataForSEO Labs) s prazninama: riječi u kojima je konkurent u prvih 10, a mi ne.
+* Poveznice: rank domena, naše domene bez spama, domene koje povezuju barem dva konkurenta a nas ne (postaju kandidati u Suradnjama), nove poveznice konkurenata.
+* Spominjanja na webu s provjerom poveznice, brzina stranica (Lighthouse, mobitel) i odgovori AI asistenata (ChatGPT, Gemini, Perplexity) na pitanja kupaca.
+* Svaki modul se uključuje zasebno (zadano isključeno), uz procjenu troška i mjesečni limit za DataForSEO (zadano 5 $). Nova MCP sposobnost ol-radar/radar-trziste.
 
 = 2.4.2 =
 * Manje lažnih nalaza u prijedlozima izmjena: glavna stranica za upit je ona s najviše klikova (ne s najviše prikazivanja), kanibalizacija se ne javlja kad smo prvi ili su obje stranice u prva tri rezultata, upiti s imenom konkurenta se preskaču, pad klikova i nizak CTR moraju biti statistički značajni, lokalni upiti imaju niže očekivanje CTR-a, stranice mijenjane u zadnjih 14 dana čekaju nove podatke, a novi članak se ne predlaže kad postojeća stranica već pokriva temu.

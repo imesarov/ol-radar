@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       OL Radar – most za Claudea
- * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, pozicije, audit weba iznutra, konkurencija, društvene mreže, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba i mreže samo čita, ne mijenja ih.
- * Version:           2.4.2
+ * Description:       OL Radar na hostingu: nadzorna ploča (Google Search Console, DataForSEO: pozicije, karta, profili, recenzije, obujam, ključne riječi i poveznice konkurenata, audit weba iznutra, društvene mreže, AI prijedlozi) i most za Claudea preko MCP-a. Sadržaj weba i mreže samo čita, ne mijenja ih.
+ * Version:           2.5.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Optika Ljiljana
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OLR_VERSION', '2.4.2' );
+define( 'OLR_VERSION', '2.5.0' );
 define( 'OLR_PARSER_VERSION', '2' );
 define( 'OLR_DB_VERSION', '2' );
 define( 'OLR_FILE', __FILE__ );
@@ -38,6 +38,7 @@ require_once OLR_DIR . 'includes/class-olr-ucinak.php';
 require_once OLR_DIR . 'includes/class-olr-indeks.php';
 require_once OLR_DIR . 'includes/class-olr-social.php';
 require_once OLR_DIR . 'includes/class-olr-suradnje.php';
+require_once OLR_DIR . 'includes/class-olr-trziste.php';
 require_once OLR_DIR . 'includes/class-olr-rest.php';
 require_once OLR_DIR . 'includes/class-olr-radar-admin.php';
 
@@ -121,6 +122,7 @@ add_action(
 /**
  * Radar na hostingu, svaki sat: Google podaci ako su stariji od 12 sati (nakon neuspjeha novi pokušaj
  * tek za 3 sata), rezultati mjerenja u tijeku, tjedno mjerenje pozicija ako je uključeno u postavkama,
+ * uključeni moduli Tržišta (DataForSEO: karta, profili, recenzije, obujam, ključne riječi, poveznice…),
  * dnevna analiza s prijedlozima izmjena kad stignu novi Google podaci, učinak provedenih izmjena,
  * mala serija provjera indeksiranosti i društvene mreže (podaci dvaput dnevno, preporuke tjedno).
  */
@@ -138,6 +140,8 @@ add_action(
 		if ( OLR_DFS::has_credentials() ) {
 			OLR_DFS::poll();
 			OLR_DFS::maybe_weekly();
+			// Tržište (od 2.5.0): uključeni DataForSEO moduli po rasporedu i rezultati iz reda, u kratkom okviru.
+			OLR_Trziste::tick( 20 );
 		}
 		if ( OLR_Prijedlozi::due() ) {
 			OLR_Prijedlozi::run( 'auto' );

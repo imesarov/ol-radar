@@ -334,6 +334,24 @@ class OLR_Abilities {
 			)
 		);
 		wp_register_ability(
+			'ol-radar/radar-trziste',
+			array(
+				'label'               => 'Radar: tržište (DataForSEO)',
+				'description'         => 'Podaci o tržištu iz DataForSEO-a (od 2.5.0), uz Search Console kao glavni izvor o našem webu: lokalno (Google karta za lokalne upite: naše mjesto, tko je ispred, ocjene i broj recenzija), profili (Google profili tvrtki: mi i konkurenti s karte, kategorije, fotografije, teme iz recenzija), recenzije (najnovije za nas i najjače konkurente, odgovori vlasnika), volumen (obujam pretraga iz Google Adsa, mjesečno do 4 godine unatrag, i nove ideje), kljucne (DataForSEO Labs: za što rangiramo mi i konkurenti, praznine u kojima su oni u prvih 10, a mi ne, vidljivost domena), poveznice (DataForSEO rank 0–100, nije Ahrefsov DR; naše domene s poveznicom, domene koje povezuju barem dva konkurenta a nas ne, nove poveznice konkurenata), spominjanja (gdje se spominjemo i ima li poveznice), brzina (Lighthouse na mobitelu) i ai (odgovori ChatGPT-a, Geminija, Perplexityja i po želji Claudea na pitanja kupaca: spominju li nas i koga preporučuju). U korijenu: stanje modula, trošak ovaj mjesec, limit i procjena. Samo čitanje; pokretanje plaćenih modula je u ploči i Postavkama.',
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::obj_schema(
+					array(
+						'dio'   => array( 'type' => 'string', 'enum' => array_keys( OLR_Trziste::MODULI ), 'description' => 'Samo jedan modul (zadano: svi).' ),
+						'limit' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 300, 'description' => 'Najviše redaka u dugim popisima (zadano 50).' ),
+					)
+				),
+				'output_schema'       => $out,
+				'execute_callback'    => array( __CLASS__, 'radar_market' ),
+				'permission_callback' => array( __CLASS__, 'can_read' ),
+				'meta'                => self::meta(),
+			)
+		);
+		wp_register_ability(
 			'ol-radar/radar-prijedlozi',
 			array(
 				'label'               => 'Radar: prijedlozi izmjena',
@@ -474,6 +492,20 @@ class OLR_Abilities {
 				OLR_Social::summary( 0 )['mreze']
 			),
 		);
+	}
+
+	public static function radar_market( $input = array() ) {
+		$dio   = isset( $input['dio'] ) && isset( OLR_Trziste::MODULI[ $input['dio'] ] ) ? $input['dio'] : '';
+		$limit = isset( $input['limit'] ) ? max( 1, min( 300, (int) $input['limit'] ) ) : 50;
+		$s     = OLR_Trziste::summary( $dio, $limit );
+		if ( isset( $s['volumen']['rijeci'] ) && '' === $dio ) {
+			// Mjesečni niz je dug; u pregledu svih modula ostaje zadnjih 12 mjeseci po riječi.
+			foreach ( $s['volumen']['rijeci'] as $i => $r ) {
+				$s['volumen']['rijeci'][ $i ]['m'] = array_slice( (array) $r['m'], -12 );
+			}
+		}
+		$s['napomena'] = 'Brojke o našem webu u Googleu uzimaj iz Search Consolea (ol-radar/radar-gsc); ovdje su podaci o tržištu i konkurentima. DataForSEO rank nije Ahrefsov DR (druga ljestvica). Modul koji je null još nije pokrenut ili nije uključen (stanje u polju moduli).';
+		return $s;
 	}
 
 	private static function partners_brief() {

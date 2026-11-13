@@ -168,6 +168,8 @@ class OLR_REST {
 				'mreze'  => OLR_Social::summary( 40 ),
 				// Suradnje i poveznice: kandidati s prijedlozima, DR, poveznice koje vidi Google.
 				'suradnje' => OLR_Suradnje::summary( 300 ),
+				// Tržište (DataForSEO, od 2.5.0): karta, profili, recenzije, obujam, ključne riječi, poveznice, spominjanja, brzina, AI asistenti.
+				'trziste' => OLR_Trziste::summary( '', 300 ),
 				'stanje' => self::state_array(),
 			)
 		);
@@ -211,6 +213,16 @@ class OLR_REST {
 			'prijedlozi' => array(
 				'auto'   => (bool) OLR_Settings::get( 'prijedlozi_auto' ),
 				'zadnje' => array_diff_key( OLR_Prijedlozi::last_run(), array( 'rucno' => 1 ) ),
+			),
+			// Tržište: po modulu uključeno, stanje, zadnji prolaz i procjena; trošak ovaj mjesec i limit.
+			'trziste'  => array(
+				'moduli'   => OLR_Trziste::modules_state(),
+				'trosak'   => array(
+					'mjesec'            => round( OLR_Trziste::month_spent(), 4 ),
+					'limit'             => OLR_Trziste::limit(),
+					'procjena_mjesecno' => OLR_Trziste::estimate_month( true ),
+				),
+				'u_tijeku' => OLR_Trziste::progress(),
 			),
 			// Upozorenje ako je nakon nadogradnje neki prije spremljeni ključ postao nečitljiv ili nestao.
 			'nadogradnja' => OLR_Settings::upgrade_warning(),
@@ -416,8 +428,29 @@ class OLR_REST {
 					'suradnje' => OLR_Suradnje::summary( 300 ),
 				);
 			}
+		} elseif ( 'trziste' === $dio ) {
+			// Tržište: pokretanje modula se plaća (DataForSEO), pa samo uz potvrdu korisnika u ploči.
+			if ( 'da' !== (string) $r->get_param( 'potvrda' ) ) {
+				return new WP_Error( 'olr_potvrda', 'Moduli Tržišta se naplaćuju (DataForSEO); potrebna je potvrda.', array( 'status' => 400 ) );
+			}
+			$req = OLR_Trziste::request( sanitize_key( (string) $r->get_param( 'modul' ) ), 'rucno' );
+			if ( is_wp_error( $req ) ) {
+				$req->add_data( array( 'status' => 400 ) );
+				return $req;
+			}
+			$res = array(
+				'pokrenuto' => $req,
+				'napredak'  => OLR_Trziste::step( 20 ),
+				'trziste'   => OLR_Trziste::summary( '', 300 ),
+			);
+		} elseif ( 'trziste_korak' === $dio ) {
+			// Nastavak već potvrđenih poslova (ploča ponavlja dok ima koraka) i rezultati iz reda.
+			$res = array(
+				'napredak' => OLR_Trziste::step( 20 ),
+				'trziste'  => OLR_Trziste::summary( '', 300 ),
+			);
 		} else {
-			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks, mreze, mreze_uzori, mreze_preporuke, suradnje, suradnje_trazi, suradnje_dr, suradnje_gsc, suradnje_dodaj, suradnje_veza).', array( 'status' => 400 ) );
+			return new WP_Error( 'olr_dio', 'Nepoznat dio (gsc, rank, crawl, prijedlozi, mjerenje, ucinak, indeks, mreze, mreze_uzori, mreze_preporuke, suradnje, suradnje_trazi, suradnje_dr, suradnje_gsc, suradnje_dodaj, suradnje_veza, trziste, trziste_korak).', array( 'status' => 400 ) );
 		}
 		if ( is_wp_error( $res ) ) {
 			$res->add_data( array( 'status' => 502 ) );

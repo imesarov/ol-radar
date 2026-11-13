@@ -526,6 +526,54 @@ async def main():
         print(("OK  " if okdr else "FAIL") + " postavke: „Spremi i provjeri DR sada” (ključevi netaknuti): " + msg[:110]); bad += 0 if okdr else 1
         await pg.screenshot(path=f"{OUT}/hosted_postavke_suradnje.png", full_page=True)
 
+        # Tržište (2.5.0): moduli u glavnom obrascu, zadano isključeni; „uključi sve” traži potvrdu s procjenom troška.
+        await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
+        tz = await pg.evaluate("""(()=>{const f=document.querySelector('input[name=action][value=olr_save]').form; const mods=['lokalno','profili','recenzije','volumen','kljucne','poveznice','spominjanja','brzina','ai'];
+            const els=[...mods.map(m=>'#dfs_'+m),'#dfs_limit','#dfs_lokalne_rijeci','#dfs_profil','#dfs_brend_naziv','#dfs_ai_pitanja','input[name="dfs_ai_platforme[]"]','button[name=olr_then][value=trziste_ukljuci]','button[name=olr_then][value=trziste_pokreni]'];
+            return {u:els.every(s=>{const e=document.querySelector(s); return e && e.form===f;}), on:mods.filter(m=>document.querySelector('#dfs_'+m).checked).length,
+                pl:[...document.querySelectorAll('input[name="dfs_ai_platforme[]"]:checked')].map(e=>e.value).join(','), lok:document.querySelector('#dfs_lokalne_rijeci').value.split('\\n').length,
+                txt:(document.querySelector('#olr-trziste')||{}).nextElementSibling ? document.querySelector('#olr-trziste').nextElementSibling.textContent : ''}})()""")
+        oktz = tz["u"] and tz["on"] == 0 and tz["pl"] == "chat_gpt,gemini,perplexity" and tz["lok"] == 8 and "Search Console ostaje glavni izvor" in tz["txt"]
+        print(("OK  " if oktz else "FAIL") + " postavke: Tržište u glavnom obrascu, moduli zadano isključeni:", tz["on"], tz["pl"]); bad += 0 if oktz else 1
+        prije = await kljucevi()
+        dl = []
+        pg.once("dialog", lambda d: (dl.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await pg.click("button[name=olr_then][value=trziste_ukljuci]")
+        await pg.wait_for_timeout(500)
+        okd = len(dl) == 1 and "mjesečno" in dl[0] and "$" in dl[0] and not await pg.query_selector(".notice-success")
+        pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+        async with pg.expect_navigation():
+            await pg.click("button[name=olr_then][value=trziste_ukljuci]")
+        msg = await pg.inner_text(".notice")
+        on = await pg.evaluate("['lokalno','profili','recenzije','volumen','kljucne','poveznice','spominjanja','brzina','ai'].filter(m=>document.querySelector('#dfs_'+m).checked).length")
+        okon = okd and "Uključeni su svi moduli Tržišta" in msg and on == 9 and await kljucevi() == prije
+        print(("OK  " if okon else "FAIL") + " postavke: „Spremi i uključi sve” traži potvrdu, uključuje module, ključevi netaknuti: " + msg[:90]); bad += 0 if okon else 1
+        await pg.screenshot(path=f"{OUT}/hosted_postavke_trziste.png", full_page=True)
+
+        # Ploča: modul Spominjanja na gumb, uz potvrdu troška (samo izravni pozivi, bez reda čekanja).
+        await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar")
+        app = await (await pg.wait_for_selector("#olr-okvir")).content_frame()
+        await app.wait_for_function("typeof S !== 'undefined' && S.done && S.done.gsc", timeout=60000)
+        await app.evaluate("location.hash = '#suradnje'")
+        await app.wait_for_selector("#trz-spominjanja:not([hidden]) [data-trz=spominjanja]", timeout=20000)
+        dl = []
+        pg.once("dialog", lambda d: (dl.append(d.message), asyncio.ensure_future(d.dismiss())))
+        await app.click("#trz-spominjanja [data-trz=spominjanja]")
+        await pg.wait_for_timeout(500)
+        okdd = len(dl) == 1 and "DataForSEO naplaćuje oko" in dl[0] and "limit" in dl[0]
+        pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+        await app.click("#trz-spominjanja [data-trz=spominjanja]")
+        await app.wait_for_function("document.querySelector('#trz-spominjanja') && document.querySelector('#trz-spominjanja').innerText.includes('nema poveznice') && !S.trzBusy", timeout=60000)
+        sp = await app.inner_text("#trz-spominjanja")
+        oksp = okdd and "portal-test.hr" in sp and "ima" in sp and "Pokreni sada" in sp
+        print(("OK  " if oksp else "FAIL") + " ploča: Tržište → Spominjanja na gumb uz potvrdu troška, s provjerom poveznice"); bad += 0 if oksp else 1
+        await app.evaluate("location.hash = '#pozicije'")
+        await app.wait_for_selector("#trz-lokalno:not([hidden])", timeout=10000)
+        await pg.screenshot(path=f"{OUT}/hosted_trziste_pozicije.png", full_page=True)
+        await app.evaluate("location.hash = '#kljucne-rijeci'")
+        await app.wait_for_selector("#trz-volumen:not([hidden])", timeout=10000)
+        await pg.screenshot(path=f"{OUT}/hosted_trziste_kljucne.png", full_page=True)
+
         await pg.goto(BASE + "/wp-admin/admin.php?page=ol-radar-postavke")
         html = await pg.content()
         leak = any(x in html for x in ("meta-test-token", "page-token", "yt-test-key", "tt-secret", "tt-access", "tt-refresh"))

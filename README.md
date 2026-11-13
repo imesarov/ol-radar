@@ -10,7 +10,7 @@ Vlastiti SEO i društveni radar Optike Ljiljana (optikaljiljana.hr). Mali, ali d
 |---|---|
 | `app/index.html` | Radar: jedna HTML stranica (Claude artefakt, runtime contract 0.2.96) |
 | `app/hosted-shim.js` | Zamjena za claude.ai runtime kad ista ploča radi na hostingu (wp-admin) |
-| `wordpress/ol-radar-most/` | WordPress dodatak 2.0: Radar na hostingu (ploča, Google API, DataForSEO, Claude API) i most za Claudea (MCP, samo čitanje) |
+| `wordpress/ol-radar-most/` | WordPress dodatak (2.5.0): Radar na hostingu (ploča, Google API, DataForSEO, Claude API) i most za Claudea (MCP, samo čitanje) |
 | `tests/app/` | Headless test aplikacije s lažnim `window.claude` (`mock.js`) |
 | `tests/wordpress/` | Lokalni WordPress 6.9 + SQLite + MCP Adapter i MCP testovi dodatka |
 | `tools/` | `build-hosted.py` (gradi `wordpress/ol-radar-most/app/radar.html`), provjera sintakse za PHP 7.4 |
@@ -22,10 +22,13 @@ Radar postoji u dvije verzije s istim kodom (`app/index.html`):
 1. **Radar na hostingu (glavna verzija od 12. 11. 2026.):** WordPress dodatak u wp-adminu. Podatke skuplja server, bez claude.ai.
 2. **Radar na claude.ai (artefakt):** podatke čita preko claude.ai konektora.
 
+**Glavni izvori od 13. 11. 2026.:** Search Console za naš web i DataForSEO za tržište i konkurente. Ahrefs je samo arhiva (pretplata ističe 30. 11. 2026.).
+
 | Područje | Na hostingu | Na claude.ai |
 |---|---|---|
 | Naš web (klikovi, pozicije, CTR) | Google Search Console API, servisni račun | OpenSEO, rezerva Supermetrics |
 | Pozicije | DataForSEO (tjedno, mobitel, Zagreb) | OpenSEO tracker |
+| Tržište: karta, profili, recenzije, obujam, ključne riječi i poveznice konkurenata, spominjanja, brzina, AI asistenti | DataForSEO, moduli po izboru (od 2.5.0) | čita s hostinga (`ol-radar/radar-trziste`) |
 | Web iznutra (audit, linkovi, Rank Math) | izravno iz dodatka | WordPress most preko MCP-a |
 | Promet konkurenata | model: SERP-ovi iz mjerenja i arhive × volumen × naša krivulja CTR-a | isto, SERP-ovi iz arhive |
 | Društvene mreže | sljedeća faza (Meta API) | vidIQ |
@@ -35,7 +38,7 @@ Radar postoji u dvije verzije s istim kodom (`app/index.html`):
 
 **Claude izvan ploče** (claude.ai, desktop, mobitel) čita Radar s hostinga preko konektora „Optika Ljiljana web”, sposobnostima `ol-radar/radar-*`.
 
-**Baza** (zbirke): `export/radar` (sažetak za Claudea), `snap`, `tjedno`, `issues`, `fixes`, `plan`, `kp`, `arch_*`, `cfg`. Na hostingu još `gsc`, `rank`, `rank_run`, `serp`.
+**Baza** (zbirke): `export/radar` (sažetak za Claudea), `snap`, `tjedno`, `issues`, `fixes`, `plan`, `kp`, `arch_*`, `cfg`. Na hostingu još `gsc`, `rank`, `rank_run`, `serp`, `trziste`, `trziste_run`.
 
 **Tjedni zakazani zadatak „OL Radar – tjedno punjenje”** (ponedjeljak 05:38) puni `tjedno/<datum>` u bazi artefakta.
 

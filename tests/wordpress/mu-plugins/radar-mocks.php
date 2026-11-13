@@ -320,6 +320,185 @@ add_filter(
 				}
 				return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 20000, 'status_message' => 'Ok.', 'result' => array( array( 'keyword' => $t['keyword'], 'datetime' => gmdate( 'Y-m-d H:i:s +00:00' ), 'item_types' => $types, 'items' => $items ) ) ) ) ) );
 			}
+			// ---------- Tržište (2.5.0): karta, profili, recenzije, Google Ads, Labs, poveznice, spominjanja, Lighthouse, AI ----------
+			$calls          = get_option( 'olr_test_trziste_calls', array() );
+			$calls[]        = ( isset( $args['method'] ) ? $args['method'] : 'GET' ) . ' ' . preg_replace( '#/task_get/(advanced/|json/)?[^/]+$#', '/task_get/$1ID', $path );
+			update_option( 'olr_test_trziste_calls', array_slice( $calls, -400 ), false );
+			$prices = array(
+				'serp/google/maps/task_post'                              => 0.0006,
+				'business_data/google/my_business_info/task_post'         => 0.0015,
+				'business_data/google/reviews/task_post'                  => 0.0015,
+				'keywords_data/google_ads/search_volume/task_post'        => 0.06,
+				'keywords_data/google_ads/keywords_for_keywords/task_post' => 0.06,
+				'on_page/lighthouse/task_post'                            => 0.005,
+			);
+			if ( isset( $prices[ $path ] ) ) {
+				$tasks = json_decode( $args['body'], true );
+				$map   = get_option( 'olr_test_trz_tasks', array() );
+				$out   = array();
+				foreach ( $tasks as $i => $t ) {
+					$id         = 'trz-' . md5( $path . wp_json_encode( $t ) . microtime() . $i );
+					$map[ $id ] = array( 'path' => $path, 'task' => $t, 'get' => 0 );
+					if ( 'serp/google/maps/task_post' === $path ) {
+						update_option( 'olr_test_trz_maps_last', $t, false );
+					}
+					$out[]      = array( 'id' => $id, 'status_code' => 20100, 'status_message' => 'Task Created.', 'cost' => $prices[ $path ], 'data' => $t );
+				}
+				update_option( 'olr_test_trz_tasks', $map, false );
+				return $json( 200, array( 'status_code' => 20000, 'cost' => $prices[ $path ] * count( $tasks ), 'tasks' => $out ) );
+			}
+			if ( preg_match( '#^(serp/google/maps|business_data/google/my_business_info|business_data/google/reviews|keywords_data/google_ads/search_volume|keywords_data/google_ads/keywords_for_keywords|on_page/lighthouse)/task_get/(?:advanced/|json/)?(.+)$#', $path, $mm ) ) {
+				$id  = rawurldecode( $mm[2] );
+				$map = get_option( 'olr_test_trz_tasks', array() );
+				if ( ! isset( $map[ $id ] ) ) {
+					return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 40400, 'status_message' => 'Not Found.' ) ) ) );
+				}
+				$t = $map[ $id ]['task'];
+				++$map[ $id ]['get'];
+				update_option( 'olr_test_trz_tasks', $map, false );
+				// Prvi dohvat karte za „optika sesvete” je još u redu: rezultat stiže u sljedećem prolazu.
+				if ( 'serp/google/maps' === $mm[1] && 'optika sesvete' === $t['keyword'] && 1 === $map[ $id ]['get'] ) {
+					return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 40602, 'status_message' => 'Task In Queue.' ) ) ) );
+				}
+				$biz = array(
+					'111' => array( 'Optika Dado Sesvete', 'optika-dado.hr', 4.6, 210, 'Optičar' ),
+					'999' => array( 'Optika Ljiljana', 'optikaljiljana.hr', 4.9, 88, 'Optičar' ),
+					'222' => array( 'Kristo optika', '', 4.8, 64, 'Optičar' ),
+					'333' => array( 'Optika Jo Jo Sesvete', 'jojo-optika.hr', 4.3, 120, 'Optika' ),
+					'444' => array( 'Vision Centar Dubrava', 'visioncenter-test.hr', 4.5, 40, 'Optometrist' ),
+				);
+				$ok = static function ( $result ) use ( $json, $id ) {
+					return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 20000, 'status_message' => 'Ok.', 'cost' => 0, 'result' => $result ) ) ) );
+				};
+				if ( 'serp/google/maps' === $mm[1] ) {
+					$order = 'optika sesvete' === $t['keyword'] ? array( '111', '999', '222', '333', '444' ) : ( 'optičar sesvete' === $t['keyword'] ? array( '222', '111', '333', '444', '999' ) : array( '111', '222', '333', '444' ) );
+					$items = array( array( 'type' => 'maps_paid_item', 'rank_group' => 0, 'title' => 'Oglas' ) );
+					foreach ( $order as $i => $cid ) {
+						$b       = $biz[ $cid ];
+						$items[] = array( 'type' => 'maps_search', 'rank_group' => $i + 1, 'title' => $b[0], 'domain' => $b[1] ? 'www.' . $b[1] : null, 'url' => $b[1] ? 'https://www.' . $b[1] . '/' : null, 'rating' => array( 'rating_type' => 'Max5', 'value' => $b[2], 'votes_count' => $b[3], 'rating_max' => 5 ), 'cid' => $cid, 'category' => $b[4], 'address' => 'Zagrebačka cesta ' . ( $i + 1 ) . ', Sesvete', 'is_claimed' => '444' !== $cid, 'latitude' => 45.83, 'longitude' => 16.11 );
+					}
+					return $ok( array( array( 'keyword' => $t['keyword'], 'items' => $items ) ) );
+				}
+				if ( 'business_data/google/my_business_info' === $mm[1] ) {
+					$cid = 0 === strpos( $t['keyword'], 'cid:' ) ? substr( $t['keyword'], 4 ) : ( false !== stripos( $t['keyword'], 'ljiljana' ) ? '999' : '' );
+					$pl  = get_option( 'olr_test_trz_profil_log', array() );
+					$pl[] = $t;
+					update_option( 'olr_test_trz_profil_log', $pl, false );
+					if ( ! isset( $biz[ $cid ] ) ) {
+						return $json( 200, array( 'status_code' => 20000, 'tasks' => array( array( 'id' => $id, 'status_code' => 40102, 'status_message' => 'No Search Results.' ) ) ) );
+					}
+					$b = $biz[ $cid ];
+					return $ok( array( array( 'keyword' => $t['keyword'], 'items' => array( array( 'type' => 'google_business_info', 'title' => $b[0], 'category' => $b[4], 'additional_categories' => array( 'Optometrist', 'Prodavaonica sunčanih naočala' ), 'cid' => $cid, 'place_id' => 'pl-' . $cid, 'address' => 'Zagrebačka cesta 1, 10360 Sesvete', 'phone' => '+385 1 000 0000', 'url' => $b[1] ? 'https://www.' . $b[1] . '/' : null, 'domain' => $b[1] ? 'www.' . $b[1] : null, 'latitude' => 45.8301, 'longitude' => 16.1102, 'is_claimed' => true, 'rating' => array( 'value' => $b[2], 'votes_count' => $b[3] ), 'rating_distribution' => array( '1' => 1, '2' => 0, '3' => 2, '4' => 5, '5' => $b[3] - 8 ), 'total_photos' => '999' === $cid ? 35 : 120, 'description' => 'Opis tvrtke.', 'place_topics' => array( 'progresivne' => 12, 'ljubazni' => 30, 'pregled' => 9 ) ) ) ) ) );
+				}
+				if ( 'business_data/google/reviews' === $mm[1] ) {
+					$cid = isset( $t['cid'] ) ? (string) $t['cid'] : '';
+					$b   = isset( $biz[ $cid ] ) ? $biz[ $cid ] : array( 'Nepoznato', '', 4, 1, '' );
+					$rev = array(
+						array( 'review_text' => 'Odlična usluga, stručan pregled.', 'rating' => array( 'value' => 5 ), 'timestamp' => '2026-11-01 10:00:00 +00:00', 'owner_answer' => '999' === $cid ? null : 'Hvala!', 'review_url' => 'https://maps.google.com/r1', 'profile_name' => 'Ana' ),
+						array( 'review_text' => 'Dugo čekanje.', 'rating' => array( 'value' => 3 ), 'timestamp' => '2026-10-20 10:00:00 +00:00', 'owner_answer' => null, 'review_url' => 'https://maps.google.com/r2', 'profile_name' => 'Ivo' ),
+						array( 'review_text' => 'Super naočale.', 'rating' => array( 'value' => 5 ), 'timestamp' => '2026-10-02 10:00:00 +00:00', 'owner_answer' => 'Hvala na povjerenju.', 'review_url' => 'https://maps.google.com/r3', 'profile_name' => 'Marko' ),
+					);
+					return $ok( array( array( 'title' => $b[0], 'cid' => $cid, 'rating' => array( 'value' => $b[2], 'votes_count' => $b[3] ), 'reviews_count' => $b[3], 'items_count' => 3, 'items' => $rev ) ) );
+				}
+				if ( 'keywords_data/google_ads/search_volume' === $mm[1] ) {
+					update_option( 'olr_test_trz_ads_last', $t, false );
+					$rows = array();
+					foreach ( $t['keywords'] as $k ) {
+						$v      = 10 * ( 1 + strlen( $k ) % 7 ) * ( false !== strpos( $k, 'progresivne' ) ? 10 : 1 );
+						$rows[] = array( 'keyword' => $k, 'search_volume' => $v, 'cpc' => 0.4, 'competition' => 'LOW', 'competition_index' => 12, 'monthly_searches' => array( array( 'year' => 2026, 'month' => 10, 'search_volume' => $v ), array( 'year' => 2026, 'month' => 9, 'search_volume' => $v - 5 ), array( 'year' => 2025, 'month' => 10, 'search_volume' => (int) ( $v * 0.8 ) ) ) );
+					}
+					return $ok( $rows );
+				}
+				if ( 'keywords_data/google_ads/keywords_for_keywords' === $mm[1] ) {
+					return $ok(
+						array(
+							array( 'keyword' => 'progresivne naočale', 'search_volume' => 880, 'cpc' => 0.5, 'competition' => 'MEDIUM', 'monthly_searches' => array() ),
+							array( 'keyword' => 'multifokalne leće', 'search_volume' => 170, 'cpc' => 0.6, 'competition' => 'LOW', 'monthly_searches' => array( array( 'year' => 2026, 'month' => 10, 'search_volume' => 170 ) ) ),
+							array( 'keyword' => 'naočale za računalo', 'search_volume' => 320, 'cpc' => 0.3, 'competition' => 'LOW', 'monthly_searches' => array() ),
+						)
+					);
+				}
+				if ( 'on_page/lighthouse' === $mm[1] ) {
+					$slow = false !== strpos( $t['url'], 'progresivne' );
+					return $ok( array( array( 'categories' => array( 'performance' => array( 'score' => $slow ? 0.42 : 0.91 ) ), 'audits' => array( 'largest-contentful-paint' => array( 'numericValue' => $slow ? 5200 : 1800 ), 'cumulative-layout-shift' => array( 'numericValue' => 0.02 ), 'total-blocking-time' => array( 'numericValue' => 150 ), 'first-contentful-paint' => array( 'numericValue' => 1200 ), 'speed-index' => array( 'numericValue' => 2500 ) ) ) ) );
+				}
+			}
+			if ( 'dataforseo_labs/locations_and_languages' === $path ) {
+				$langs = get_option( 'olr_test_labs_bez_hr' ) ? array( array( 'language_code' => 'en' ) ) : array( array( 'language_name' => 'Croatian', 'language_code' => 'hr' ) );
+				return $json( 200, array( 'status_code' => 20000, 'cost' => 0, 'tasks' => array( array( 'status_code' => 20000, 'result' => array( array( 'location_code' => 2840, 'available_languages' => array( array( 'language_code' => 'en' ) ) ), array( 'location_code' => 2191, 'available_languages' => $langs ) ) ) ) ) );
+			}
+			$live = static function ( $cost, $result ) use ( $json ) {
+				return $json( 200, array( 'status_code' => 20000, 'cost' => $cost, 'tasks' => array( array( 'status_code' => 20000, 'status_message' => 'Ok.', 'cost' => $cost, 'result' => $result ) ) ) );
+			};
+			$body = isset( $args['body'] ) && is_string( $args['body'] ) ? json_decode( $args['body'], true ) : array();
+			$t0   = isset( $body[0] ) ? $body[0] : array();
+			if ( 'dataforseo_labs/google/domain_rank_overview/live' === $path ) {
+				$own = 'optikaljiljana.hr' === $t0['target'];
+				return $live( 0.01212, array( array( 'target' => $t0['target'], 'items' => array( array( 'metrics' => array( 'organic' => array( 'pos_1' => $own ? 2 : 10, 'pos_2_3' => $own ? 4 : 20, 'pos_4_10' => $own ? 9 : 40, 'pos_11_20' => 12, 'count' => $own ? 60 : 400, 'etv' => $own ? 120.5 : 980.2, 'is_new' => 3, 'is_lost' => 1 ) ) ) ) ) ) );
+			}
+			if ( 'dataforseo_labs/google/ranked_keywords/live' === $path ) {
+				update_option( 'olr_test_trz_labs_last', $t0, false );
+				$mk  = static function ( $k, $v, $pos, $url ) {
+					return array( 'keyword_data' => array( 'keyword' => $k, 'keyword_info' => array( 'search_volume' => $v ), 'search_intent_info' => array( 'main_intent' => 'commercial' ), 'keyword_properties' => array( 'keyword_difficulty' => 3 ) ), 'ranked_serp_element' => array( 'serp_item' => array( 'type' => 'organic', 'rank_group' => $pos, 'url' => $url, 'etv' => 1.5, 'rank_changes' => array( 'previous_rank_absolute' => $pos + 1, 'is_new' => false ) ) ) );
+				};
+				$h   = 'https://www.' . $t0['target'] . '/';
+				$own = 'optikaljiljana.hr' === $t0['target'];
+				$it  = $own
+					? array( $mk( 'progresivne naočale', 880, 8, $h . 'progresivne-naocale/' ), $mk( 'cijena progresivnih naočala', 90, 1, $h . 'progresivne-naocalne-lece/' ), $mk( 'naočale za noćnu vožnju', 140, 25, $h . 'naocale-za-nocnu-voznju/' ) )
+					: array( $mk( 'progresivne naočale', 880, 2, $h ), $mk( 'kontaktne leće', 1300, 3, $h . 'lece/' ), $mk( 'optika anda', 2400, 1, $h ), $mk( 'naočale za noćnu vožnju', 140, 6, $h . 'noc/' ), $mk( 'naočale za čitanje', 590, 5, $h . 'citanje/' ) );
+				return $live( 0.012 + 0.00012 * count( $it ), array( array( 'target' => $t0['target'], 'total_count' => count( $it ), 'items_count' => count( $it ), 'items' => $it ) ) );
+			}
+			if ( 'backlinks/summary/live' === $path ) {
+				$own = 'optikaljiljana.hr' === $t0['target'];
+				return $live( 0.024036, array( array( 'target' => $t0['target'], 'rank' => $own ? 4 : 22, 'backlinks' => $own ? 1500 : 9000, 'referring_domains' => $own ? 577 : 300, 'referring_domains_nofollow' => 20, 'referring_main_domains' => $own ? 560 : 280, 'backlinks_spam_score' => $own ? 45 : 8 ) ) );
+			}
+			if ( 'backlinks/referring_domains/live' === $path ) {
+				$own = 'optikaljiljana.hr' === $t0['target'];
+				$new = gmdate( 'Y-m-d H:i:s +00:00', time() - 5 * DAY_IN_SECONDS );
+				$old = '2024-03-01 00:00:00 +00:00';
+				$it  = $own
+					? array( array( 'type' => 'backlinks_referring_domain', 'domain' => 'optike.hr', 'rank' => 3, 'backlinks' => 2, 'first_seen' => $old, 'lost_date' => null, 'backlinks_spam_score' => 0 ), array( 'domain' => 'best-backlinks-shop.com', 'rank' => 1, 'backlinks' => 40, 'first_seen' => $new, 'lost_date' => null, 'backlinks_spam_score' => 80 ) )
+					: array( array( 'domain' => 'novi-portal.hr', 'rank' => 30, 'backlinks' => 1, 'first_seen' => $new, 'lost_date' => null, 'backlinks_spam_score' => 2 ), array( 'domain' => 'stari-portal.hr', 'rank' => 30, 'backlinks' => 1, 'first_seen' => $old, 'lost_date' => null, 'backlinks_spam_score' => 2 ) );
+				return $live( 0.024 + 0.000036 * count( $it ), array( array( 'target' => $t0['target'], 'total_count' => count( $it ), 'items' => $it ) ) );
+			}
+			if ( 'backlinks/domain_intersection/live' === $path ) {
+				update_option( 'olr_test_trz_bl_last', $t0, false );
+				$one = static function ( $d, $bl, $rank, $spam ) {
+					return array( 'type' => 'backlinks_domain_intersection', 'target' => $d, 'rank' => $rank, 'backlinks' => $bl, 'backlinks_spam_score' => $spam );
+				};
+				$it = array(
+					array( 'domain_intersection' => array( '1' => $one( 'portal-zajednicki.hr', 3, 35, 1 ), '2' => $one( 'portal-zajednicki.hr', 1, 35, 1 ) ), 'summary' => array( 'intersections_count' => 2 ) ),
+					array( 'domain_intersection' => array( '1' => $one( 'samo-jedan.hr', 2, 20, 1 ) ), 'summary' => array( 'intersections_count' => 1 ) ),
+					array( 'domain_intersection' => array( '1' => $one( 'seo-backlink-shop.com', 9, 10, 2 ), '3' => $one( 'seo-backlink-shop.com', 9, 10, 2 ) ), 'summary' => array( 'intersections_count' => 2 ) ),
+					array( 'domain_intersection' => array( '2' => $one( 'spam-portal.hr', 5, 5, 70 ), '3' => $one( 'spam-portal.hr', 5, 5, 70 ) ), 'summary' => array( 'intersections_count' => 2 ) ),
+				);
+				return $live( 0.024 + 0.000036 * count( $it ), array( array( 'total_count' => count( $it ), 'items' => $it ) ) );
+			}
+			if ( 'content_analysis/search/live' === $path ) {
+				update_option( 'olr_test_trz_ca_last', $t0, false );
+				$it = array(
+					array( 'url' => 'https://portal-test.hr/clanak/', 'domain' => 'portal-test.hr', 'domain_rank' => 120, 'fetch_time' => '2026-11-01 10:00:00 +00:00', 'content_info' => array( 'title' => 'Članak o optikama', 'snippet' => 'Optika Ljiljana u Sesvetama…', 'date_published' => '2026-10-30 08:00:00 +00:00' ) ),
+					array( 'url' => 'https://portal-test.hr/vijest/', 'domain' => 'portal-test.hr', 'domain_rank' => 120, 'fetch_time' => '2026-11-02 10:00:00 +00:00', 'content_info' => array( 'title' => 'Vijest', 'snippet' => 'Spominje se Optika Ljiljana.' ) ),
+					array( 'url' => 'https://www.optikaljiljana.hr/o-nama/', 'domain' => 'www.optikaljiljana.hr', 'content_info' => array( 'title' => 'O nama' ) ),
+				);
+				return $live( 0.024 + 0.000036 * count( $it ), array( array( 'total_count' => 3, 'items' => $it ) ) );
+			}
+			if ( preg_match( '#^ai_optimization/([a-z_]+)/llm_responses/(models|live)$#', $path, $am ) ) {
+				if ( 'models' === $am[2] ) {
+					$names = array( 'chat_gpt' => array( 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano' ), 'gemini' => array( 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite' ), 'perplexity' => array( 'sonar-pro', 'sonar' ), 'claude' => array( 'claude-sonnet-4-5', 'claude-haiku-4-5' ) );
+					return $json( 200, array( 'status_code' => 20000, 'cost' => 0, 'tasks' => array( array( 'status_code' => 20000, 'result' => array_map( static function ( $n ) { return array( 'model_name' => $n ); }, isset( $names[ $am[1] ] ) ? $names[ $am[1] ] : array() ) ) ) ) );
+				}
+				$log   = get_option( 'olr_test_trz_ai', array() );
+				$log[] = array( 'platforma' => $am[1], 'tijelo' => $t0 );
+				update_option( 'olr_test_trz_ai', $log, false );
+				// Gemini (u testu) ne prima parametre web pretrage: prvi poziv pada, drugi bez njih prolazi.
+				if ( 'gemini' === $am[1] && isset( $t0['web_search'] ) ) {
+					return $json( 200, array( 'status_code' => 20000, 'cost' => 0, 'tasks' => array( array( 'status_code' => 40501, 'status_message' => 'Invalid Field: \'web_search\'.' ) ) ) );
+				}
+				$text = 'chat_gpt' === $am[1] ? 'U Sesvetama preporučujem Optiku Ljiljana i Optiku Dado.' : 'Dobre optike su Optika Dado i Kristo optika.';
+				$ann  = 'chat_gpt' === $am[1] ? array( array( 'title' => 'Optika Ljiljana', 'url' => 'https://www.optikaljiljana.hr/' ) ) : array( array( 'title' => 'Dado', 'url' => 'https://optika-dado.hr/' ) );
+				return $live( 0.0206, array( array( 'model_name' => $t0['model_name'], 'money_spent' => 0.02, 'items' => array( array( 'type' => 'message', 'sections' => array( array( 'type' => 'text', 'text' => $text, 'annotations' => $ann ) ) ) ) ) ) );
+			}
 			return $json( 404, array( 'status_code' => 40400 ) );
 		}
 

@@ -214,6 +214,35 @@ class OLR_Radar_Admin {
 		$vals['rank_weekly'] = '1' === self::post( 'rank_weekly' );
 		$vals['rank_aio_async'] = '1' === self::post( 'rank_aio_async' );
 		$vals['indeks_auto']    = '1' === self::post( 'indeks_auto' );
+		// Tržište (DataForSEO): moduli, popisi i mjesečni limit.
+		foreach ( array_keys( OLR_Trziste::MODULI ) as $m ) {
+			$vals[ 'dfs_' . $m ] = '1' === self::post( 'dfs_' . $m );
+		}
+		if ( null !== self::post( 'dfs_lokalne_rijeci' ) ) {
+			$vals['dfs_lokalne_rijeci'] = implode( "\n", array_slice( array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', sanitize_textarea_field( (string) self::post( 'dfs_lokalne_rijeci' ) ) ) ) ), 0, 20 ) );
+		}
+		if ( null !== self::post( 'dfs_ai_pitanja' ) ) {
+			$vals['dfs_ai_pitanja'] = implode( "\n", array_slice( array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', sanitize_textarea_field( (string) self::post( 'dfs_ai_pitanja' ) ) ) ) ), 0, 10 ) );
+		}
+		foreach ( array( 'dfs_profil', 'dfs_brend_naziv' ) as $k ) {
+			$v = sanitize_text_field( (string) self::post( $k ) );
+			if ( '' !== $v ) {
+				$vals[ $k ] = $v;
+			}
+		}
+		if ( null !== self::post( 'dfs_limit' ) ) {
+			$vals['dfs_limit'] = max( 0.5, min( 100, round( (float) str_replace( ',', '.', (string) self::post( 'dfs_limit' ) ), 2 ) ) );
+		}
+		if ( null !== self::post( 'dfs_ai_platforme_poslano' ) ) {
+			$pl = array();
+			foreach ( (array) self::post( 'dfs_ai_platforme' ) as $x ) {
+				$x = sanitize_key( $x );
+				if ( isset( OLR_Trziste::AI_PLATFORME[ $x ] ) ) {
+					$pl[] = $x;
+				}
+			}
+			$vals['dfs_ai_platforme'] = implode( ', ', $pl );
+		}
 		$model               = (string) self::post( 'ai_model' );
 		if ( isset( OLR_AI::models()[ $model ] ) ) {
 			$vals['ai_model'] = $model;
@@ -336,6 +365,21 @@ class OLR_Radar_Admin {
 				if ( ! is_wp_error( $r ) ) {
 					$st = OLR_Settings::status();
 					$r  = 'DR provjeren: ' . $st['suradnje_dr']['msg'] . '.';
+				}
+				break;
+			case 'trziste_ukljuci':
+				$on = array();
+				foreach ( array_keys( OLR_Trziste::MODULI ) as $m ) {
+					$on[ 'dfs_' . $m ] = true;
+				}
+				OLR_Settings::update( $on );
+				$r = sprintf( 'Uključeni su svi moduli Tržišta (procjena oko %.2f $ mjesečno uz mjesečni limit %.2f $). Prvi prolaz kreće sam u sljedećem satu; odmah ga pokreće gumb „Pokreni uključene sada”.', OLR_Trziste::estimate_month( true ), OLR_Trziste::limit() );
+				break;
+			case 'trziste_pokreni':
+				$r = OLR_Trziste::request( 'sve', 'rucno' );
+				if ( ! is_wp_error( $r ) ) {
+					$p = OLR_Trziste::step( 20 );
+					$r = sprintf( 'Pokrenuto: %s (procjena %.4f $). Dio rezultata stiže u sljedećim satima (karta, profili, recenzije, Google Ads i Lighthouse idu u standardni red DataForSEO-a). Napredak je u nadzornoj ploči i u tablici iznad.', $r['moduli'] ? implode( ', ', $r['moduli'] ) : 'ništa novo (već je u tijeku)', $r['procjena'] ) . ( $p['jos'] ? ' Preostali koraci se izvode u satnom prolazu.' : '' );
 				}
 				break;
 			case 'tt_connect':
@@ -552,6 +596,9 @@ class OLR_Radar_Admin {
 					'suradnje_gsc'    => 'Poveznice iz Search Consolea (uvoz)',
 					'suradnje_dr'     => 'Domain Rating (Ahrefsov javni servis)',
 				);
+				foreach ( OLR_Trziste::MODULI as $tm => $td ) {
+					$labels[ 'trziste_' . $tm ] = 'Tržište: ' . $td['naziv'];
+				}
 				foreach ( $labels as $k => $l ) {
 					$x = isset( $st[ $k ] ) ? $st[ $k ] : null;
 					echo '<tr><td style="width:240px"><strong>' . esc_html( $l ) . '</strong></td><td>';
@@ -578,7 +625,7 @@ class OLR_Radar_Admin {
 					· <a href="#olr-claude-trosak">detalji</a>
 				</td></tr>
 				<tr><td><strong>DataForSEO trošak</strong></td><td>
-					<?php echo esc_html( sprintf( 'ovaj mjesec %.4f $ · procjena jednog mjerenja %.4f $', isset( $cost[ $m ] ) ? $cost[ $m ] : 0, OLR_DFS::estimate() ) ); ?>
+					<?php echo esc_html( sprintf( 'ovaj mjesec %.4f $ (pozicije i Tržište) od limita %.2f $ · procjena jednog mjerenja pozicija %.4f $ · uključeni moduli Tržišta oko %.2f $ mjesečno', isset( $cost[ $m ] ) ? $cost[ $m ] : 0, OLR_Trziste::limit(), OLR_DFS::estimate(), OLR_Trziste::estimate_month( true ) ) ); ?>
 				</td></tr>
 				</tbody>
 			</table>
@@ -633,6 +680,61 @@ class OLR_Radar_Admin {
 						<button type="submit" class="button" name="olr_then" value="run_dfs" data-olr-trosak="<?php echo esc_attr( sprintf( '%.4f', OLR_DFS::estimate() ) ); ?>"><?php echo esc_html( sprintf( 'Spremi i izmjeri pozicije sada (oko %.4f $)', OLR_DFS::estimate() ) ); ?></button>
 					<?php endif; ?>
 				</p>
+
+				<h2 id="olr-trziste">Tržište (DataForSEO)</h2>
+				<p class="description" style="max-width:900px">Search Console ostaje glavni izvor o našem webu u Googleu. DataForSEO daje ono što Search Console ne vidi: Google kartu za lokalne upite, profile i recenzije konkurenata, obujam pretraga iz Google Adsa, ključne riječi i poveznice konkurenata, spominjanja na webu, brzinu stranica i odgovore AI asistenata. Ahrefs ostaje samo arhiva. Svaki modul se plaća po korištenju s istog DataForSEO računa, pa je zadano isključen. Svaki korak provjerava mjesečni limit (zajednički s mjerenjem pozicija); kad se dosegne, posao staje.</p>
+				<table class="widefat striped" style="max-width:1000px">
+					<thead><tr><th style="width:36px"></th><th>Modul</th><th>Ritam</th><th>Procjena po prolazu</th><th>Zadnje</th></tr></thead>
+					<tbody>
+					<?php
+					$tst = OLR_Trziste::modules_state();
+					foreach ( $tst as $tm => $tx ) {
+						echo '<tr><td><input type="checkbox" id="dfs_' . esc_attr( $tm ) . '" name="dfs_' . esc_attr( $tm ) . '" value="1" ' . checked( ! empty( $s[ 'dfs_' . $tm ] ), true, false ) . '></td>';
+						echo '<td><label for="dfs_' . esc_attr( $tm ) . '"><strong>' . esc_html( $tx['naziv'] ) . '</strong></label></td>';
+						echo '<td>' . esc_html( 'tjedno' === $tx['ritam'] ? 'tjedno' : 'mjesečno' ) . '</td>';
+						echo '<td>' . esc_html( sprintf( '%.4f $', $tx['procjena'] ) ) . '</td>';
+						echo '<td>' . ( $tx['zadnje'] ? esc_html( human_time_diff( (int) ( $tx['zadnje'] / 1000 ) ) . ' prije' ) : '<span style="color:#646970">još nije</span>' ) . ( $tx['poruka'] ? '<br><span class="description">' . esc_html( $tx['poruka'] ) . '</span>' : '' ) . '</td></tr>';
+					}
+					?>
+					</tbody>
+				</table>
+				<p class="description"><?php echo esc_html( sprintf( 'Uključeni moduli: oko %.2f $ mjesečno. Svi moduli: oko %.2f $ mjesečno. Ovaj mjesec potrošeno %.4f $ (pozicije i Tržište).', OLR_Trziste::estimate_month( true ), OLR_Trziste::estimate_month( false ), OLR_Trziste::month_spent() ) ); ?> Cijene: karta 0,0006 $ po upitu, profil 0,0015 $, 10 recenzija 0,00075 $, Google Ads 0,06 $ po zadatku (do 1.000 riječi), Labs 0,012 $ po zahtjevu i 0,00012 $ po retku, poveznice i spominjanja 0,024 $ po zahtjevu i 0,000036 $ po retku, Lighthouse 0,005 $ po stranici, AI asistent oko 0,03 $ po odgovoru (stvarni iznos stiže u odgovoru).</p>
+				<table class="form-table" role="presentation">
+					<tr><th scope="row"><label for="dfs_limit">Mjesečni limit</label></th><td>
+						<input type="number" id="dfs_limit" name="dfs_limit" class="small-text" min="0.5" max="100" step="0.5" value="<?php echo esc_attr( (string) $s['dfs_limit'] ); ?>"> $
+						<p class="description">Za DataForSEO ukupno (pozicije i Tržište). Kad se dosegne, plaćeni koraci staju do idućeg mjeseca.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="dfs_lokalne_rijeci">Lokalni upiti za kartu</label></th><td>
+						<textarea id="dfs_lokalne_rijeci" name="dfs_lokalne_rijeci" rows="6" class="large-text"><?php echo esc_textarea( (string) $s['dfs_lokalne_rijeci'] ); ?></textarea>
+						<p class="description">Jedan po retku, najviše 20. Pretraga ide s mjesta našeg Google profila (kad je poznato), inače za Zagreb.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="dfs_profil">Naš Google profil</label></th><td>
+						<input type="text" id="dfs_profil" name="dfs_profil" class="regular-text" value="<?php echo esc_attr( (string) $s['dfs_profil'] ); ?>">
+						<p class="description">Naziv kako piše na Google karti. Nakon prvog pronalaska profil se dalje traži po njegovoj oznaci (CID).</p>
+					</td></tr>
+					<tr><th scope="row"><label for="dfs_brend_naziv">Ime za spominjanja</label></th><td>
+						<input type="text" id="dfs_brend_naziv" name="dfs_brend_naziv" class="regular-text" value="<?php echo esc_attr( (string) $s['dfs_brend_naziv'] ); ?>">
+						<p class="description">Traži se točan izraz na webu; za pronađene stranice Radar provjeri imaju li poveznicu na nas.</p>
+					</td></tr>
+					<tr><th scope="row"><label for="dfs_ai_pitanja">Pitanja za AI asistente</label></th><td>
+						<textarea id="dfs_ai_pitanja" name="dfs_ai_pitanja" rows="5" class="large-text"><?php echo esc_textarea( (string) $s['dfs_ai_pitanja'] ); ?></textarea>
+						<input type="hidden" name="dfs_ai_platforme_poslano" value="1">
+						<p>
+						<?php
+						$apl = OLR_Trziste::ai_platforms();
+						foreach ( OLR_Trziste::AI_PLATFORME as $pk => $pl ) {
+							echo '<label style="margin-right:14px"><input type="checkbox" name="dfs_ai_platforme[]" value="' . esc_attr( $pk ) . '" ' . checked( in_array( $pk, $apl, true ), true, false ) . '> ' . esc_html( $pl ) . '</label>';
+						}
+						?>
+						</p>
+						<p class="description">Jedno pitanje po retku, najviše 10, onako kako ih pitaju kupci. Svako pitanje ide svakom odabranom asistentu jednom mjesečno, s web pretragom gdje je ima. Radar bilježi spominje li nas, citira li naš web i koje konkurente preporučuje.</p>
+					</td></tr>
+					<tr><th scope="row">Konkurenti za usporedbu</th><td>
+						<code><?php echo esc_html( implode( ', ', OLR_Trziste::rivals() ) ); ?></code>
+						<p class="description">Ručno upisani (Suradnje i poveznice → Konkurenti), zatim domene koje su u našim mjerenjima pozicija najčešće u prvih 10, bez mreža, medija i imenika. Najviše 8. Konkurenti na karti biraju se sami iz rezultata karte.</p>
+					</td></tr>
+				</table>
+				<p class="olr-akcije"><button type="submit" class="button" name="olr_then" value="trziste_ukljuci" data-olr-potvrda="<?php echo esc_attr( sprintf( 'Uključiti sve module Tržišta? Procjena je oko %.2f $ mjesečno s DataForSEO računa, uz mjesečni limit.', OLR_Trziste::estimate_month( false ) ) ); ?>"><?php echo esc_html( sprintf( 'Spremi i uključi sve (oko %.2f $ mjesečno)', OLR_Trziste::estimate_month( false ) ) ); ?></button> <button type="submit" class="button" name="olr_then" value="trziste_pokreni" data-olr-potvrda="Pokrenuti uključene module Tržišta sada? Trošak ide s DataForSEO računa (procjena je u tablici).">Spremi i pokreni uključene sada</button></p>
 
 				<h2>Claude u nadzornoj ploči (Anthropic API)</h2>
 				<table class="form-table" role="presentation">

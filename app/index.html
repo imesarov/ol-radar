@@ -369,6 +369,8 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
       </div>
       <div class="tiles" id="rk-tiles"></div>
       <div class="panel"><header><h3>Ciljane riječi</h3><p id="rk-meta"></p></header><div id="rk-table"><p class="loading">Učitavam…</p></div></div>
+      <div class="panel trz" id="trz-lokalno" hidden></div>
+      <div class="panel trz" id="trz-ai" hidden></div>
     </section>
 
     <!-- 05 KLJUČNE RIJEČI -->
@@ -380,6 +382,8 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
           <p>Ahrefs volumen i namjera, uz stvarna GSC prikazivanja i lokalnu težinu izračunatu iz stvarnog SERP-a. U Hrvatskoj je Ahrefs KD gotovo uvijek 0, pa ga ovdje ne uzimamo zdravo za gotovo.</p>
         </div>
       </div>
+      <div class="panel trz" id="trz-volumen" hidden></div>
+      <div class="panel trz" id="trz-nase" hidden></div>
       <form class="panel" id="kw-form">
         <div class="row">
           <label for="kw-input" class="small">Ključne riječi, odvojene zarezom (najviše 10)</label>
@@ -436,6 +440,9 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         </div>
         <div class="row"><button class="btn btn-g" type="button" id="btn-discover">Otkrij konkurente</button><button class="btn" type="button" id="btn-compare">Usporedi</button></div>
       </div>
+      <div class="panel trz" id="trz-profili" hidden></div>
+      <div class="panel trz" id="trz-recenzije" hidden></div>
+      <div class="panel trz" id="trz-kljucne" hidden></div>
       <div class="panel" id="km-panel" hidden><header><h3>Kretanje konkurenata: <em>naša mjerenja</em></h3><p id="km-meta"></p></header><div id="km-body"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>Udio u Googleu: <em>vlastiti model</em></h3><p id="cm-meta">procjena klikova iz arhiviranih SERP-ova × volumen × vaša krivulja CTR-a</p></header><div id="comp-model"><p class="loading">Učitavam arhivu…</p></div></div>
       <div class="panel">
@@ -477,6 +484,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         <button class="btn btn-g" type="button" data-refresh="audit">Osvježi audit</button>
       </div>
       <div class="panel"><header><h3>Audit iznutra: <em>WordPress most</em></h3><p id="wp-audit-meta">svaka objavljena stranica i Rank Math podaci</p></header><div id="wp-audit"><p class="loading">Učitavam…</p></div></div>
+      <div class="panel trz" id="trz-brzina" hidden></div>
       <div class="panel" id="ix-panel" hidden><header><h3>Indeksiranost u <em>Googleu</em></h3><button class="btn btn-g btn-s" type="button" id="btn-ix-run">Provjeri sada</button></header><p class="small muted" id="ix-meta" style="margin:0"></p><div class="tiles" id="ix-tiles"></div><div id="ix-table"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>On-page: naslov, opis, H1, fokus</h3><p id="onpage-meta">sve objavljene stranice, s Google klikovima i prikazivanjima</p></header><div id="onpage"><p class="loading">Učitavam…</p></div></div>
       <div class="panel"><header><h3>Ahrefs Site Audit</h3><p id="audit-meta"></p></header><div id="audit-list"><p class="loading">Učitavam…</p></div></div>
@@ -531,6 +539,8 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
         <div class="row"><input type="file" id="sur-gsc-file" accept=".csv,text/csv,text/plain" aria-label="CSV izvoz veza iz Search Consolea"><button class="btn btn-s" type="button" id="btn-sur-gsc">Učitaj izvoz</button></div>
         <div id="sur-gsc-body"></div>
       </div>
+      <div class="panel trz" id="trz-poveznice" hidden></div>
+      <div class="panel trz" id="trz-spominjanja" hidden></div>
       <div class="split">
         <div class="panel"><header><h3>Domain Rating</h3><button class="btn btn-g btn-s" type="button" id="btn-sur-dr">Provjeri DR sada</button></header><p class="small muted" id="sur-dr-meta" style="margin:0"></p><div id="sur-dr-body"></div></div>
         <div class="panel"><header><h3>Dodaj kandidata</h3><p>domena tvrtke, portala ili ustanove</p></header>
@@ -629,6 +639,7 @@ details summary{cursor:pointer;color:var(--gold-lt);font-size:13px}
             <tr><td>Pozicije i AI pregled</td><td>DataForSEO: stvarni Google rezultat za ciljane riječi (mobitel, Zagreb). Iz istog rezultata bilježi se i Googleov AI pregled: pojavljuje li se i citira li nas</td><td>na gumb ili tjedno, ako je uključeno</td><td>oko 0,07 $ po mjerenju; naknadno učitani AI pregledi po izboru +0,0006 $ po riječi</td></tr>
             <tr><td>Društvene mreže</td><td>Vlastite objave i njihove brojke: Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Svaka objava uspoređuje se s medijanom vlastite mreže u zadnjih 180 dana (× medijana); obrazac se navodi tek uz barem tri objave i odstupanje od 30 %. Uzori su najgledaniji YouTube videi po zadanim temama i objave navedenih Instagram profila; TikTok i Facebook ne daju tuđi sadržaj. Što raditi piše Claude iz tih brojki. Samo čitanje, ništa se ne objavljuje</td><td>podaci dvaput dnevno, uzori i preporuke tjedno</td><td>0 za podatke; nekoliko centi API kredita tjedno za preporuke</td></tr>
             <tr><td>Suradnje i poveznice</td><td>Popis mogućih partnera: domene koje povezuju konkurente i srodne tvrtke, a ne nas (završna arhiva Ahrefsa od 13. 11. 2026., s ocjenom izvedivosti i primjerom kako je poveznica nastala), tvrtke koje Claude nađe web pretragom i ručno dodane. Server provjeri da web postoji i pročita javni kontakt; Claude piše zašto, što ponuditi, korake i nacrt poruke. Napredak se mjeri poveznicama koje vidi Google (ručni izvoz iz Search Consolea, jer ih API ne daje). Kupnja i razmjena poveznica se ne predlažu; ništa se ne šalje nikome</td><td>prijedlozi jednom tjedno; nove tvrtke i DR samo ako su uključeni ili na gumb</td><td>tjedno do pet Claudeovih poziva (jedan po prijedlogu); web pretraga 0,01 $ po upitu uz tokene; DR (Ahrefsov javni servis) 0</td></tr>
+            <tr><td>Tržište (DataForSEO)</td><td>Uz Search Console kao glavni izvor o našem webu, DataForSEO daje ono što on ne vidi. Karta: tko je na Google karti za lokalne upite i s kojom ocjenom (s mjesta našeg profila). Profili i recenzije: naš Google profil i profili konkurenata s karte, najnovije recenzije i odgovori vlasnika (imena recenzenata se ne spremaju). Obujam: Google Ads za Hrvatsku, do četiri godine mjesečno, i nove ideje; puni Planer i Trendove. Ključne riječi: DataForSEO Labs za nas i konkurente; praznina je riječ u kojoj je konkurent u prvih 10, a mi nismo ni u prvih 20, bez imena tvrtki. Poveznice: rank 0–100 (nije Ahrefsov DR), naše domene bez spama, domene koje povezuju barem dva konkurenta, a nas ne (postaju kandidati u Suradnjama), nove poveznice konkurenata. Spominjanja: stranice koje nas spominju i ima li poveznice. Brzina: Lighthouse na mobitelu. AI asistenti: što ChatGPT, Gemini i Perplexity odgovaraju na pitanja kupaca. Ahrefs ostaje samo arhiva</td><td>karta, profili i recenzije tjedno; ostalo mjesečno; svaki modul se uključuje zasebno ili pokreće na gumb</td><td>svi moduli zajedno oko 2 $ mjesečno; svaki korak provjerava mjesečni limit (zadano 5 $, zajedno s pozicijama)</td></tr>
             <tr><td>Kretanje konkurenata</td><td>Iz prvih 20 rezultata svakog mjerenja: po domeni broj riječi u top 3 i top 10 i udio vidljivosti (pozicija × opća krivulja CTR-a, bez volumena), te tko je ušao, ispao ili nas pretekao</td><td>nakon svakog mjerenja</td><td>0</td></tr>
           </tbody>
         </table></div>
@@ -1102,6 +1113,7 @@ function renderView(v) {
   try {
     ({ pregled: renderOverview, prijedlozi: renderProp, tjedno: renderWeek, pozicije: renderRank, google: renderGoogle, "kljucne-rijeci": () => { renderKw(); renderArchKw(); }, planer: renderPlan, arhiva: renderArchive, konkurencija: renderComp, trendovi: renderTrends, audit: renderAudit, "drustvene-mreze": renderSocial, suradnje: renderSur, popravci: renderFixes, metodologija: () => { } })[v]?.();
   } catch (e) { console.error(e); }
+  try { renderTrz(v); } catch (e) { console.error(e); }
 }
 function rerender() { recompute(); renderView(S.view); renderBadges(); }
 
@@ -1252,6 +1264,7 @@ async function loadHosted() {
   /* društvene mreže: Meta Graph API, YouTube Data API, TikTok Display API (skuplja server) */
   setMreze(P.mreze || null);
   S.sur.d = P.suradnje || null;
+  setTrz(P.trziste || null);
   if (P.prijedlozi) setProp(P.prijedlozi);
   S.done = { gsc: true, wp: true, rank: true, social: true };
   rerender(); maybeSnapshot(); maybeExport();
@@ -2300,6 +2313,166 @@ async function kwAi(kw, country, btn) {
   await aiInto(el, btn, AI_RULES + "\n\nZADATAK: Napravi plan sadržaja za ključnu riječ „" + kw + "”. Odluči treba li nova stranica, članak u Journalu ili dorada postojeće stranice (koristi popis postojećih stranica). Daj: preporučeni URL ili postojeću stranicu, SEO naslov do 60 znakova, meta opis 120–156 znakova, H1, 5–7 H2 podnaslova, što mora biti u sadržaju da nadmaši SERP, 2–4 interne poveznice (s postojećih stranica, sidreni tekst) i jednu rečenicu zašto. Piši kratko, u odlomcima i popisima, bez uvoda.\n\nPODACI:\n" + JSON.stringify(ev).slice(0, 12000));
 }
 
+/* ---------- Tržište (DataForSEO, od 2.5.0; samo na hostingu) ---------- */
+/* Karta, profili, recenzije, obujam iz Google Adsa, Labs, poveznice, spominjanja, Lighthouse i AI asistenti. Podatke skuplja server
+   po rasporedu (uključeno u Postavkama) ili na gumb uz potvrdu troška; Search Console ostaje glavni izvor o našem webu. */
+const TRZ_VIEW = { pozicije: ["lokalno", "ai"], "kljucne-rijeci": ["volumen", "nase"], konkurencija: ["profili", "recenzije", "kljucne"], audit: ["brzina"], suradnje: ["poveznice", "spominjanja"] };
+const trzUsd = v => v == null ? "?" : (v < 1 ? dec(v, 3) : dec(v, 2)) + " $";
+function setTrz(T) {
+  S.trz = T || null;
+  /* obujam iz Google Adsa u isti oblik koji koriste Planer i Ključne riječi (na claude.ai ga puni Supermetrics) */
+  if (T && T.volumen) {
+    (T.volumen.rijeci || []).forEach(x => { S.kp["hr|" + x.k] = { k: x.k, v: x.v, cpc: x.cpc, comp: x.konk, izvor: "Google Ads (DataForSEO)" }; });
+    (T.volumen.ideje || []).forEach(x => { if (!S.kp["hr|" + x.k]) S.kp["hr|" + x.k] = { k: x.k, v: x.v, cpc: x.cpc, comp: x.konk, izvor: "Google Ads (DataForSEO)" }; });
+  }
+}
+/* mjesečni niz iz Google Adsa (do 4 godine) za Trendove */
+function dfsSeries(kw) {
+  const V = S.trz && S.trz.volumen; if (!V) return null;
+  const x = (V.rijeci || []).find(y => y.k === kw); if (!x || !(x.m || []).length) return null;
+  return { keyword: kw, series: x.m.filter(p => p[1] != null).map(p => ({ date: p[0], volume: p[1] })), at: V.at, izvor: "Google Ads" };
+}
+function trzHead(m, title, sub) {
+  const T = S.trz, st = T && T.moduli ? T.moduli[m === "nase" ? "kljucne" : m] : null;
+  if (!st) return `<header><h3>${title}</h3></header>`;
+  const busy = S.trzBusy === (m === "nase" ? "kljucne" : m), run = ["ceka", "radi", "rezultati"].includes(st.stanje);
+  const meta = [st.zadnje ? "zadnje " + ago(st.zadnje) : "još nije pokrenuto", st.ritam === "tjedno" ? "tjedno" : "mjesečno", st.ukljuceno ? "" : "isključeno u Postavkama", run ? "u tijeku" : "", st.stanje === "greska" && st.poruka ? st.poruka : ""].filter(Boolean).join(" · ");
+  return `<header><h3>${title}</h3><button type="button" class="btn btn-g btn-s" data-trz="${m === "nase" ? "kljucne" : m}"${busy || run ? " disabled" : ""}>${busy ? "Radi…" : run ? "U tijeku" : "Pokreni sada (oko " + trzUsd(st.procjena) + ")"}</button></header><p class="small muted" style="margin:0">${esc(meta)} · DataForSEO${sub ? " · " + sub : ""}</p>`;
+}
+function trzEmpty(m, what) {
+  const st = S.trz && S.trz.moduli ? S.trz.moduli[m] : null;
+  return `<p class="note">${what} ${st && st.ukljuceno ? "Prvi prolaz kreće sam u satnom prolazu, ili odmah gumbom iznad." : `Uključuje se u <a href="${esc(OLR_HOSTED.postavke)}#olr-trziste" target="_top">Postavkama → Tržište</a>, ili jednokratno gumbom iznad.`}</p>`;
+}
+async function trzRun(m) {
+  const T = S.trz, st = T && T.moduli ? T.moduli[m] : null; if (!st || S.trzBusy) return;
+  if (!window.confirm(st.naziv + "\n\nDataForSEO naplaćuje oko " + trzUsd(st.procjena) + " po prolazu. Mjesečni limit je " + trzUsd(T.trosak.limit) + ", a ovaj mjesec je potrošeno " + trzUsd(T.trosak.mjesec) + " (pozicije i Tržište).\n\nDio rezultata (karta, profili, recenzije, Google Ads, Lighthouse) DataForSEO isporučuje za nekoliko minuta do sat vremena; ploča ih čeka nekoliko minuta, a ostalo stiže samo.\n\nPokrenuti?")) return;
+  S.trzBusy = m; renderTrz(S.view);
+  const put = res => { if (res && res.rezultat && res.rezultat.trziste) setTrz(res.rezultat.trziste); renderTrz(S.view); return res && res.rezultat && res.rezultat.napredak; };
+  try {
+    let p = put(await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "trziste", modul: m, potvrda: "da" } }));
+    for (let i = 0; i < 60 && p && p.jos; i++) p = put(await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "trziste_korak" } }));
+    for (let i = 0; i < 10 && p && p.u_tijeku && p.u_tijeku[m]; i++) { await sleep(20000); p = put(await OLR_HOSTED.api("osvjezi", { method: "POST", body: { dio: "trziste_korak" } })); }
+    if (p && p.u_tijeku && p.u_tijeku[m]) note("Tržište", st.naziv + ": dio rezultata još čeka DataForSEO. Stiže sam u satnom prolazu; ploča ga pokazuje nakon osvježavanja.");
+  } catch (e) { note("Tržište", (e && e.message) || "Pokretanje nije uspjelo"); }
+  finally { S.trzBusy = null; rerender(); }
+}
+function trzPos(hist, k) { const h = (hist || {})[k] || []; return h.map(p => p[1]); }
+function renderTrz(v) {
+  const want = TRZ_VIEW[v] || [];
+  $$(".panel.trz").forEach(el => { if (!HOSTED || !want.includes(el.id.replace("trz-", ""))) el.hidden = true; });
+  if (!HOSTED) return;
+  const T = S.trz;
+  /* Na hostingu su DataForSEO i Search Console glavni izvori; alati koji traže Ahrefs (pretplata završava) se ne nude. */
+  const hide = sel => { const e = $(sel); if (e) e.hidden = true; }, txt = (sel, t) => { const e = $(sel); if (e) e.textContent = t; };
+  if (v === "kljucne-rijeci") {
+    hide("#kw-form"); hide("#kw-out");
+    txt("#v-kljucne-rijeci .vhead .eb", "Google Ads (DataForSEO) · DataForSEO Labs · Search Console");
+    txt("#v-kljucne-rijeci .vhead p", "Obujam pretraga iz Google Adsa (Hrvatska, do četiri godine mjesečno), ključne riječi iz DataForSEO Labsa i stvarna prikazivanja iz Search Consolea. Arhiva Ahrefsa ostaje za pretragu.");
+  }
+  if (v === "konkurencija") {
+    hide("#btn-discover"); hide("#btn-compare");
+    ["#comp-list", "#comp-table", "#comp-gap", "#comp-disc"].forEach(sel => { const e = $(sel); if (e && e.closest(".panel")) e.closest(".panel").hidden = true; });
+    txt("#v-konkurencija .vhead .eb", "Google karta · profili · DataForSEO Labs · naša mjerenja");
+    txt("#v-konkurencija .vhead p", "Tko je ispred na Google karti i u organskim rezultatima: profili i recenzije konkurenata, riječi koje oni drže, a mi ne, i kretanje iz naših tjednih mjerenja. Model iz arhive Ahrefsa ostaje za usporedbu.");
+  }
+  want.forEach(m => {
+    const el = $("#trz-" + m); if (!el) return;
+    el.hidden = false;
+    if (!T) { el.innerHTML = `<header><h3>Tržište</h3></header><p class="loading">Učitavam…</p>`; return; }
+    try { el.innerHTML = (TRZ_R[m] || (() => ""))(T); } catch (e) { console.error(e); el.innerHTML = '<p class="err small">Prikaz nije uspio.</p>'; }
+    $$("[data-trz]", el).forEach(b => b.onclick = () => trzRun(b.dataset.trz));
+    $$("[data-trzf]", el).forEach(i => i.oninput = () => { S.trzF = S.trzF || {}; S.trzF[i.dataset.trzf] = i.value; const pos = i.selectionStart; renderTrz(S.view); const n = $(`[data-trzf="${i.dataset.trzf}"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e2) { } } });
+  });
+}
+const star = (o, n) => o == null ? "–" : dec(o, 1) + " ★" + (n != null ? ` <span class="muted">(${fmt(n)})</span>` : "");
+const TRZ_R = {
+  lokalno(T) {
+    const L = T.lokalno, h = trzHead("lokalno", "Google karta: <em>lokalni upiti</em>", "mobitel" + (L && L.sredina ? ", s našeg mjesta" : ", Zagreb"));
+    if (!L) return h + trzEmpty("lokalno", "Ovdje će biti naše mjesto na Google karti za lokalne upite (npr. „optika sesvete”), tko je ispred i s kojom ocjenom.");
+    const rows = L.rijeci.map(x => {
+      const hist = trzPos(L.povijest, x.rijec), prev = hist.length > 1 ? hist[hist.length - 2] : undefined;
+      const ch = prev === undefined ? "" : prev == null && x.nasa != null ? ' <span class="up">novo</span>' : prev != null && x.nasa == null ? ' <span class="down">ispali</span>' : prev != null && x.nasa != null && prev !== x.nasa ? ` <span class="${x.nasa < prev ? "up" : "down"}">${x.nasa < prev ? "▲" : "▼"} ${Math.abs(prev - x.nasa)}</span>` : "";
+      const top = (x.top || []).slice(0, 3).map(t => `<span class="u" style="color:${t.nas ? "var(--text)" : "var(--lead)"}">${t.pos}. ${esc(t.naziv)}${t.nas ? " (mi)" : ""} · ${star(t.ocjena, t.glasova)}</span>`).join("");
+      const row = [esc(x.rijec), r((x.nasa == null ? '<span class="muted">nismo u prvih 20</span>' : x.nasa + ".") + ch), top, spark(hist.map(p => p == null ? -21 : -p), -21, -1)];
+      row.__me = x.nasa != null && x.nasa <= 3;
+      return row;
+    });
+    return h + tableHtml(["Upit", "Mi na karti", "Prva tri na karti", "Kretanje"], rows) + `<p class="small muted">${esc(L.sazetak || "")} · ${ago(L.at)}. Za lokalne upite Google iznad rezultata pokazuje kartu; mjesto na njoj često vrijedi više od organske pozicije.</p>`;
+  },
+  ai(T) {
+    const A = T.ai, h = trzHead("ai", "AI asistenti: <em>spominju li nas</em>", "ChatGPT, Gemini, Perplexity" + (A && (A.platforme || []).some(p => p.platforma === "claude") ? ", Claude" : ""));
+    if (!A) return h + trzEmpty("ai", "Ovdje će biti što AI asistenti odgovaraju na pitanja kupaca (npr. „Koja je dobra optika u Sesvetama?”): spominju li nas, citiraju li naš web i koga preporučuju.");
+    let html = h + tableHtml(["Asistent", "Model", "Odgovora", "Spominje nas", "Citira naš web"], (A.platforme || []).map(p => [esc(p.naziv), `<span class="u">${esc(p.model || "")}</span>`, r(fmt(p.odgovora)), r(`<span class="${p.spominje ? "up" : "down"}">${fmt(p.spominje)}</span>`), r(fmt(p.citira))]));
+    const rc = Object.entries(A.konkurenti || {});
+    if (rc.length) html += `<p class="small" style="margin:6px 0 0">Koga preporučuju: ${rc.slice(0, 10).map(([n, c]) => `<span class="chip">${esc(n)} · ${c}</span>`).join("")}</p>`;
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">' + (A.odgovori || []).slice(0, 40).map(o => `<details><summary class="small"><b>${esc(o.pitanje)}</b> · ${esc((T.ai.platforme || []).find(p => p.platforma === o.platforma)?.naziv || o.platforma)} · ${o.spominje ? '<span class="up">spominje nas</span>' : '<span class="muted">ne spominje nas</span>'}${o.citira ? " · citira naš web" : ""}${(o.konkurenti || []).length ? " · " + esc(o.konkurenti.join(", ")) : ""}</summary><p class="small lead" style="white-space:pre-wrap;margin:6px 0">${esc(o.odgovor || o.greska || "")}</p>${(o.izvori || []).length ? `<p class="small muted" style="margin:0">Izvori: ${o.izvori.map(esc).join(", ")}</p>` : ""}</details>`).join("") + "</div>";
+    return html + `<p class="small muted">${esc(A.sazetak || "")} · ${ago(A.at)}. Odgovori se mijenjaju iz dana u dan; gledaj smjer kroz mjesece, ne pojedini odgovor.</p>`;
+  },
+  volumen(T) {
+    const V = T.volumen, h = trzHead("volumen", "Obujam pretraga: <em>Google Ads</em>", "Hrvatska, mjesečno");
+    if (!V) return h + trzEmpty("volumen", "Ovdje će biti mjesečni obujam pretraga iz Google Adsa (do 4 godine unatrag) za ciljane, lokalne i najvažnije upite iz Search Consolea, uz nove ideje.");
+    const f = ((S.trzF || {}).vol || "").toLowerCase().trim();
+    const list = (V.rijeci || []).filter(x => !f || x.k.includes(f));
+    let html = h + `<div class="row"><label for="trz-vol-f" class="small">Filtar</label><input type="text" id="trz-vol-f" data-trzf="vol" value="${esc((S.trzF || {}).vol || "")}" placeholder="npr. progresivne" style="flex:1 1 220px"></div>`;
+    html += tableHtml(["Riječ", "Mjesečno", "Zadnjih 12 mj.", "CPC", "Konkurencija", "Naša GSC poz.", "Prikazivanja 28 d"], list.slice(0, 120).map(x => [esc(x.k), r(fmt(x.v)), spark((x.m || []).slice(-12).map(p => p[1])), r(x.cpc == null ? "–" : dec(x.cpc, 2) + " $"), esc(String(x.konk || "").toLowerCase().replace("low", "niska").replace("medium", "srednja").replace("high", "visoka")), r(x.pos == null ? "–" : dec(x.pos)), r(fmt(x.imp))]));
+    const ide = (V.ideje || []).filter(x => !f || x.k.includes(f));
+    if (ide.length) html += '<h4 style="margin:8px 0 0">Nove ideje iz Google Adsa</h4>' + tableHtml(["Riječ", "Mjesečno", "CPC", "Prikazivanja 28 d"], ide.slice(0, 40).map(x => [esc(x.k) + (x.imp ? "" : ' <span class="chip">nemamo prikazivanja</span>'), r(fmt(x.v)), r(x.cpc == null ? "–" : dec(x.cpc, 2) + " $"), r(fmt(x.imp))]));
+    return html + `<p class="small muted">${esc(V.izvor || "")} · ${ago(V.at)}. Google Ads spaja slične riječi u istu brojku. Obujam se koristi i u Planeru i Trendovima.</p>`;
+  },
+  nase(T) {
+    const K = T.kljucne, h = trzHead("nase", "Za što nas vidi <em>DataForSEO</em>", "Labs, Google Hrvatska");
+    if (!K) return h + trzEmpty("kljucne", "Ovdje će biti ključne riječi za koje DataForSEO Labs vidi naš web, s obujmom i pozicijom (uz Search Console, koji ostaje točniji izvor o nama).");
+    return h + tableHtml(["Riječ", "Mjesečno", "Pozicija", "Prije", "Stranica"], (K.nase || []).slice(0, 60).map(x => [esc(x.k), r(fmt(x.v)), r(x.pos == null ? "–" : x.pos + "."), r(x.prije == null ? (x.novo ? "novo" : "–") : x.prije + "."), `<span class="u">${esc(path(x.url))}</span>`])) + `<p class="small muted">${fmt(K.nase_ukupno)} riječi u bazi DataForSEO-a · ${ago(K.at)}. Baza je procjena iz povremenih snimaka; stvarne brojke o nama su u modulu Google.</p>`;
+  },
+  profili(T) {
+    const P = T.profili, h = trzHead("profili", "Google profili: <em>mi i konkurenti</em>", "konkurenti s Google karte");
+    if (!P) return h + trzEmpty("profili", "Ovdje će biti naš Google profil uz profile konkurenata s karte: ocjena, broj recenzija i promjena, kategorije, fotografije i teme o kojima kupci pišu.");
+    const rows = (P.profili || []).map(p => {
+      const d = p.prije && p.prije[2] != null ? p.glasova - p.prije[2] : null;
+      const row = [`<b>${esc(p.naziv)}</b>${p.nas ? ' <span class="chip">mi</span>' : ""}<span class="u">${esc(p.adresa || "")}</span>`, r(star(p.ocjena)), r(fmt(p.glasova) + (d ? ` <span class="up">+${fmt(d)}</span>` : "")), `${esc(p.kategorija || "")}${(p.dodatne || []).length ? `<span class="u">${esc(p.dodatne.slice(0, 3).join(", "))}</span>` : ""}`, r(fmt(p.fotografija)), p.preuzet === false ? pill("warn", "nije preuzet") : p.preuzet ? "da" : "–", `<span class="u" style="white-space:normal">${esc(Object.keys(p.teme || {}).slice(0, 4).join(", "))}</span>`];
+      row.__me = !!p.nas; return row;
+    });
+    return h + tableHtml(["Tvrtka", "Ocjena", "Recenzija", "Kategorija", "Fotografija", "Profil preuzet", "O čemu pišu"], rows) + `<p class="small muted">${esc(P.sazetak || "")} · ${ago(P.at)}. Službene brojke našeg profila (pozivi, upute, klikovi na web) traže Googleov API za vlasnike profila.</p>`;
+  },
+  recenzije(T) {
+    const R = T.recenzije, h = trzHead("recenzije", "Recenzije na <em>Googleu</em>", "zadnjih 20 po tvrtki");
+    if (!R) return h + trzEmpty("recenzije", "Ovdje će biti najnovije recenzije za nas i najjače konkurente, prosjek zadnjih i koje naše recenzije čekaju odgovor.");
+    const our = (R.tvrtke || []).find(t => t.nas);
+    let html = h + (our ? `<p class="small" style="margin:6px 0 0">Naših zadnjih recenzija bez odgovora: <b>${fmt(R.bez_odgovora)}</b>. Odgovor vlasnika je javan i pokazuje brigu o kupcima.</p>` : "");
+    html += tableHtml(["Tvrtka", "Ukupno", "Ocjena", "Prosjek zadnjih", "Zadnja recenzija"], (R.tvrtke || []).map(t => { const row = [`<b>${esc(t.naziv)}</b>${t.nas ? ' <span class="chip">mi</span>' : ""}`, r(fmt(t.ukupno)), r(star(t.ocjena)), r(t.nedavno == null ? "–" : dec(t.nedavno, 2)), t.stavke && t.stavke[0] ? hrDate(String(t.stavke[0].vrijeme).slice(0, 10)) : "–"]; row.__me = !!t.nas; return row; }));
+    if (our && (our.stavke || []).length) html += '<h4 style="margin:8px 0 0">Naše zadnje recenzije</h4><ul class="kret">' + our.stavke.slice(0, 10).map(x => `<li>${x.ocjena != null ? fmt(x.ocjena) + " ★ · " : ""}${esc(x.tekst || "(bez teksta)")} · ${hrDate(String(x.vrijeme).slice(0, 10))} · ${x.odgovor ? '<span class="up">odgovoreno</span>' : '<span class="down">bez odgovora</span>'}${x.url ? ` · <a href="${esc(x.url)}" target="_blank" rel="noopener">otvori</a>` : ""}</li>`).join("") + "</ul>";
+    return html + `<p class="small muted">${ago(R.at)}</p>`;
+  },
+  kljucne(T) {
+    const K = T.kljucne, h = trzHead("kljucne", "Ključne riječi: <em>mi i konkurenti</em>", "Labs, Google Hrvatska");
+    if (!K) return h + trzEmpty("kljucne", "Ovdje će biti vidljivost domena (koliko riječi drže u prvih 10) i praznine: riječi za koje su konkurenti u prvih 10, a mi nismo ni u prvih 20.");
+    const hist = K.povijest || {};
+    let html = h + tableHtml(["Domena", "Top 3", "Top 10", "Riječi u bazi", "Promjena top 10"], (K.domene || []).map(d => { const hh = hist[d.domena] || [], prev = hh.length > 1 ? hh[hh.length - 2][1] : null; const row = [`<b>${esc(d.domena)}</b>${d.domena === DOMAIN ? ' <span class="chip">mi</span>' : ""}`, r(fmt(d.top3)), r(fmt(d.top10)), r(fmt(d.rijeci)), r(prev == null ? "–" : `<span class="${d.top10 > prev ? "up" : d.top10 < prev ? "down" : ""}">${d.top10 - prev > 0 ? "+" : ""}${fmt(d.top10 - prev)}</span>`)]; row.__me = d.domena === DOMAIN; return row; }));
+    html += '<h4 style="margin:8px 0 0">Praznine: konkurenti u prvih 10, mi ne</h4>' + tableHtml(["Riječ", "Mjesečno", "Mi", "Konkurenti", "Namjera"], (K.praznine || []).slice(0, 60).map(g => [esc(g.k), r(fmt(g.v)), r(g.nasa == null ? '<span class="muted">nema nas</span>' : g.nasa + "."), `<span class="u" style="white-space:normal">${esc(Object.entries(g.konkurenti || {}).map(([d, p]) => d + " " + p + ".").join(", "))}</span>`, esc({ commercial: "komercijalna", informational: "informativna", transactional: "kupnja", navigational: "navigacijska" }[g.namjera] || g.namjera || "")]));
+    return html + `<p class="small muted">${esc(K.sazetak || "")} · ${ago(K.at)}. Bez upita s imenom konkurenta i naših riječi brenda. Riječ s više konkurenata i većim obujmom je veća prilika.</p>`;
+  },
+  brzina(T) {
+    const B = T.brzina, h = trzHead("brzina", "Brzina stranica: <em>Lighthouse</em>", "mobitel");
+    if (!B) return h + trzEmpty("brzina", "Ovdje će biti brzina naslovnice i najposjećenijih stranica na mobitelu (Lighthouse): ocjena, LCP, CLS i TBT.");
+    const rows = (B.stranice || []).map(p => { const bad = (p.ocjena != null && p.ocjena < 50) || (p.lcp != null && p.lcp > 4), mid = !bad && ((p.ocjena != null && p.ocjena < 90) || (p.lcp != null && p.lcp > 2.5)); return [`<span class="u" style="color:var(--text)">${esc(path(p.url))}</span>`, r((bad ? pill("crit", fmt(p.ocjena)) : mid ? pill("warn", fmt(p.ocjena)) : pill("good", fmt(p.ocjena)))), r(p.lcp == null ? "–" : dec(p.lcp, 1) + " s"), r(p.cls == null ? "–" : dec(p.cls, 3)), r(p.tbt == null ? "–" : fmt(p.tbt) + " ms"), r(p.prije && p.prije[1] != null ? fmt(p.prije[1]) : "–")]; });
+    return h + tableHtml(["Stranica", "Ocjena", "LCP", "CLS", "TBT", "Prije"], rows) + `<p class="small muted">${esc(B.sazetak || "")} · ${ago(B.at)}. Dobro: LCP do 2,5 s, CLS do 0,1. Jedno mjerenje je jedan uzorak; gledaj smjer kroz mjesece.</p>`;
+  },
+  poveznice(T) {
+    const P = T.poveznice, h = trzHead("poveznice", "Poveznice: <em>DataForSEO</em>", "rank 0–100, nije Ahrefsov DR");
+    if (!P) return h + trzEmpty("poveznice", "Ovdje će biti rank domena (naše i konkurenata), naše domene s poveznicom, domene koje povezuju barem dva konkurenta, a nas ne (one idu i među kandidate gore) i nove poveznice konkurenata.");
+    let html = h + tableHtml(["Domena", "Rank", "Domena s poveznicom", "Nofollow", "Spam"], (P.domene || []).map(d => { const row = [`<b>${esc(d.domena)}</b>${d.domena === DOMAIN ? ' <span class="chip">mi</span>' : ""}`, r(fmt(d.rank)), r(fmt(d.domena_n)), r(fmt(d.nofollow)), r(d.spam == null ? "–" : fmt(d.spam))]; row.__me = d.domena === DOMAIN; return row; }));
+    html += `<p class="small" style="margin:6px 0 0">Naših domena s poveznicom bez spama i prodavača poveznica: <b>${fmt(P.nase_cistih)}</b> od ${fmt((P.nase || []).length)} pregledanih.</p>`;
+    if ((P.praznina || []).length) html += '<h4 style="margin:8px 0 0">Povezuju konkurente, a nas ne</h4>' + tableHtml(["Domena", "Koliko konkurenata", "Konkurenti", "Rank"], P.praznina.slice(0, 40).map(g => [esc(g.d), r(fmt(g.n)), `<span class="u" style="white-space:normal">${esc(Object.keys(g.konkurenti || {}).join(", "))}</span>`, r(fmt(g.rank))]));
+    if ((P.novo_kod_konkurenata || []).length) html += '<h4 style="margin:8px 0 0">Nove poveznice kod konkurenata (45 dana)</h4>' + tableHtml(["Domena", "Konkurent", "Prvi put", "Rank"], P.novo_kod_konkurenata.slice(0, 30).map(x => [esc(x.d), esc(x.konkurent), hrDate(x.prvi), r(fmt(x.rank))]));
+    return html + `<p class="small muted">${esc(P.sazetak || "")} · ${ago(P.at)}. Domene koje povezuju barem dva konkurenta same postaju kandidati za suradnju (izvor „dataforseo”). Mjerilo napretka i dalje su poveznice koje vidi Google.</p>`;
+  },
+  spominjanja(T) {
+    const M = T.spominjanja, h = trzHead("spominjanja", "Spominjanja <em>na webu</em>", M ? "„" + esc(M.naziv || "") + "”" : "");
+    if (!M) return h + trzEmpty("spominjanja", "Ovdje će biti stranice koje spominju Optiku Ljiljana i ima li na njima poveznice na nas. Spominjanje bez poveznice je najlakša molba za poveznicu.");
+    return h + tableHtml(["Stranica", "Naslov", "Datum", "Poveznica"], (M.stavke || []).slice(0, 60).map(x => [`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.d)}</a><span class="u">${esc(path(x.url))}</span>`, `${esc(x.naslov || "")}<span class="u" style="white-space:normal">${esc(x.odlomak || "")}</span>`, x.datum ? hrDate(x.datum) : "–", !x.veza ? '<span class="muted">nije provjereno</span>' : x.veza.ima ? (x.veza.nofollow ? pill("info", "nofollow") : pill("good", "ima")) : pill("warn", "nema poveznice")])) + `<p class="small muted">${esc(M.sazetak || "")} · ${ago(M.at)}.</p>`;
+  }
+};
+
 /* ---------- 04 konkurencija ---------- */
 /* kretanje konkurenata iz naših mjerenja pozicija (top 20 po riječi; računa server nakon svakog mjerenja) */
 function renderKretanje() {
@@ -2441,7 +2614,7 @@ async function loadTrends() {
   /* prvo arhiva (besplatno, svježa do 45 dana), Ahrefs samo za ono čega nema i dok je pretplata aktivna */
   const run = async (list, country, key) => {
     const rows = []; S.trends[key] = "load"; renderTrends();
-    const fromArch = kw => { const h = S.arch.hist.get(country + "|" + kw); return h && (ahOff() || Date.now() - h.at < 45 * DAY) ? { keyword: kw, series: h.s.slice(-60).map(([d, v]) => ({ date: d, volume: v })), at: h.at } : null; };
+    const fromArch = kw => { const g = HOSTED && country === "hr" ? dfsSeries(kw) : null; if (g && g.series.length >= 3) return g; const h = S.arch.hist.get(country + "|" + kw); return h && (ahOff() || Date.now() - h.at < 45 * DAY) ? { keyword: kw, series: h.s.slice(-60).map(([d, v]) => ({ date: d, volume: v })), at: h.at } : null; };
     const need = [];
     list.forEach(kw => { const a = fromArch(kw); if (a) rows.push(a); else need.push(kw); });
     S.trends[key] = [...rows]; renderTrends();

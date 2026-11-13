@@ -1291,6 +1291,171 @@ ok( '2026-01' === $cs['mjeseci'][1]['mjesec'] && 4.0 === $cs['mjeseci'][1]['usd'
 OLR_Settings::update( array( 'ai_model' => 'claude-sonnet-5-5', 'ai_daily_limit' => 150 ) );
 delete_option( 'olr_ai_usage' );
 
+// 18) Tržište (2.5.0): DataForSEO kao glavni izvor uz Search Console (karta, profili, recenzije, obujam, Labs, poveznice, spominjanja, Lighthouse, AI).
+delete_option( OLR_Trziste::JOBS );
+delete_option( OLR_Trziste::QUEUE );
+delete_option( 'olr_dfs_cost' );
+foreach ( array_keys( OLR_Trziste::MODULI ) as $tm ) {
+	OLR_Store::delete( 'trziste', $tm );
+}
+$trz_run = static function ( $max = 40 ) {
+	for ( $i = 0; $i < $max; $i++ ) {
+		$p = OLR_Trziste::step( 60 );
+		if ( ! $p['u_tijeku'] ) {
+			return $i + 1;
+		}
+	}
+	return $max;
+};
+$tst = OLR_Trziste::modules_state();
+$rq  = OLR_Trziste::request( 'sve' );
+ok( 9 === count( $tst ) && 0 === count( array_filter( wp_list_pluck( $tst, 'ukljuceno' ) ) ) && is_wp_error( $rq ) && 'olr_trziste_iskljuceno' === $rq->get_error_code(), 'tržište: moduli su zadano isključeni; „pokreni uključene” bez uključenih ne pokreće ništa' );
+$est = OLR_Trziste::estimate_month( false );
+ok( $est > 0.3 && $est < 5 && 0.0 === OLR_Trziste::estimate_month( true ) && 0.0048 === OLR_Trziste::estimate( 'lokalno' ), 'tržište: procjena troška po modulu i mjesečno (svi moduli između 0,30 i 5 $)' );
+$os = new WP_REST_Request( 'POST', '/ol-radar/v1/osvjezi' );
+$os->set_param( 'dio', 'trziste' );
+$os->set_param( 'modul', 'lokalno' );
+$or = rest_do_request( $os );
+ok( 400 === $or->get_status() && 'olr_potvrda' === $or->get_data()['code'] && ! get_option( OLR_Trziste::JOBS ), 'tržište: pokretanje iz ploče traži potvrdu troška' );
+OLR_Settings::update( array( 'dfs_limit' => 0.5 ) );
+update_option( 'olr_dfs_cost', array( gmdate( 'Y-m' ) => 0.499 ) );
+$rq = OLR_Trziste::request( 'lokalno' );
+ok( is_wp_error( $rq ) && 'olr_trziste_limit' === $rq->get_error_code(), 'tržište: mjesečni limit ne dopušta novi posao' );
+update_option( 'olr_dfs_cost', array() );
+OLR_Settings::update( array( 'dfs_limit' => 5 ) );
+$on = array();
+foreach ( array_keys( OLR_Trziste::MODULI ) as $tm ) {
+	$on[ 'dfs_' . $tm ] = true;
+}
+OLR_Settings::update( $on );
+update_option( 'olr_test_trziste_calls', array() );
+
+// Karta: zadaci u standardni red; jedan rezultat stiže tek u drugom prolazu.
+$os->set_param( 'potvrda', 'da' );
+$or  = rest_do_request( $os )->get_data();
+$cl  = get_option( 'olr_test_trziste_calls' );
+$q1  = count( get_option( OLR_Trziste::QUEUE ) );
+$mp1 = get_option( 'olr_test_trz_maps_last' );
+ok( true === $or['ok'] && array( 'lokalno' ) === $or['rezultat']['pokrenuto']['moduli'] && 8 === count( preg_grep( '#^POST serp/google/maps/task_post$#', $cl ) ) && 8 === $q1 && 'Zagreb,City of Zagreb,Croatia' === $mp1['location_name'] && 'mobile' === $mp1['device'], 'tržište: karta šalje 8 lokalnih upita u standardni red; prvi put za Zagreb (naše mjesto još nije poznato)' );
+$trz_run();
+$lok = OLR_Store::data( 'trziste', 'lokalno' );
+$by  = array();
+foreach ( $lok['rijeci'] as $x ) {
+	$by[ $x['rijec'] ] = $x;
+}
+ok( 8 === count( $lok['rijeci'] ) && 2 === $by['optika sesvete']['nasa'] && 5 === $by['optičar sesvete']['nasa'] && null === $by['kontrola vida sesvete']['nasa'] && 'Optika Dado Sesvete' === $by['optika sesvete']['top'][0]['naziv'] && 210 === $by['optika sesvete']['top'][0]['glasova'] && false === $by['optika sesvete']['top'][4]['preuzet'], 'tržište: karta (naše mjesto, tko je ispred, ocjene, broj recenzija; oglas se preskače)' );
+ok( 'gotovo' === OLR_Trziste::jobs()['lokalno']['stanje'] && OLR_Trziste::month_spent() > 0.0047 && false !== strpos( OLR_Settings::status()['trziste_lokalno']['msg'], 'na karti smo za 2, u prva 3 za 1' ), 'tržište: posao završen, trošak u mjesečnom zbroju i stanju izvora' );
+
+// Profili: naš po oznaci s karte, konkurenti s karte; recenzije za nas i najjače.
+OLR_Trziste::request( 'profili' );
+$trz_run();
+$pr  = OLR_Store::data( 'trziste', 'profili' );
+$plg = get_option( 'olr_test_trz_profil_log' );
+ok( 5 === count( $pr['profili'] ) && ! empty( $pr['profili'][0]['nas'] ) && 4.9 === $pr['profili'][0]['ocjena'] && 88 === $pr['profili'][0]['glasova'] && 45.8301 === $pr['profili'][0]['lat'] && 'cid:999' === $plg[0]['keyword'] && 2191 === $plg[0]['location_code'] && 30 === $pr['profili'][0]['teme']['ljubazni'], 'tržište: Google profili (naš po oznaci s karte, četiri konkurenta s karte, ocjena, recenzije, mjesto, teme)' );
+OLR_Trziste::request( 'recenzije' );
+$trz_run();
+$rv = OLR_Store::data( 'trziste', 'recenzije' );
+ok( 5 === count( $rv['tvrtke'] ) && ! empty( $rv['tvrtke'][0]['nas'] ) && 2 === $rv['bez_odgovora'] && 4.33 === $rv['tvrtke'][0]['nedavno'] && ! isset( $rv['tvrtke'][0]['stavke'][0]['ime'] ), 'tržište: recenzije (naše bez odgovora, prosjek zadnjih; imena recenzenata se ne spremaju)' );
+OLR_Store::delete( 'trziste', 'lokalno' );
+OLR_Trziste::request( 'lokalno' );
+$trz_run();
+$mp2 = get_option( 'olr_test_trz_maps_last' );
+ok( '45.830100,16.110200,14z' === $mp2['location_coordinate'] && ! isset( $mp2['location_name'] ), 'tržište: kad je naš profil poznat, karta se pretražuje s našeg mjesta' );
+
+// Obujam iz Google Adsa i ideje.
+OLR_Trziste::request( 'volumen' );
+$trz_run();
+$vo  = OLR_Store::data( 'trziste', 'volumen' );
+$ads = get_option( 'olr_test_trz_ads_last' );
+$vk  = wp_list_pluck( $vo['rijeci'], 'k' );
+ok( count( $vo['rijeci'] ) >= 20 && in_array( 'cijena progresivnih naočala', $vk, true ) && in_array( 'kontrola vida sesvete', $vk, true ) && in_array( 'mrena na oku simptomi', $vk, true ) && 2191 === $ads['location_code'] && 'hr' === $ads['language_code'] && gmdate( 'Y-m-01', strtotime( '-47 months' ) ) === $ads['date_from'] && 3 === count( $vo['rijeci'][0]['m'] ) && '2025-10' === $vo['rijeci'][0]['m'][0][0], 'tržište: obujam pretraga (ciljane, lokalne i upiti iz Search Consolea; Hrvatska, 4 godine mjesečno)' );
+ok( in_array( 'multifokalne leće', wp_list_pluck( $vo['ideje'], 'k' ), true ) && ! in_array( 'progresivne naočale', wp_list_pluck( $vo['ideje'], 'k' ), true ) && OLR_Trziste::ads_ok( 'progresivne naočale' ) && ! OLR_Trziste::ads_ok( 'naočale 👓' ), 'tržište: nove ideje bez riječi koje već pratimo; znakovi koje Google Ads ne prima se ne šalju' );
+
+// DataForSEO Labs: za što rangiraju konkurenti, a mi ne.
+OLR_Trziste::request( 'kljucne' );
+$trz_run();
+$kl  = OLR_Store::data( 'trziste', 'kljucne' );
+$gap = wp_list_pluck( $kl['praznine'], 'k' );
+$lb  = get_option( 'olr_test_trz_labs_last' );
+ok( count( $kl['domene'] ) === 1 + count( OLR_Trziste::rivals() ) && 3 === count( $kl['nase'] ) && in_array( 'kontaktne leće', $gap, true ) && in_array( 'naočale za noćnu vožnju', $gap, true ) && ! in_array( 'progresivne naočale', $gap, true ) && ! in_array( 'optika anda', $gap, true ) && array( 'ranked_serp_element.serp_item.rank_group', '<=', 20 ) === $lb['filters'], 'tržište: Labs (vidljivost domena, naše riječi, praznine bez naših i bez imena konkurenata)' );
+update_option( 'olr_test_labs_bez_hr', 1 );
+update_option( 'olr_test_trziste_calls', array() );
+OLR_Trziste::request( 'kljucne' );
+$trz_run();
+$cl = get_option( 'olr_test_trziste_calls' );
+ok( false !== strpos( OLR_Trziste::jobs()['kljucne']['poruka'], 'nema podatke za Hrvatsku' ) && 1 === count( $cl ) && OLR_Store::data( 'trziste', 'kljucne' )['praznine'] === $kl['praznine'], 'tržište: bez Labs podataka za Hrvatsku nema plaćenih poziva, stari podaci ostaju' );
+delete_option( 'olr_test_labs_bez_hr' );
+
+// Poveznice: rank, naše domene, praznina u poveznicama (u Suradnje) i novo kod konkurenata.
+OLR_Trziste::request( 'poveznice' );
+$trz_run();
+$pv  = OLR_Store::data( 'trziste', 'poveznice' );
+$bl  = get_option( 'olr_test_trz_bl_last' );
+$cand = OLR_Store::data( OLR_Suradnje::COLL, OLR_Suradnje::id( 'portal-zajednicki.hr' ) );
+ok( count( $pv['domene'] ) === 1 + count( OLR_Trziste::rivals() ) && 1 === $pv['nase_cistih'] && array( 'portal-zajednicki.hr' ) === wp_list_pluck( $pv['praznina'], 'd' ) && array( 'optikaljiljana.hr' ) === $bl['exclude_targets'] && 'partial' === $bl['intersection_mode'], 'tržište: poveznice (rank, domene bez spama, praznina: barem dva konkurenta, bez prodavača i spama)' );
+ok( $cand && 'dataforseo' === $cand['izvor'] && 2 === count( $cand['konkurenti'] ) && in_array( 'novi-portal.hr', wp_list_pluck( $pv['novo_kod_konkurenata'], 'd' ), true ) && ! in_array( 'stari-portal.hr', wp_list_pluck( $pv['novo_kod_konkurenata'], 'd' ), true ), 'tržište: domena iz praznine postaje kandidat u Suradnjama; nove poveznice konkurenata (zadnjih 45 dana)' );
+
+// Spominjanja: gdje se spominjemo i ima li poveznice (provjera besplatno, s weba).
+OLR_Trziste::request( 'spominjanja' );
+$trz_run();
+$sp = OLR_Store::data( 'trziste', 'spominjanja' );
+$ca = get_option( 'olr_test_trz_ca_last' );
+$sv = array();
+foreach ( $sp['stavke'] as $x ) {
+	$sv[ $x['url'] ] = $x['veza'];
+}
+ok( 2 === count( $sp['stavke'] ) && true === $sv['https://portal-test.hr/clanak/']['ima'] && false === $sv['https://portal-test.hr/vijest/']['ima'] && 1 === $sp['bez_poveznice'] && 'as_is' === $ca['search_mode'] && 'Optika Ljiljana' === $ca['keyword'], 'tržište: spominjanja (bez našeg weba; provjera poveznice na stranici)' );
+
+// Lighthouse na mobitelu.
+OLR_Trziste::request( 'brzina' );
+$trz_run();
+$bz = OLR_Store::data( 'trziste', 'brzina' );
+ok( 2 === count( $bz['stranice'] ) && 1 === $bz['sporih'] && 42 === $bz['stranice'][0]['ocjena'] && 5.2 === $bz['stranice'][0]['lcp'] && 'https://www.optikaljiljana.hr/' === $bz['stranice'][1]['url'], 'tržište: brzina (Lighthouse, mobitel; spora stranica prva; adresa našeg weba)' );
+
+// AI asistenti: jedan odgovor po prolazu, model po platformi, ponovni pokušaj bez web pretrage.
+delete_option( 'olr_test_trz_ai' );
+OLR_Trziste::request( 'ai' );
+$n  = $trz_run( 60 );
+$ai = OLR_Store::data( 'trziste', 'ai' );
+$al = get_option( 'olr_test_trz_ai' );
+$pl = array();
+foreach ( $ai['platforme'] as $x ) {
+	$pl[ $x['platforma'] ] = $x;
+}
+$gem = array_values( array_filter( $al, static function ( $x ) { return 'gemini' === $x['platforma']; } ) );
+$gpt = array_values( array_filter( $al, static function ( $x ) { return 'chat_gpt' === $x['platforma']; } ) );
+$ppl = array_values( array_filter( $al, static function ( $x ) { return 'perplexity' === $x['platforma']; } ) );
+ok( 15 === count( $ai['odgovori'] ) && $n >= 15 && 5 === $pl['chat_gpt']['spominje'] && 5 === $pl['chat_gpt']['citira'] && 0 === $pl['gemini']['spominje'] && isset( $ai['konkurenti']['Optika Dado Sesvete'], $ai['konkurenti']['Kristo optika'] ) && ! isset( $ai['konkurenti']['optika-dado.hr'] ), 'tržište: AI asistenti (spominju li nas, citiraju li web, koje konkurente preporučuju)' );
+ok( 'gpt-4.1-mini' === $gpt[0]['tijelo']['model_name'] && true === $gpt[0]['tijelo']['web_search'] && 'HR' === $gpt[0]['tijelo']['web_search_country_iso_code'] && 'sonar' === $ppl[0]['tijelo']['model_name'] && ! isset( $ppl[0]['tijelo']['web_search'] ) && 'gemini-2.5-flash' === $gem[0]['tijelo']['model_name'] && isset( $gem[0]['tijelo']['web_search'] ) && ! isset( $gem[1]['tijelo']['web_search'] ) && 20 === count( $al ), 'tržište: AI modeli po platformi; Gemini ponovno bez web pretrage kad je odbije' );
+
+// Raspored, MCP i REST.
+$cost = OLR_Trziste::month_spent();
+$jobs = OLR_Trziste::jobs();
+$jobs['lokalno']['zadnje_ok'] = time() - 8 * DAY_IN_SECONDS;
+$jobs['lokalno']['pokusaj']   = time() - 8 * DAY_IN_SECONDS;
+$jobs['brzina']['zadnje_ok']  = time() - 20 * DAY_IN_SECONDS; // mjesečni: još nije na redu
+$jobs['brzina']['pokusaj']    = time() - 20 * DAY_IN_SECONDS;
+update_option( OLR_Trziste::JOBS, $jobs );
+OLR_Trziste::tick( 5 );
+$jobs = OLR_Trziste::jobs();
+ok( 'auto' === $jobs['lokalno']['nacin'] && in_array( $jobs['lokalno']['stanje'], array( 'radi', 'rezultati' ), true ) && 'gotovo' === $jobs['profili']['stanje'] && 'gotovo' === $jobs['brzina']['stanje'] && $cost > 0.3 && $cost < 1.5, 'tržište: tjedni raspored pokreće modul kojem je prošlo 7 dana; ostali čekaju svoj red' );
+$trz_run();
+$pd = rest_do_request( new WP_REST_Request( 'GET', '/ol-radar/v1/podaci' ) )->get_data();
+ok( isset( $pd['trziste']['moduli']['ai'], $pd['trziste']['lokalno']['rijeci'], $pd['trziste']['kljucne']['praznine'] ) && isset( $pd['stanje']['trziste']['trosak']['limit'] ) && 5.0 === (float) $pd['stanje']['trziste']['trosak']['limit'], 'rest: podaci za ploču imaju Tržište i trošak s limitom' );
+if ( $reader ) {
+	wp_set_current_user( $reader[0]->ID );
+	$mk = wp_get_ability( 'ol-radar/radar-trziste' )->execute( array( 'limit' => 2 ) );
+	$m1 = wp_get_ability( 'ol-radar/radar-trziste' )->execute( array( 'dio' => 'profili' ) );
+	$ms = wp_get_ability( 'ol-radar/radar-stanje' )->execute( array() );
+	ok( 2 >= count( $mk['kljucne']['praznine'] ) && isset( $mk['napomena'], $mk['moduli']['brzina'] ) && 5 === count( $m1['profili']['profili'] ) && ! isset( $m1['lokalno'] ) && isset( $ms['stanje']['trziste']['moduli']['lokalno']['zadnje'] ), 'mcp: radar-trziste (svi moduli ili jedan, skraćeni popisi) i stanje Tržišta u radar-stanje' );
+	wp_set_current_user( $admin[0]->ID );
+}
+$off = array();
+foreach ( array_keys( OLR_Trziste::MODULI ) as $tm ) {
+	$off[ 'dfs_' . $tm ] = false;
+}
+OLR_Settings::update( $off );
+
 // Vrati osnovne Google podatke (ostali testovi računaju s njima); prijedlozi ostaju za test ploče.
 delete_option( 'olr_test_gsc_extra' );
 OLR_GSC::collect();

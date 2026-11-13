@@ -76,6 +76,23 @@ class OLR_Settings {
 			'suradnje_dr'     => false,
 			'suradnje_fokus'  => '',
 			'konkurenti'      => 'jojo-optika.hr, optika-anda.com, adrialece.hr, livision-optika.com, optika-dado.hr',
+			// Tržište (DataForSEO, od 2.5.0): svaki modul se plaća po korištenju, pa je zadano isključen.
+			'dfs_lokalno'     => false,
+			'dfs_profili'     => false,
+			'dfs_recenzije'   => false,
+			'dfs_volumen'     => false,
+			'dfs_kljucne'     => false,
+			'dfs_poveznice'   => false,
+			'dfs_spominjanja' => false,
+			'dfs_brzina'      => false,
+			'dfs_ai'          => false,
+			'dfs_lokalne_rijeci' => "optika sesvete\noptičar sesvete\nočna optika sesvete\npregled vida sesvete\nkontrola vida sesvete\nprogresivne naočale sesvete\nkontaktne leće sesvete\noptika zagreb istok",
+			'dfs_profil'      => 'Optika Ljiljana Sesvete',
+			'dfs_brend_naziv' => 'Optika Ljiljana',
+			'dfs_ai_pitanja'  => "Koja je dobra optika u Sesvetama?\nGdje u Sesvetama mogu napraviti pregled vida?\nGdje kupiti progresivne naočale u istočnom dijelu Zagreba?\nKoja optika u Zagrebu ima stručan pregled vida za djecu i kontrolu kratkovidnosti?\nPreporuči optiku u Sesvetama ili Dubravi.",
+			'dfs_ai_platforme' => 'chat_gpt, gemini, perplexity',
+			// Mjesečni limit DataForSEO troška (pozicije i Tržište zajedno), u USD.
+			'dfs_limit'       => 5,
 		);
 	}
 
