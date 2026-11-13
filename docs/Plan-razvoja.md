@@ -2,7 +2,7 @@
 
 Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
 
-## Već radi (dodatak 2.4.1; na webu je 2.4.0 dok Ivan ne učita novu verziju)
+## Već radi (dodatak 2.4.1, na webu od 13. 11. 2026.)
 - Google Search Console na serveru (servisni račun), pozicije (DataForSEO), crawl i audit weba, model konkurencije, Claude u ploči.
 - **Dnevni prijedlozi izmjena:** server sam analizira i priprema gotove prijedloge (modul Prijedlozi, MCP `ol-radar/radar-prijedlozi`).
 - **Mjerenje učinka provedenih izmjena** (2.2.0): za svaki prijedlog označen „provedeno” Radar sam usporedi Search Console prije i poslije (7, 14 i 28 dana), uz trend cijelog weba.
@@ -11,7 +11,7 @@ Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - **Kretanje konkurenata** (2.2.0): tko raste, tko pada, tko je ušao u top 10 i tko nas je pretekao, iz prvih 20 rezultata svakog mjerenja. Ima smisla tek uz redovito mjerenje (tjedno, oko 0,07 $ po mjerenju).
 - **Društvene mreže na hostingu** (2.3.0): Instagram i Facebook (Meta Graph API), YouTube (Data API v3), TikTok (Display API). Vlastite objave s brojkama, što prolazi prema medijanu vlastite mreže, uzori (YouTube po temama, navedeni Instagram profili) i tjedne Claudeove preporuke. Radi kad Ivan upiše pristupne podatke u Postavke.
 - **Suradnje i poveznice** (2.4.0; u 2.4.1 završna arhiva i popravak): kandidati za suradnju (74 domene iz završne arhive Ahrefsa s ocjenom izvedivosti i primjerom kako je poveznica nastala, tvrtke koje Claude nađe web pretragom, ručno dodani), tjedni Claudeovi prijedlozi s nacrtom poruke i javnim kontaktom, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata s mjesečnom poviješću od siječnja 2025. Web pretraga i tjedni DR su zadano isključeni.
-  - Popravak u 2.4.1: prvi stvarni prolaz u 2.4.0 bio je prekinut zbog duljine, jer Opus 5.5 uvijek razmišlja i to troši isti okvir tokena kao odgovor. Sada je svaki prijedlog zaseban poziv.
+  - Popravak u 2.4.1: prvi stvarni prolaz u 2.4.0 bio je prekinut zbog duljine, jer Opus 5.5 uvijek razmišlja i to troši isti okvir tokena kao odgovor. Sada je svaki prijedlog zaseban poziv. Potvrđeno na webu 13. 11.: 3 prijedloga u 49 sekundi, oko 0,04 $ po prijedlogu.
 - **Claude trošak** (2.4.0): u Postavkama, po danu i mjesecu, iz stvarnih tokena svakog poziva.
 
 ## Odluka: GSC je glavni izvor, Ahrefs samo arhiva (Ivan, 12. 11. 2026.)
@@ -40,6 +40,7 @@ Stanje 13. 11. 2026. Popis je složen po tome koliko koristi lokalnoj optici, a 
 - **Praćenje pratitelja kroz vrijeme** (dnevna snimka po mreži) i **najbolje vrijeme objave** kad se skupi dovoljno objava.
 - **TikTok u produkcijskom načinu:** Sandbox je dovoljan za vlastiti račun; produkcija traži TikTokov pregled aplikacije i potvrdu vlasništva nad adresama.
 - **Poveznice konkurenata uživo:** modul Suradnje polazi od završne arhive Ahrefsa (13. 11. 2026.). DataForSEO je 1. 7. 2026. ukinuo mjesečni minimum od 100 $ za Backlinks API, pa je moguć mjesečni snimak domena koje povezuju 3–5 konkurenata, iz kojeg bi novi kandidati stizali sami. Cijenu po upitu treba provjeriti prije uključivanja.
+- **Stranica Kontakt kandidata (greška, ide u sljedeću verziju):** traženje kontakt stranice hvata i poveznice na „kontaktne leće”. Treba prihvaćati samo kontakt, contact, impressum i o-nama.
 - **Manje razmišljanja, manji trošak (Claude API):** parametar `output_config.effort` (`low`) smanjio bi broj tokena po prijedlogu. Prije uključivanja treba provjeriti da ga podržavaju sva tri modela koja se mogu odabrati u Postavkama i usporediti kvalitetu prijedloga.
 - **Prikaz završne arhive u ploči:** naše poveznice bez spama, kretanje broja domena koje nas povezuju i ključne riječi strukovnih portala zasad su samo u datotekama arhive i u bazi (`arch_misc/zavrsna-2026-11-13`); panel u modulu Arhiva bi ih pokazao.
 - **Spominjanja u AI chatovima (LLM Mentions):** dostupno bez mjesečnog minimuma, ali baza za ChatGPT pri pokretanju pokriva samo SAD. Za hrvatsko tržište zasad mala korist; pratimo.

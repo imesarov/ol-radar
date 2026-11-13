@@ -1,20 +1,21 @@
 # OL Radar – kako Claude koristi alat
 
-Stanje 13. 11. 2026. (oko 1:00, nakon završne arhive Ahrefsa):
+Stanje 13. 11. 2026. (1:10, nakon učitavanja 2.4.1):
 - Radar na claude.ai: v3.1.
-- WordPress dodatak (Radar na hostingu): **na webu je 2.4.0** (Ivan ju je učitao; provjereno 13. 11. oko 0:45 preko `ol-radar/radar-stanje`). Spremljena su tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
-- Što na webu radi sa stvarnim podacima (13. 11. oko 0:45):
-  - Google podaci stižu (do 9. 11.; zadnjih 7 dana 139 klikova i 5.302 prikazivanja), pozicije su izmjerene 12. 11. (12 od 27 riječi u prvih 40; 0,0648 $), indeksiranost se provjerava (12 od 40 stranica, sve u indeksu).
+- WordPress dodatak (Radar na hostingu): **na webu je 2.4.1** (Ivan ju je učitao 13. 11. oko 1:00; provjereno preko `ol-radar/radar-stanje`). Spremljena su tri ključa (Google, DataForSEO, Anthropic), `nadogradnja` je `null`; model u ploči je Opus 5.5.
+- Što na webu radi sa stvarnim podacima (13. 11. u 1:10):
+  - Google podaci stižu (do 9. 11.; zadnjih 7 dana 139 klikova i 5.302 prikazivanja), pozicije su izmjerene 12. 11. (12 od 27 riječi u prvih 40; 0,0648 $), indeksiranost se provjerava (16 od 40 stranica, sve u indeksu).
   - Prijedlozi izmjena: 10 ukupno, 5 otvorenih, 0 čeka tekst; 2 provedena se mjere.
-  - **Suradnje (2.4.0): 20 kandidata, 0 prijedloga.** Prvi stvarni prolaz nije uspio: „Claudeov odgovor je prekinut zbog duljine”. Uzrok i popravak su u 2.4.1 (vidi niže). Dok je na webu 2.4.0, neuspjeli pokušaj se ponavlja jednom dnevno i svaki put potroši oko 0,12 $.
-  - Claude trošak: studeni 0,76 $ (procjena, jer dio poziva potječe iz verzija prije 2.4.0), 13. 11. do 0:45 0,30 $ u 14 poziva.
+  - **Suradnje: 74 kandidata, 3 prijedloga.** Popravak iz 2.4.1 radi na stvarnom servisu: Ivanov klik „Napiši prijedloge” napisao je 3 prijedloga u 49 sekundi (brzipregled.hr, dioptrija.hr, centarzdravlja.hr), bez prekida; čeka ih još 71. Zadnji poziv: 2.032 ulazna i 1.366 izlaznih tokena, od toga 559 razmišljanje, 0,0354 $. Računaj oko 0,04 $ po prijedlogu.
+  - Nadogradnja s 2.4.0 je spojila podatke kako treba: kandidati iz starog snimka dobili su izvedivost, način i primjer; povijest DR-a ima 25 točaka (mjesečno od siječnja 2025., zatim 12. i 13. 11.).
+  - Claude trošak: studeni 0,84 $ (procjena, jer dio poziva potječe iz verzija prije 2.4.0).
   - Društvene mreže: pristupni podaci još nisu upisani (`kljucevi.meta`, `youtube`, `tiktok` su `false`).
   - **Tjedno mjerenje pozicija je uključeno** (`stanje.dfs.tjedno` je `true`), s naknadno učitanim AI pregledima; procjena je 0,081 $ po mjerenju, oko 0,35 $ mjesečno. Kretanje konkurenata ima što usporediti nakon drugog mjerenja.
-- **Verzija 2.4.1 je spremna i čeka da je Ivan učita** (preko 2.4.0; Dodaci → Dodaj novi → Učitaj dodatak → Zamijeni postojeći):
-  - **Popravak prijedloga suradnje.** Na Opusu 5.5 razmišljanje je uvijek uključeno i troši isti `max_tokens` kao i odgovor, pa pet prijedloga u jednom pozivu nije stalo u 6000 tokena. Od 2.4.1 svaki prijedlog piše zaseban poziv (kao dnevni prijedlozi izmjena, koji na webu rade) i sprema se čim stigne. Web pretraga vraća samo kandidate; prijedlog za njih piše isti zasebni poziv. Preporuke za društvene mreže dobile su širi okvir odgovora iz istog razloga.
+- **Poznata greška za sljedeću verziju:** traženje stranice Kontakt na webu kandidata hvata i poveznice na „kontaktne leće” (dioptrija.hr je dobila `/kontaktne-lece` kao kontakt stranicu). Popravak: poveznica mora biti kontakt, contact, impressum ili o-nama, a ne riječ koja počinje s „kontaktn”.
+- **Što je 2.4.1 donijela:**
+  - **Popravak prijedloga suradnje.** Na Opusu 5.5 razmišljanje je uvijek uključeno i troši isti `max_tokens` kao i odgovor, pa pet prijedloga u jednom pozivu nije stalo u 6000 tokena (prvi prolaz u 2.4.0 je pao). Od 2.4.1 svaki prijedlog piše zaseban poziv (kao dnevni prijedlozi izmjena) i sprema se čim stigne. Web pretraga vraća samo kandidate; prijedlog za njih piše isti zasebni poziv. Preporuke za društvene mreže dobile su širi okvir odgovora iz istog razloga.
   - **Završna arhiva Ahrefsa u modulu Suradnje:** 74 kandidata umjesto 20, s ocjenom izvedivosti, opisom kako su drugi došli do poveznice i primjerom stranice; DR mjesečno od siječnja 2025. (vidi „Završna arhiva Ahrefsa”).
-- Nakon učitavanja provjeri `ol-radar/radar-stanje`: `stanje.verzija` 2.4.1, tri ključa `true`, `nadogradnja` `null`, `suradnje.kandidata` 74, `stanje.izvori.suradnje.ok` `true` nakon prvog prolaza (satni prolaz ili gumb „Napiši prijedloge”), `s_prijedlogom` veći od 0. U `stanje.izvori.ai_poziv` sada piše i koliko je izlaznih tokena otišlo na razmišljanje.
-- **Provjereno na stvarnim servisima:** Google, DataForSEO, Anthropic (dnevni prijedlozi). **Nije provjereno:** društvene mreže (2.3.0), prijedlozi suradnje nakon popravka, Anthropicova web pretraga i Ahrefsov javni DR. Prvi stvarni prolaz svakoga treba pogledati (`stanje.izvori.suradnje`, `suradnje_trazi`, `suradnje_dr`, `mreze_*`).
+- **Provjereno na stvarnim servisima:** Google, DataForSEO, Anthropic (dnevni prijedlozi i prijedlozi suradnje). **Nije provjereno:** društvene mreže (2.3.0), Anthropicova web pretraga i Ahrefsov javni DR. Prvi stvarni prolaz svakoga treba pogledati (`stanje.izvori.suradnje_trazi`, `suradnje_dr`, `mreze_*`). Nije potvrđeno ni je li Ivan uvezao dopunu arhive (`ol-radar-ahrefs-dopuna-2026-11-13.json`) i veliku arhivu od 11. 11.
 - Google servisni račun: `optika-ljiljana-seo-radar@api-project-88503755280.optikaljiljana.hr.iam.gserviceaccount.com` (12. 11.).
 - DataForSEO: prijava radi (stanje računa 12. 11.: 0,94 $). Mjerenje pokreće samo Ivan (gumb ili tjedna kvačica); Claude ga ne pokreće.
 - OpenSEO tracker radi. Arhiva Ahrefsa je gotova: velika 11. 11., završna 13. 11.
@@ -114,7 +115,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
   - **Kandidati:** završna arhiva Ahrefsa (74 domene, priložena dodatku 2.4.1; u 2.4.0 ih je bilo 20), tvrtke koje Claude nađe web pretragom, ručno dodane. Uz kandidata iz arhive: tko već ima poveznicu s te domene i koliko, izvedivost (1 do 3), kako su drugi došli do poveznice i primjer stranice.
   - **Prijedlog po kandidatu:** zašto, što ponuditi, do 3 koraka, nacrt poruke, kome (uloga). Javni kontakt čita server s weba kandidata; Claude ga ne dobiva i ne izmišlja. Kad su poveznice na toj domeni većinom plaćene, uputa traži besplatan put (stručni komentar, tema za rubriku, lokalna vijest).
   - **Jedan Claudeov poziv po prijedlogu (od 2.4.1).** Redoslijed: ručno dodani i oni iz web pretrage, zatim po izvedivosti, broju tvrtki koje već imaju poveznicu i DR-u. Satni prolaz piše do `suradnje_max` (5) prijedloga tjedno; klik „Napiši prijedloge” obično dva do tri, najviše tri klika dnevno. Kandidat s tri neuspjela pokušaja više ne ide Claudeu.
-  - **Raspored i trošak:** prijedlozi jednom tjedno (postavka `suradnje_auto`, uključeno); po prijedlogu treba računati na nekoliko centi (točan iznos je u „Claude trošak”). Traženje novih tvrtki web pretragom tjedno samo uz kvačicu (`suradnje_trazi`, isključeno; Anthropic naplaćuje 0,01 $ po upitu uz tokene), na gumb uvijek uz potvrdu troška. DR tjedno samo uz kvačicu (`suradnje_dr`, isključeno; besplatno), na gumb uvijek.
+  - **Raspored i trošak:** prijedlozi jednom tjedno (postavka `suradnje_auto`, uključeno); po prijedlogu oko 0,04 $ (izmjereno 13. 11. na Opusu 5.5; točan iznos je u „Claude trošak”). Traženje novih tvrtki web pretragom tjedno samo uz kvačicu (`suradnje_trazi`, isključeno; Anthropic naplaćuje 0,01 $ po upitu uz tokene), na gumb uvijek uz potvrdu troška. DR tjedno samo uz kvačicu (`suradnje_dr`, isključeno; besplatno), na gumb uvijek.
   - **Mjerilo napretka:** poveznice koje vidi Google. Ivan jednom mjesečno u Search Consoleu otvori Veze → Vanjske veze → Izvoz i CSV učita u modulu Suradnje. Domene koje po nazivu izgledaju kao prodavači poveznica samo su označene.
   - **Stanja** vodi Ivan u ploči (novo, kontaktirano, dogovoreno, dobiveno, odbijeno). Uz adresu stranice s poveznicom server provjeri postoji li poveznica i je li nofollow.
   - **Claude preko konektora:** `ol-radar/radar-suradnje` (zadano kandidati s prijedlogom; `stanje`, `svi: true`, `limit`). Kad Ivan pita kome se obratiti ili kako dići DR, kreni odavde. Stanja ne mijenjaš (konektor je samo za čitanje).
@@ -241,7 +242,7 @@ Svaka analiza i svaki prijedlog promjene na optikaljiljana.hr kreće od Radara.
 - **Planirano:** mjesečni SERP snimak top 10 za iste riječi radi konkurenata (oko 135 kredita).
 
 ## WordPress most (dodatak „OL Radar – most za Claudea”, samo čitanje)
-- **Verzija:** na webu 2.4.0. Verzija 2.4.1 čeka da je Ivan učita (Dodaci → Učitaj → Zamijeni postojeći).
+- **Verzija:** na webu 2.4.1 (13. 11. 2026.).
   - Uključuje popravak iz 1.0.1: sadržaj `<script>` i `<style>` prazni se prije parsiranja, pa nestaje lažni „link na preusmjerenje” na naslovnici (JS predložak Journala).
   - Nakon nadogradnje sve stranice same idu na ponovnu obradu. Ubrzanje: `ol-radar/osvjezi-crawl` s `velicina` 25, dok „preostalo” ne bude 0.
 - **Vatrozid hostinga** povremeno vrati 403 na pojedinačni poziv. Ponovi ga jednom; aplikacija to radi sama.
