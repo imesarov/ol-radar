@@ -1,8 +1,8 @@
 # OL Radar – plan razvoja
 
-Stanje 13. 11. 2026. (popodne). Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
+Stanje 13. 11. 2026. (kasno popodne). Popis je složen po tome koliko koristi lokalnoj optici, a ne po tome što je tehnički zanimljivo. Cijene i ograničenja provjereni su na dan pisanja; izvori su na dnu. Ništa s ovog popisa nije uključeno dok Ivan ne kaže.
 
-## Već radi (dodatak 2.4.1 na webu od 13. 11. 2026.; 2.4.2 spremna, čeka učitavanje)
+## Već radi (dodatak 2.4.1 na webu od 13. 11. 2026.; 2.5.0 spremna, čeka učitavanje)
 - Google Search Console na serveru (servisni račun), pozicije (DataForSEO), crawl i audit weba, model konkurencije, Claude u ploči.
 - **Dnevni prijedlozi izmjena:** server sam analizira i priprema gotove prijedloge (modul Prijedlozi, MCP `ol-radar/radar-prijedlozi`).
   - 2.4.2: manje lažnih nalaza. Glavna stranica po klikovima (ne po prikazivanjima), statistička značajnost za pad i nizak CTR, niže očekivanje za lokalne upite, bez konkurentskih upita, bez kanibalizacije kad smo prvi ili su obje stranice u prva tri, bez prijedloga za stranice mijenjane u zadnjih 14 dana. Stari lažni prijedlozi istječu pri prvoj analizi.
@@ -14,10 +14,11 @@ Stanje 13. 11. 2026. (popodne). Popis je složen po tome koliko koristi lokalnoj
 - **Suradnje i poveznice** (2.4.0; u 2.4.1 završna arhiva i popravak): kandidati za suradnju (74 domene iz završne arhive Ahrefsa s ocjenom izvedivosti i primjerom kako je poveznica nastala, tvrtke koje Claude nađe web pretragom, ručno dodani), tjedni Claudeovi prijedlozi s nacrtom poruke i javnim kontaktom, stanja, provjera dobivene poveznice, uvoz veza iz Search Consolea, DR nas i konkurenata s mjesečnom poviješću od siječnja 2025. Web pretraga i tjedni DR su zadano isključeni. U 2.4.2 popravljena web pretraga (Anthropic odbija oznaku države HR) i prepoznavanje stranice Kontakt („kontaktne leće” više nisu kontakt).
   - Popravak u 2.4.1: prvi stvarni prolaz u 2.4.0 bio je prekinut zbog duljine, jer Opus 5.5 uvijek razmišlja i to troši isti okvir tokena kao odgovor. Sada je svaki prijedlog zaseban poziv. Potvrđeno na webu 13. 11.: 3 prijedloga u 49 sekundi, oko 0,04 $ po prijedlogu.
 - **Claude trošak** (2.4.0): u Postavkama, po danu i mjesecu, iz stvarnih tokena svakog poziva.
+- **Tržište preko DataForSEO-a** (2.5.0; Ivan, 13. 11.: „integriraj sve što nam dataforseo može dati”): Google karta za lokalne upite, Google profili i recenzije nas i konkurenata, obujam iz Google Adsa za Hrvatsku (do četiri godine), ključne riječi i vidljivost konkurenata s prazninama (Labs), poveznice nas i konkurenata s prazninom koja puni Suradnje, spominjanja na webu, brzina stranica (Lighthouse) i odgovori AI asistenata. Svaki modul zadano isključen; svi zajedno oko 2 $ mjesečno, uz mjesečni limit (zadano 5 $). MCP `ol-radar/radar-trziste`.
 
-## Odluka: GSC je glavni izvor, Ahrefs samo arhiva (Ivan, 12. 11. 2026.)
+## Odluka: GSC i DataForSEO su glavni izvori, Ahrefs samo arhiva (Ivan, 12. i 13. 11. 2026.)
 - Sve o našem webu u Googleu dolazi iz Search Consolea. Hosting već radi bez Ahrefsa.
-- Što GSC ne daje pokrivaju: DataForSEO mjerenja (pozicije, konkurenti), Keyword Planner (obujam pretraga), ručni izvoz veza iz Search Consolea (poveznice prema nama) i arhiva Ahrefsa (poveznice konkurenata, DR).
+- Što GSC ne daje pokriva DataForSEO (od 2.5.0): pozicije i konkurenti, karta, profili i recenzije, obujam, ključne riječi i poveznice konkurenata, spominjanja, brzina, AI asistenti. Uz to ručni izvoz veza iz Search Consolea (poveznice prema nama) i arhiva Ahrefsa (povijest, DR).
 - **Što iz GSC-a još nije iskorišteno** (besplatno, isti servisni račun; ide na popis ispod):
   - raspodjela po uređaju i državi;
   - vrsta prikaza u rezultatima (`searchAppearance`);
@@ -29,31 +30,34 @@ Stanje 13. 11. 2026. (popodne). Popis je složen po tome koliko koristi lokalnoj
 | # | Što | Zašto baš nama | Trošak | Što treba od Ivana |
 |---|---|---|---|---|
 | 1 | **Rezervacije kao cilj** (GA4 Data API) | Prijedlozi se danas rangiraju po klikovima. S GA4 ih možemo rangirati po rezervacijama termina (`/hvala-na-rezervaciji/`) po ulaznoj stranici. | 0; kvota 200.000 tokena dnevno po svojstvu | dodati servisni račun kao preglednika u GA4 i javiti ID svojstva |
-| 2 | **Brzina i Core Web Vitals** (PageSpeed Insights API) | Tjedna provjera 10 najvažnijih stranica na mobitelu; prijedlog nastaje tek kad se nešto pogorša. | 0; 25.000 upita dnevno uz besplatan API ključ | izraditi API ključ u Google Cloudu (ograničen na PageSpeed Insights) |
-| 3 | **Lokalni rezultati (Google Maps)** | Za optiku je lokalni paket važniji od plavih linkova. Pratimo mjesto u Mapsu za „optika sesvete” i slično te ocjene i broj recenzija konkurenata. | 0,0006 $ po upitu u standardnom redu; 8 riječi tjedno je oko 0,02 $ mjesečno | odobriti trošak |
-| 4 | **Upis odobrenih izmjena jednim klikom** (faza 2 mosta) | „Prihvati” u Prijedlozima bi nakon potvrde sam upisao novi SEO naslov i opis u Rank Math, s dnevnikom i vraćanjem. | 0 | izričita odluka, jer dodatak tada prvi put mijenja web |
-| 5 | **Google Business Profile: analiza i prijedlozi** (Ivan ga želi; ide u sljedeću verziju) | Pozivi, upute i klikovi na web s profila tvrtke, po danu, te upiti kojima nas ljudi nalaze; uz to ocjena, recenzije i objave prema konkurentima, i Claudeovi prijedlozi (objave, odgovori na recenzije, popunjenost profila). | službeni dio 0; javni dio preko DataForSEO-a u centima, cijenu treba potvrditi | zahtjev Googleu za pristup API-ju (ručni pregled, do 14 dana) i OAuth prijava vlasnika profila; OK za trošak javnog dijela |
-| 5a | **GSC do kraja** | Uređaji, države, vrsta prikaza, Discover, stanje sitemapa: sve iz Search Consolea, bez novih ključeva. | 0 | ništa |
+| 2 | **Tržište u dnevnim prijedlozima** | Podaci iz 2.5.0 postaju gotovi prijedlozi: recenzije bez odgovora, pad na karti, spore stranice, praznine s obujmom, AI asistent preporučuje konkurenta. | 0 (podaci se već plaćaju u modulima) | ništa; prvo nekoliko stvarnih prolaza Tržišta |
+| 3 | **Upis odobrenih izmjena jednim klikom** (faza 2 mosta) | „Prihvati” u Prijedlozima bi nakon potvrde sam upisao novi SEO naslov i opis u Rank Math, s dnevnikom i vraćanjem. | 0 | izričita odluka, jer dodatak tada prvi put mijenja web |
+| 4 | **Google Business Profile: službene brojke** (Ivan ga želi) | Pozivi, upute i klikovi na web s profila tvrtke, po danu, te upiti kojima nas ljudi nalaze. Javni dio (ocjena, recenzije, konkurenti na karti) radi od 2.5.0 preko DataForSEO-a. | 0 | zahtjev Googleu za pristup API-ju (ručni pregled, do 14 dana) i OAuth prijava vlasnika profila |
+| 5 | **GSC do kraja** | Uređaji, države, vrsta prikaza, Discover, stanje sitemapa: sve iz Search Consolea, bez novih ključeva. | 0 | ništa |
 | 6 | **Tjedni e-mail sažetak** | Novi prijedlozi i veće promjene stižu u sandučić bez otvaranja ploče. | 0 | odobriti slanje i adresu |
 
 ## Ostalo, kad dođe na red
 - **YouTube zadržavanje publike i izvori prometa** (YouTube Analytics API). Traži OAuth prijavu vlasnika kanala (kao TikTok), ne radi s API ključem. Dalo bi prosječno gledanje i krivulju zadržavanja po videu.
 - **Praćenje pratitelja kroz vrijeme** (dnevna snimka po mreži) i **najbolje vrijeme objave** kad se skupi dovoljno objava.
 - **TikTok u produkcijskom načinu:** Sandbox je dovoljan za vlastiti račun; produkcija traži TikTokov pregled aplikacije i potvrdu vlasništva nad adresama.
-- **Poveznice konkurenata uživo:** modul Suradnje polazi od završne arhive Ahrefsa (13. 11. 2026.). DataForSEO je 1. 7. 2026. ukinuo mjesečni minimum od 100 $ za Backlinks API, pa je moguć mjesečni snimak domena koje povezuju 3–5 konkurenata, iz kojeg bi novi kandidati stizali sami. Cijenu po upitu treba provjeriti prije uključivanja.
 - **Manje razmišljanja, manji trošak (Claude API):** parametar `output_config.effort` (`low`) smanjio bi broj tokena po prijedlogu. Prije uključivanja treba provjeriti da ga podržavaju sva tri modela koja se mogu odabrati u Postavkama i usporediti kvalitetu prijedloga.
 - **Prikaz završne arhive u ploči:** naše poveznice bez spama, kretanje broja domena koje nas povezuju i ključne riječi strukovnih portala zasad su samo u datotekama arhive i u bazi (`arch_misc/zavrsna-2026-11-13`); panel u modulu Arhiva bi ih pokazao.
-- **Spominjanja u AI chatovima (LLM Mentions):** dostupno bez mjesečnog minimuma, ali baza za ChatGPT pri pokretanju pokriva samo SAD. Za hrvatsko tržište zasad mala korist; pratimo.
+- **Spominjanja u AI chatovima (LLM Mentions, baza stvarnih upita):** dostupno bez mjesečnog minimuma, ali baza za ChatGPT pri pokretanju pokriva samo SAD. Za hrvatsko tržište zasad mala korist; pratimo. Izravni odgovori asistenata na naša pitanja rade od 2.5.0 (LLM Responses).
+- **Brzina bez troška:** PageSpeed Insights API (besplatan ključ, 25.000 upita dnevno) mogao bi zamijeniti Lighthouse iz DataForSEO-a ako Ivan izradi ključ.
 - **Google AI Mode:** poseban DataForSEO endpoint (0,0024–0,004 $ po upitu). Ima smisla tek kad AI Mode zaživi u Hrvatskoj.
 - **Novi sadržaj → planer:** gumb „Dodaj u planer” na prijedlozima vrste „Novi sadržaj”.
 - **Provjera strukturiranih podataka** (LocalBusiness/Optician, FAQ) uz podatke iz URL Inspection API-ja o bogatim rezultatima.
-- **Sezonalnost:** mjesečni volumeni iz Keyword Plannera na hostingu (cijenu treba provjeriti).
 
 ## Što namjerno ne radimo
 - Vlastiti indeks poveznica i procjene prometa „odoka” (Ahrefsov model): za lokalnu optiku promašuju, a Search Console daje stvarne brojke.
 - Automatske izmjene weba bez odobrenja.
 
 ## Izvori (provjereno 12. i 13. 11. 2026.)
+- DataForSEO, promjena cijena od 1. 7. 2026. i ukidanje mjesečnog minimuma od 100 $ za Backlinks i LLM Mentions: https://dataforseo.com/update/pricing-update-in-dataforseo-apis
+- DataForSEO Labs, cijena po zahtjevu i retku: https://dataforseo.com/pricing/dataforseo-labs/dataforseo-google-api
+- DataForSEO Google Reviews i Business Data, cijene: https://dataforseo.com/pricing/business-data/google-reviews-api i https://dataforseo.com/pricing/business-data/social-media
+- DataForSEO LLM Responses (ChatGPT, Claude, Gemini, Perplexity; Perplexity samo Live): https://dataforseo.com/pricing/ai-optimization/llm-responses i https://docs.dataforseo.com/v3/ai_optimization-llm_responses-overview/
+- DataForSEO Keyword Planner (Google Ads) API: https://dataforseo.com/keyword-planner-api
 - Anthropic, razmišljanje je na Opusu 5.5 uvijek uključeno, naplaćuje se kao izlaz i ulazi u `max_tokens`; dubinu određuje `effort` (zadano `medium`): https://platform.claude.com/docs/en/build-with-claude/effort i https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5
 - Ahrefs, besplatni javni DR (GET bez ključa; obvezna oznaka „Domain Rating by Ahrefs”): https://docs.ahrefs.com/en/api/reference/public/get-domain-rating-free
 - Anthropic, cjenik modela i web pretrage: https://platform.claude.com/docs/en/about-claude/pricing
